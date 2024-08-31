@@ -1,0 +1,6 @@
+/Generated/**
+!/Generated/.gitkeep
+
+# temp junk
+/Generated*.zip
+/Manual/ImGuiProto2.cs

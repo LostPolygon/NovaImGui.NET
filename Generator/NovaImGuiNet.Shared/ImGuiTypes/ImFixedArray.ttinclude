@@ -1,0 +1,75 @@
+﻿<#@ template language="C#" #>
+<#@ parameter type="System.Int32" name="tupleSize" #>
+<#
+   string typeName = $"ImFixedArray{tupleSize}";
+   string @namespace = "NovaImGuiNet";
+#>
+namespace <#= @namespace #>;
+
+public struct <#= typeName #><T> : IEquatable<<#= typeName #><T>> where T : unmanaged {
+<#
+   for (int index = 1; index <= tupleSize; index++) {
+#>
+    public T Value<#= index #>;
+<#
+   }
+#>
+
+    public <#= typeName #>(<#= String.Join(", ", Enumerable.Range(1, tupleSize).Select(index => $"T value{index}")) #>) {
+<#
+   for (int index = 1; index <= tupleSize; index++) {
+#>
+        Value<#= index #> = value<#= index #>;
+<#
+   }
+#>
+    }
+
+    public bool Equals(<#= typeName #><T> other) {
+        return
+<#
+   for (int index = 1; index <= tupleSize; index++) {
+#>
+            Value<#= index #>.Equals(other.Value<#= index #>)<#= index == tupleSize ? ";" : " &&" #>
+<#
+   }
+#>
+    }
+
+    public override bool Equals(object? obj) {
+        return obj is <#= typeName #><T> other && Equals(other);
+    }
+
+    public override int GetHashCode() {
+        unchecked {
+            int hashCode = Value1.GetHashCode();
+<#
+   for (int index = 2; index <= tupleSize; index++) {
+#>
+            hashCode = (hashCode * 397) ^ Value<#= index #>.GetHashCode();
+<#
+   }
+#>
+            return hashCode;
+        }
+    }
+
+    public static bool operator ==(<#= typeName #><T> left, <#= typeName #><T> right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(<#= typeName #><T> left, <#= typeName #><T> right) {
+        return !left.Equals(right);
+    }
+
+    public override string ToString() {
+        return
+<#
+   for (int index = 1; index <= tupleSize; index++) {
+#>
+            $"{nameof(Value<#= index #>)}: {Value<#= index #>}<#= index == tupleSize ? "\";" : ", \" +" #>
+<#
+   }
+#>
+    }
+}

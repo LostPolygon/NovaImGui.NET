@@ -1,0 +1,3 @@
+﻿<#@ template language="C#" #>
+<# const int tupleSize = 20; #>
+<#@ include file="ImFixedArray.ttinclude" once="true" #><#@ import namespace="System.Linq" #>

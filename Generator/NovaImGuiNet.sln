@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet", "NovaImGuiNet\NovaImGuiNet.csproj", "{0A85BF20-613C-4FF8-8273-ECC589E17054}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet.Generator.CSharp", "NovaImGuiNet.Generator.CSharp\NovaImGuiNet.Generator.CSharp.csproj", "{B4962E43-E1BE-4FA4-B028-BB97E7C746C4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet.Generator.CSharp.Cli", "NovaImGuiNet.Generator.CSharp.Cli\NovaImGuiNet.Generator.CSharp.Cli.csproj", "{696760A9-732E-4747-B4B5-DD6915F260C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet.Generator.Metadata", "NovaImGuiNet.Generator.Metadata\NovaImGuiNet.Generator.Metadata.csproj", "{04FA9AB2-4ACC-464D-BEA5-5C25BFD0FCD1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet.Generator.Shared", "NovaImGuiNet.Generator.Shared\NovaImGuiNet.Generator.Shared.csproj", "{5717277A-811E-4B71-AB07-2725ED824B45}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet.Shared", "NovaImGuiNet.Shared\NovaImGuiNet.Shared.csproj", "{05F2C516-D6F3-44F9-AFEF-9ED178C1D585}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaImGuiNet.Tests", "NovaImGuiNet.Tests\NovaImGuiNet.Tests.csproj", "{BB53CF9D-09EB-42E8-A864-B93E8B992D6E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0A85BF20-613C-4FF8-8273-ECC589E17054}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A85BF20-613C-4FF8-8273-ECC589E17054}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A85BF20-613C-4FF8-8273-ECC589E17054}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A85BF20-613C-4FF8-8273-ECC589E17054}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4962E43-E1BE-4FA4-B028-BB97E7C746C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4962E43-E1BE-4FA4-B028-BB97E7C746C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4962E43-E1BE-4FA4-B028-BB97E7C746C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4962E43-E1BE-4FA4-B028-BB97E7C746C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{696760A9-732E-4747-B4B5-DD6915F260C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{696760A9-732E-4747-B4B5-DD6915F260C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{696760A9-732E-4747-B4B5-DD6915F260C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{696760A9-732E-4747-B4B5-DD6915F260C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04FA9AB2-4ACC-464D-BEA5-5C25BFD0FCD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04FA9AB2-4ACC-464D-BEA5-5C25BFD0FCD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04FA9AB2-4ACC-464D-BEA5-5C25BFD0FCD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04FA9AB2-4ACC-464D-BEA5-5C25BFD0FCD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5717277A-811E-4B71-AB07-2725ED824B45}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5717277A-811E-4B71-AB07-2725ED824B45}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5717277A-811E-4B71-AB07-2725ED824B45}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5717277A-811E-4B71-AB07-2725ED824B45}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05F2C516-D6F3-44F9-AFEF-9ED178C1D585}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05F2C516-D6F3-44F9-AFEF-9ED178C1D585}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05F2C516-D6F3-44F9-AFEF-9ED178C1D585}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05F2C516-D6F3-44F9-AFEF-9ED178C1D585}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BB53CF9D-09EB-42E8-A864-B93E8B992D6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB53CF9D-09EB-42E8-A864-B93E8B992D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB53CF9D-09EB-42E8-A864-B93E8B992D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB53CF9D-09EB-42E8-A864-B93E8B992D6E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

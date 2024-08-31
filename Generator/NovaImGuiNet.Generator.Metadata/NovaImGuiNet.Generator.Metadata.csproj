@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>NovaImGuiNet.Generator.Metadata</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\NovaImGuiNet.Generator.Shared\NovaImGuiNet.Generator.Shared.csproj" />
+    </ItemGroup>
+
+</Project>
