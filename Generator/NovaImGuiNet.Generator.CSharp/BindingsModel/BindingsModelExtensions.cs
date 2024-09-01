@@ -19,4 +19,16 @@ public static class BindingsModelExtensions {
 
         return null;
     }
+
+    public static IEntityReference? ExpandTypedef(this IEntityReference? entityReference) {
+        if (entityReference == null)
+            return null;
+
+        switch (entityReference.Value) {
+            case Typedef typedef:
+                return ExpandTypedef(typedef.Type);
+        }
+
+        return entityReference;
+    }
 }

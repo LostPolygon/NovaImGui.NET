@@ -58,7 +58,6 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
 
         Struct structure = new() {
             Kind = Struct.StructKind.StaticClass,
-            ByValue = false,
             Name = "ImGuiConstants",
             Namespace = bindingsContext.Namespace,
             Comments = new Comments(["Dear ImGui compilation constants"], [], [])

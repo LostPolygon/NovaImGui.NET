@@ -60,17 +60,23 @@ public class BindingsModelCodeGenerator {
             AddCompilationUnit(structure.Value, compilationUnitSyntax);
         }
 
-        CompilationUnitSyntax functionsCompilationUnit = GenerateFunctionsBindings();
+        CompilationUnitSyntax functionsCompilationUnit = GenerateNativeFunctionBindings();
         AddCompilationUnit("ImGuiNative", functionsCompilationUnit);
 
         return nameToCodeMap;
     }
 
-    private CompilationUnitSyntax GenerateFunctionsBindings() {
+    private CompilationUnitSyntax GenerateNativeFunctionBindings() {
         List<MemberDeclarationSyntax> functions = [];
-        foreach (EntityReferenceWrapper<Function> functionReference in BindingsModel.GetAllFunctions()) {
+        EntityReferenceWrapper<Function>[] allNativeFunctions =
+            BindingsModel
+                .GetAllFunctions()
+                .Where(x => x.Value.IsNativeFunction)
+                .ToArray();
+
+        foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
             Function apiModelFunction = functionReference.Value;
-            functions.AddRange(GenerateBinding(apiModelFunction));
+            functions.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
         }
 
         ClassDeclarationSyntax classDeclaration =
@@ -129,8 +135,8 @@ public class BindingsModelCodeGenerator {
         return (globalUsingsCompilationUnit, delegatesCompilationUnit);
     }
 
-    private IReadOnlyList<MethodDeclarationSyntax> GenerateBinding(Function entity) {
-        IEntityReference[] allChildTypes = entity.GetReferencedTypes([]).ToArray();
+    private IReadOnlyList<MethodDeclarationSyntax> GenerateNativeFunctionBinding(Function function) {
+        IEntityReference[] allChildTypes = function.GetReferencedTypes([]).ToArray();
         IEntityReference[] callbacks = [
             ..allChildTypes.Where(x => x.Value is Delegate),
             ..allChildTypes.Where(t => t.Value is Typedef { Type.Value: Delegate })
@@ -150,45 +156,65 @@ public class BindingsModelCodeGenerator {
         return [Generate(false)];
 
         MethodDeclarationSyntax Generate(bool delegatesAsFunctionPointers) {
-            AttributeSyntax importAttribute =
-                Attribute(ParseName("DllImport"))
-                    .WithArgumentList(AttributeArgumentList(
-                        SeparatedList(
-                            [
-                                AttributeArgument(ParseExpression("ImGuiDllName")),
-                                AttributeArgument(ParseExpression("CallingConvention = ImGuiCallingConvention"))
-                            ]
-                        )
-                    ));
+            bool useLibraryImport = true;
 
-            MethodDeclarationSyntax methodDeclarationSyntax =
-                MethodDeclaration(
-                        ParseTypeName(FormatType(entity.ReturnType.Value)),
-                        entity.Name
-                    )
-                    .AddModifiers(
-                        Token(SyntaxKind.PublicKeyword),
-                        Token(SyntaxKind.StaticKeyword),
-                        Token(SyntaxKind.ExternKeyword)
-                    )
-                    .AddAttributeLists(AttributeList(SeparatedList([importAttribute])))
-                    .AddAttributeLists(CreateMarshalAsAttributeLists(entity.ReturnType.Value, true))
-                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
-
-            IEnumerable<ParameterSyntax> parameters =
-                entity.Arguments.Select(arg => CreateMethodParameterSyntax(arg, delegatesAsFunctionPointers));
-
-            methodDeclarationSyntax =
-                methodDeclarationSyntax.WithParameterList(ParameterList(SeparatedList(parameters)));
-            methodDeclarationSyntax = ApplyCommonEntitySyntax(methodDeclarationSyntax, entity);
-
-            List<string> generatorCommentItems = [$"OriginalFullyQualifiedName = {entity.OriginalFullyQualifiedName}"];
-
-            if (entity.OriginalClass != null) {
-                generatorCommentItems.Add($"OriginalClass = {FormatType(entity.OriginalClass.Value)}");
+            List<AttributeSyntax> importAttributes;
+            if (useLibraryImport) {
+                importAttributes = [
+                    Attribute(ParseName("LibraryImport"))
+                        .WithArgumentList(AttributeArgumentList(
+                            SeparatedList(
+                                [
+                                    AttributeArgument(ParseExpression("ImGuiDllName")),
+                                    AttributeArgument(ParseExpression("StringMarshalling = StringMarshalling.Utf8"))
+                                ]
+                            )
+                        )),
+                    Attribute(ParseName("UnmanagedCallConv"))
+                        .WithArgumentList(AttributeArgumentList(
+                            SeparatedList(
+                                [
+                                    AttributeArgument(ParseExpression("CallConvs = [typeof(CallConvCdecl)]"))
+                                ]
+                            )
+                        ))
+                ];
+            } else {
+                importAttributes = [
+                    Attribute(ParseName("DllImport"))
+                        .WithArgumentList(AttributeArgumentList(
+                            SeparatedList(
+                                [
+                                    AttributeArgument(ParseExpression("ImGuiDllName")),
+                                    AttributeArgument(ParseExpression("CallingConvention = ImGuiCallingConvention"))
+                                ]
+                            )
+                        ))
+                ];
             }
 
-            if (entity.IsUnformattedHelper) {
+            MethodDeclarationSyntax methodDeclarationSyntax =
+                GenerateFunctionBinding(
+                        function,
+                        false,
+                        true,
+                        delegatesAsFunctionPointers,
+                        null
+                    )
+                    .AddAttributeLists(
+                        importAttributes
+                            .Select(attr =>
+                                AttributeList(SeparatedList([attr]))
+                            )
+                            .ToArray()
+                    );
+
+            List<string> generatorCommentItems = [$"OriginalFullyQualifiedName = {function.OriginalFullyQualifiedName}"];
+            if (function.OwnerStruct != null) {
+                generatorCommentItems.Add($"OriginalClass = {FormatType(function.OwnerStruct.Value)}");
+            }
+
+            if (function.IsUnformattedHelper) {
                 generatorCommentItems.Add("IsUnformattedHelper");
             }
 
@@ -202,8 +228,56 @@ public class BindingsModelCodeGenerator {
             methodDeclarationSyntax =
                 methodDeclarationSyntax
                     .AddLeadingTriviaToEnd(generatorTrivia);
+
+            methodDeclarationSyntax = ApplyCommonEntitySyntax(methodDeclarationSyntax, function);
+
             return methodDeclarationSyntax;
         }
+    }
+
+    private static MethodDeclarationSyntax GenerateFunctionBinding(
+        Function function,
+        bool isInstanceMethod,
+        bool isNativeMethod,
+        bool delegatesAsFunctionPointers,
+        BlockSyntax? bodyBlockSyntax
+    ) {
+        List<SyntaxKind> modifiers = [SyntaxKind.PublicKeyword];
+
+        if (!isInstanceMethod) {
+            modifiers.Add(SyntaxKind.StaticKeyword);
+        }
+
+        if (isNativeMethod) {
+            modifiers.Add(SyntaxKind.ExternKeyword);
+        }
+
+        MethodDeclarationSyntax methodDeclarationSyntax =
+            MethodDeclaration(
+                    ParseTypeName(FormatType(function.ReturnType.Value)),
+                    function.Name
+                )
+                .AddModifiers(modifiers.Select(Token).ToArray());
+
+        if (isNativeMethod) {
+            methodDeclarationSyntax =
+                methodDeclarationSyntax
+                    .AddAttributeLists(CreateMarshalAsAttributeLists(function.ReturnType.Value, true));
+        }
+
+        if (bodyBlockSyntax != null) {
+            methodDeclarationSyntax = methodDeclarationSyntax.WithBody(bodyBlockSyntax);
+        } else {
+            methodDeclarationSyntax = methodDeclarationSyntax.WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+        }
+
+        IEnumerable<ParameterSyntax> parameters =
+            function.Arguments.Select(arg => CreateMethodParameterSyntax(arg, delegatesAsFunctionPointers));
+
+        methodDeclarationSyntax =
+            methodDeclarationSyntax.WithParameterList(ParameterList(SeparatedList(parameters)));
+
+        return methodDeclarationSyntax;
     }
 
     private static ParameterSyntax CreateMethodParameterSyntax(
@@ -221,7 +295,6 @@ public class BindingsModelCodeGenerator {
                             new FormatTypeOptions {
                                 DelegatesAsFunctionPointers = delegatesAsFunctionPointers && isDelegate,
                                 DontExpandTypedefs = !delegatesAsFunctionPointers,
-                                FullyQualifiedTypes = !delegatesAsFunctionPointers
                             }
                         )
                     )
@@ -332,6 +405,23 @@ public class BindingsModelCodeGenerator {
                     DelegateDeclarationSyntax delegateSyntax =
                         CreateDelegateDeclarationSyntax(delegateModel, delegateModel.Name);
                     structSyntax = structSyntax.AddMembers(delegateSyntax);
+                    break;
+                }
+                case IEntityReference { Value: Function functionModel }: {
+                    Debug.Assert(functionModel.Body != null);
+
+                    MethodDeclarationSyntax methodSyntax =
+                        GenerateFunctionBinding(
+                            functionModel,
+                            functionModel.OwnerStruct != null,
+                            false,
+                            false,
+                            functionModel.Body
+                        );
+
+                    methodSyntax = ApplyCommonEntitySyntax(methodSyntax, functionModel);
+
+                    structSyntax = structSyntax.AddMembers(methodSyntax);
                     break;
                 }
                 case Field field: {

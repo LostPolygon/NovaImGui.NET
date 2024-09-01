@@ -18,15 +18,18 @@ public partial class BindingsModel {
     }
 
     public IReadOnlyList<EntityReferenceWrapper<Function>> GetAllFunctions() {
-        return [
-            ..FreeFunctions,
-            ..Structs
+        IEnumerable<EntityReferenceWrapper<Function>> structFunctions =
+            Structs
                 .SelectMany(s =>
                     s.Value.Children
                         .OfType<IEntityReference>()
                         .Where(x => x.Value is Function)
                 )
-                .Select(x => new EntityReferenceWrapper<Function>(x))
+                .Select(x => new EntityReferenceWrapper<Function>(x));
+
+        return [
+            ..FreeFunctions,
+            ..structFunctions
         ];
     }
 

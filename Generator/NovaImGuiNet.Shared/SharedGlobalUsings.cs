@@ -1,4 +1,5 @@
 ﻿global using System.Runtime.InteropServices;
+global using System.Runtime.CompilerServices;
 
 global using size_t = nint;
 global using int32_t = System.Int32;

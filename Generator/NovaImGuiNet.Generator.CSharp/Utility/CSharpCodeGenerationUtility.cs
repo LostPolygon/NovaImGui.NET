@@ -9,15 +9,6 @@ using static SyntaxFactory;
 public static class CSharpCodeGenerationUtility {
     private static readonly IReadOnlyList<string> AlwaysUseAliasesForBuiltins = ["void"];
 
-    public static Struct CreateImFixedArrayFromArray(BindingsContext context, string arrayBounds, Entity valueType) {
-        return new Struct {
-            Kind = Struct.StructKind.Struct,
-            Name = $"ImFixedArray{arrayBounds}<{FormatType(valueType)}>",
-            Namespace = context.Namespace,
-            //GenericArguments = []
-        };
-    }
-
     public static string FormatType(IEntity type, in FormatTypeOptions options = default) {
         Debug.Assert(type != null, "type != null");
 

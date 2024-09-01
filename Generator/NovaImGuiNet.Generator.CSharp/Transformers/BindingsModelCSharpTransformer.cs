@@ -123,6 +123,12 @@ public class BindingsModelCSharpTransformer {
             Model = ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Context, Model);
         }
 
+        Transform(
+            "Workaround .NET recursive generic struct bug",
+            Model.Structs,
+            x => WorkaroundDotNetRecursiveGenericStructBug(Model, x)
+        );
+
         // Functions and typedef delegates
         IReadOnlyList<IFunctionLike> allFunctionsAnDelegates =
             new List<IEntityReference>([
@@ -185,8 +191,15 @@ public class BindingsModelCSharpTransformer {
             Model.Children.Add(imGuiConstantsStruct.AsEntityReference());
         }
 
-        // TODO: fix ImGuiWindow self-referencing through ImGuiWindowTempData.ChildWindows:
-        // https://github.com/dotnet/runtime/issues/6924
+        using (new TimedLoggedOperation(Log, "FUN: convert const char* arguments to string")) {
+            UpdateFunctionArguments((function, arg, _) =>
+                ReplaceConstCharPointerWithString(arg)
+            );
+        }
+
+        using (new TimedLoggedOperation(Log, "Generating managed methods")) {
+            Model = StructFunctionGenerator.Generate(Context, Model);
+        }
 
         return Model;
     }

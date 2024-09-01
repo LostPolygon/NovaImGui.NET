@@ -86,7 +86,9 @@ public partial class BindingsModel {
         string BuiltinName,
         Type? ManagedType,
         StorageClass StorageClass
-    ) : Entity;
+    ) : Entity {
+        public bool IsConstCharPointer { get; set; }
+    }
 
     public record Array(
         IEntityReference ElementType,
@@ -332,13 +334,15 @@ public partial class BindingsModel {
 
     public record Function : FunctionLike {
         public required string Name { get; set; }
-        public EntityReferenceWrapper<Struct>? OriginalClass { get; set; }
+        public required bool IsNativeFunction { get; set; }
+        public EntityReferenceWrapper<Struct>? OwnerStruct { get; set; }
         public string? OriginalFullyQualifiedName { get; set; }
         public bool IsDefaultArgumentHelper { get; set; }
         public bool IsImstrHelper { get; set; }
         public bool HasImstrHelper { get; set; }
         public bool IsManualHelper { get; set; }
         public bool IsUnformattedHelper { get; set; }
+        public BlockSyntax? Body { get; set; }
 
         public Function() {
         }
@@ -347,7 +351,7 @@ public partial class BindingsModel {
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
             bool isInternal,
-            EntityReferenceWrapper<Struct>? originalClass,
+            EntityReferenceWrapper<Struct>? ownerStruct,
             string originalFullyQualifiedName,
             bool isDefaultArgumentHelper,
             bool isImstrHelper,
@@ -355,7 +359,7 @@ public partial class BindingsModel {
             bool isManualHelper,
             bool isUnformattedHelper
         ) : base(comments, conditionals, isInternal) {
-            OriginalClass = originalClass;
+            OwnerStruct = ownerStruct;
             OriginalFullyQualifiedName = originalFullyQualifiedName;
             IsDefaultArgumentHelper = isDefaultArgumentHelper;
             IsImstrHelper = isImstrHelper;
@@ -365,8 +369,8 @@ public partial class BindingsModel {
         }
 
         public override IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
-            if (OriginalClass != null && visitedNodes.Add(OriginalClass.Reference)) {
-                yield return OriginalClass.Reference;
+            if (OwnerStruct != null && visitedNodes.Add(OwnerStruct.Reference)) {
+                yield return OwnerStruct.Reference;
             }
 
             foreach (IEntityReference child in base.GetReferencedTypes(visitedNodes)) {
@@ -377,7 +381,7 @@ public partial class BindingsModel {
         public override string ToString() {
             return
                 $"{{ {nameof(Function)} {{ " +
-                $"[{(OriginalClass != null ? OriginalClass.Value.Name : "free")}]" +
+                $"[{(OwnerStruct != null ? OwnerStruct.Value.Name : "free")}]" +
                 $" {ToStringBase()}  }} }}";
         }
     }
@@ -390,11 +394,14 @@ public partial class BindingsModel {
         public Comments() : this([], [], []) {
         }
 
-        public Comments WithAddedNotes(params string[] notes) {
-            return this with {
-                Notes = [..Notes, ..notes]
-            };
-        }
+        public Comments WithAddedPreceding(params IReadOnlyList<string> preceding) =>
+            this with { Preceding = [..Preceding, ..preceding] };
+
+        public Comments WithAddedAttached(params IReadOnlyList<string> attached) =>
+            this with { Attached = [..Attached, ..attached] };
+
+        public Comments WithAddedNotes(params IReadOnlyList<string> notes) =>
+            this with { Notes = [..Notes, ..notes] };
     }
 
     public record struct Conditional(string Condition, string Expression) {
@@ -472,7 +479,7 @@ public partial class BindingsModel {
         public T Value => (T) Reference.Value;
     }
 
-    public interface IEntityReference {
+    public interface IEntityReference : IEntity {
         Entity Value { get; set; }
     }
 

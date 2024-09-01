@@ -90,7 +90,8 @@ public partial class BindingsModelFromMetadataResolver {
         ) {
             Name = metadata.Value.Name,
             Arguments = metadata.Value.Arguments.Select(ResolveFunctionArgument).ToList(),
-            ReturnType = ResolveEntity(metadata.Value.ReturnType)
+            ReturnType = ResolveEntity(metadata.Value.ReturnType),
+            IsNativeFunction = true
         };
 
     private BindingsModel.Delegate ResolveDelegate(MetadataModel.IEntityReference<MetadataModel.Delegate> metadata) =>
@@ -114,11 +115,24 @@ public partial class BindingsModelFromMetadataResolver {
             IsInstancePointer = metadata.IsInstancePointer,
         };
 
-    private BindingsModel.Pointer ResolvePointer(MetadataModel.IEntityReference<MetadataModel.Pointer> metadata) =>
-        new(
-            ResolveEntity(metadata.Value.ValueType),
+    private BindingsModel.Entity ResolvePointer(MetadataModel.IEntityReference<MetadataModel.Pointer> metadata) {
+        // Special-case const char*
+        bool isConstCharPointer =
+            metadata.Value.ValueType.Value is MetadataModel.Builtin {
+                Type: "char",
+                StorageClass: MetadataModel.StorageClass.Const
+            };
+
+        BindingsModel.IEntityReference valueType = ResolveEntity(metadata.Value.ValueType);
+        if (isConstCharPointer && valueType.Value is BindingsModel.Builtin builtin) {
+            builtin.IsConstCharPointer = true;
+        }
+
+        return new BindingsModel.Pointer(
+            valueType,
             metadata.Value.IsNullable
         );
+    }
 
     private BindingsModel.Array ResolveArray(MetadataModel.IEntityReference<MetadataModel.Array> metadata) =>
         new(

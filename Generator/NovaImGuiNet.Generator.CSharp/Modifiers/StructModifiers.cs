@@ -274,6 +274,37 @@ public static class StructModifiers {
         return structure;
     }
 
+    // https://github.com/dotnet/runtime/issues/6924
+    public static Struct WorkaroundDotNetRecursiveGenericStructBug(BindingsModel model, Struct structure) {
+        switch (structure.Name) {
+            case "ImGuiWindowTempData":
+                Field? childWindowsField = structure.Children.OfType<Field>().FirstOrDefault(x => x.Name == "ChildWindows");
+                if (childWindowsField == null) {
+                    Log.LogWarning($"Field 'ChildWindows' not found in structure '{structure.Name}'");
+                    break;
+                }
+
+                // Find first found ImVector type and fudge it a bit
+                Struct childWindowsFieldNewType = model.Structs.FirstOrDefault(x => x.Value.Name == "ImVector").Value;
+                childWindowsFieldNewType = childWindowsFieldNewType with {
+                    GenericArguments = [
+                        new Builtin(
+                            "IntPtr",
+                            typeof(IntPtr),
+                            StorageClass.NotSpecified
+                        ).AsEntityReference()
+                    ]
+                };
+                childWindowsField.Comments = childWindowsField.Comments
+                    .WithAddedAttached($"Original type: {FormatType(childWindowsField.Type.Value)}");
+
+                childWindowsField.Type = childWindowsFieldNewType.AsEntityReference();
+                break;
+        }
+
+        return structure;
+    }
+
     public static Struct ConvertBitFields(Struct structure) {
         bool Iteration() {
             int startIndex = -1;
