@@ -9,7 +9,7 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-      <PackageReference Include="NCalcSync" Version="5.2.6" />
+      <PackageReference Include="org.matheval" Version="1.0.0.3" />
     </ItemGroup>
 
 </Project>

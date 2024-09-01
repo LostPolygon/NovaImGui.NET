@@ -46,9 +46,20 @@ internal static class ListExtensions {
         if (initialItemIndex == -1)
             throw new InvalidOperationException($"Initial item {item} not found in list");
 
-        list.RemoveAt(initialItemIndex);
-        foreach (TItem newItem in replacementItems.Reverse()) {
-            list.Insert(initialItemIndex, newItem);
+        switch (replacementItems.Count) {
+            case 0:
+                list.RemoveAt(initialItemIndex);
+                break;
+            case 1:
+                list[initialItemIndex] = replacementItems[0];
+                break;
+            default:
+                list[initialItemIndex] = replacementItems[0];
+                for (int index = replacementItems.Count - 1; index >= 1; index--) {
+                    TItem newItem = replacementItems[index];
+                    list.Insert(initialItemIndex + 1, newItem);
+                }
+                break;
         }
     }
 }

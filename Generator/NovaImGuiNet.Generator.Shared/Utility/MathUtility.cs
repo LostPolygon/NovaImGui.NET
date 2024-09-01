@@ -1,9 +1,4 @@
-﻿using System.Globalization;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using NCalc;
-using NCalc.Exceptions;
-using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+﻿using org.matheval;
 
 namespace NovaImGuiNet.Generator;
 
@@ -13,8 +8,8 @@ public static class MathUtility {
             return null;
 
         try {
-            return Convert.ToInt64(new Expression(expression).Evaluate());
-        } catch (NCalcException) {
+            return Convert.ToInt64(new Expression(expression).Eval());
+        } catch (Exception) {
             // Ignore
         }
 
