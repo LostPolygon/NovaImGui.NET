@@ -46,7 +46,10 @@ public class BindingsModelCSharpTransformer {
         }
 
         Transform("Patching broken typedefs", Model.Typedefs, PatchBrokenTypedefs);
-        Transform("Removing typedefs to enums", Model.Typedefs, RemoveTypedefsToEnums);
+
+        using (new TimedLoggedOperation(Log, "Rewriting typedefs to enums")) {
+            Model = RewriteTypedefsToEnums(Model);
+        }
 
         // Enums
         Transform("Adding public members to internal enums", Model.Enums, x => AddPublicMembersToPrivateEnum(Model, x));
@@ -85,6 +88,7 @@ public class BindingsModelCSharpTransformer {
             Model.Structs,
             ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes
         );
+
         if (Context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes) {
             Transform(
                 "Creating Span accessor properties for fixed size array fields with primitive types",
@@ -106,11 +110,12 @@ public class BindingsModelCSharpTransformer {
 
         using (new TimedLoggedOperation(Log, "Prettifying delegate names")) {
             Model.Typedefs
-                .Where(x => x.ExpandWrappers<Delegate>() != null)
+                .Where(x => x.Reference.ExpandWrappers<Delegate>() != null)
                 .ForEach(bindingsTypedef => {
-                    IEntityReference<Delegate> bindingsDelegate = bindingsTypedef.ExpandWrappers<Delegate>()!;
-                    bindingsDelegate.Value = PrettifyDelegateName(bindingsDelegate.Value);
-                    bindingsTypedef.Value.Name = bindingsDelegate.Value.Name;
+                    EntityReferenceWrapper<Delegate> bindingsDelegateReference =
+                        new(bindingsTypedef.Reference.ExpandWrappers<Delegate>()!);
+                    bindingsDelegateReference.Reference.Value = PrettifyDelegateName(bindingsDelegateReference.Value);
+                    bindingsTypedef.Value.Name = bindingsDelegateReference.Value.Name;
                 });
         }
 
@@ -121,10 +126,10 @@ public class BindingsModelCSharpTransformer {
         // Functions and typedef delegates
         IReadOnlyList<IFunctionLike> allFunctionsAnDelegates =
             new List<IEntityReference>([
-                    ..Model.GetAllFunctions(),
+                    ..Model.GetAllFunctions().Select(x => x.Reference),
                     ..Model.Typedefs
-                        .Select(typedef => typedef.Value.Type as IEntityReference<Delegate>)
-                        .Where(d => d != null)
+                        .Where(typedef => typedef.Value.Type.Value is Delegate)
+                        .Select(typedef => typedef.Value.Type)
                 ])
                 .Select(x => x.Value)
                 .Cast<IFunctionLike>()
@@ -139,9 +144,7 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (new TimedLoggedOperation(Log, "Patching function default values")) {
-            UpdateFunctionArguments((function, arg, _) =>
-                PatchArgumentDefaultValues(Model, function, arg)
-            );
+            allFunctionsAnDelegates.ForEach(x => PatchArgumentDefaultValues(Model, x));
         }
 
         using (new TimedLoggedOperation(Log, "Fixing invalid argument names")) {
@@ -179,7 +182,7 @@ public class BindingsModelCSharpTransformer {
 
         using (new TimedLoggedOperation(Log, "Generating ImGuiConstants class")) {
             Struct imGuiConstantsStruct = new ImGuiConstantsGenerator(Context, MetadataDto).Generate();
-            Model.Structs.Add(imGuiConstantsStruct.AsEntityReference());
+            Model.Children.Add(imGuiConstantsStruct.AsEntityReference());
         }
 
         // TODO: fix ImGuiWindow self-referencing through ImGuiWindowTempData.ChildWindows:
@@ -190,10 +193,13 @@ public class BindingsModelCSharpTransformer {
 
     private static void Transform<TEntity>(
         string operationName,
-        IList<IEntityReference<TEntity>> entityReferences,
+        IReadOnlyList<EntityReferenceWrapper<TEntity>> entityReferences,
         Func<TEntity, TEntity?> transformer
     ) where TEntity : Entity {
         using TimedLoggedOperation timedLoggedOperation = new(Log, operationName);
-        BindingsModelTransformUtility.Transform(entityReferences, transformer);
+        BindingsModelTransformUtility.Transform(
+            entityReferences.Select(x => x.Reference).ToList(),
+            transformer
+        );
     }
 }
