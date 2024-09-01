@@ -193,7 +193,7 @@ public class BindingsModelCodeGenerator {
                 ];
             }
 
-            MethodDeclarationSyntax methodDeclarationSyntax =
+            MethodDeclarationSyntax methodSyntax =
                 GenerateFunctionBinding(
                         function,
                         false,
@@ -208,6 +208,12 @@ public class BindingsModelCodeGenerator {
                             )
                             .ToArray()
                     );
+
+            if (useLibraryImport) {
+                methodSyntax = methodSyntax.AddModifiers(Token(SyntaxKind.PartialKeyword));
+            } else {
+                methodSyntax = methodSyntax.AddModifiers(Token(SyntaxKind.ExternKeyword));
+            }
 
             List<string> generatorCommentItems = [$"OriginalFullyQualifiedName = {function.OriginalFullyQualifiedName}"];
             if (function.OwnerStruct != null) {
@@ -225,13 +231,13 @@ public class BindingsModelCodeGenerator {
                 LineFeed
             ];
 
-            methodDeclarationSyntax =
-                methodDeclarationSyntax
+            methodSyntax =
+                methodSyntax
                     .AddLeadingTriviaToEnd(generatorTrivia);
 
-            methodDeclarationSyntax = ApplyCommonEntitySyntax(methodDeclarationSyntax, function);
+            methodSyntax = ApplyCommonEntitySyntax(methodSyntax, function);
 
-            return methodDeclarationSyntax;
+            return methodSyntax;
         }
     }
 
@@ -246,10 +252,6 @@ public class BindingsModelCodeGenerator {
 
         if (!isInstanceMethod) {
             modifiers.Add(SyntaxKind.StaticKeyword);
-        }
-
-        if (isNativeMethod) {
-            modifiers.Add(SyntaxKind.ExternKeyword);
         }
 
         MethodDeclarationSyntax methodDeclarationSyntax =

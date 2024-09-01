@@ -73,9 +73,11 @@ public static class StructFunctionGenerator {
                 .RemoveFromStart(structure.Name + "_")
                 .ToPascalCase();
         } else {
-            prettyName = prettyName
-                .RemoveFromStart("ImGui_")
-                .ToPascalCase();
+            if (!prettyName.StartsWith("cIm", StringComparison.Ordinal)) {
+                prettyName = prettyName
+                    .RemoveFromStart("ImGui_")
+                    .ToPascalCase();
+            }
         }
 
         List<FunctionArgument> invocationArguments =

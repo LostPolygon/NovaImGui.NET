@@ -38,8 +38,6 @@ public static class FunctionModifiers {
         }
     }
 
-
-
     public static string FixInvalidArgumentNames(string argumentName, int argumentIndex) {
         argumentName =
             String.IsNullOrEmpty(argumentName) ?
@@ -159,7 +157,21 @@ public static class FunctionModifiers {
                 .ToArray();
     }
 
-        private static bool PatchArgumentDefaultValue(BindingsModel model, IFunctionLike functionLike, FunctionArgument argument) {
+    public static void WrapFunctionsInConditional(
+        IReadOnlyList<string> originalFullyQualifiedNames,
+        Conditional conditional,
+        Function function
+    ) {
+        if (!originalFullyQualifiedNames.Contains(function.OriginalFullyQualifiedName))
+            return;
+
+        function.Conditionals = [
+            ..function.Conditionals,
+            conditional
+        ];
+    }
+
+    private static bool PatchArgumentDefaultValue(BindingsModel model, IFunctionLike functionLike, FunctionArgument argument) {
         Debug.Assert(argument.DeclarationDefaultValue != null);
         string initialDefaultValue = argument.DeclarationDefaultValue;
 

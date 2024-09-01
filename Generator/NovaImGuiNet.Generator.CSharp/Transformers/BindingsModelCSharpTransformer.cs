@@ -186,6 +186,25 @@ public class BindingsModelCSharpTransformer {
             allFunctionsAnDelegates.ForEach(RemoveBrokenConditionalDefines);
         }
 
+        using (new TimedLoggedOperation(Log, "FIXME: Disabling broken functions")) {
+            // ImGuiListClipperRange can't be used as a return value,
+            // since it contains a bool field and that's broken when
+            // runtime marshaling is not disabled
+            // https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib1050-1069
+            allFunctionsAnDelegates
+                .OfType<Function>()
+                .ForEach(function =>
+                    WrapFunctionsInConditional(
+                        [
+                            "ImGuiListClipperRange::FromPositions",
+                            "ImGuiListClipperRange::FromIndices"
+                        ],
+                        new Conditional("false"),
+                        function
+                    )
+                );
+        }
+
         using (new TimedLoggedOperation(Log, "Generating ImGuiConstants class")) {
             Struct imGuiConstantsStruct = new ImGuiConstantsGenerator(Context, MetadataDto).Generate();
             Model.Children.Add(imGuiConstantsStruct.AsEntityReference());
