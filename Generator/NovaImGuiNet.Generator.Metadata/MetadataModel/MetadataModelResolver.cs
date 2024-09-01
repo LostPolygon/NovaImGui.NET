@@ -7,7 +7,7 @@ namespace NovaImGuiNet.Generator.Metadata;
 /// Takes the metadata DTO and generates a model of connected metadata entities.
 /// </summary>
 public partial class MetadataModelResolver {
-    private static readonly ILogger Log = Logging.Create(nameof(MetadataModelResolver));
+    private static readonly ILogger Log = Logging.Create<MetadataModelResolver>();
 
     private MetadataDto Dto { get; }
     private Dictionary<string, object> DtoNameToDtoEntity { get; } = new();

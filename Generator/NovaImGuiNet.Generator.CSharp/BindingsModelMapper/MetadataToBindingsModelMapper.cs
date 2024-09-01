@@ -1,13 +1,18 @@
 ﻿using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using NovaImGuiNet.Generator.Metadata;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
 public class MetadataToBindingsModelMapper {
+    private static readonly ILogger Log = Logging.Create<MetadataToBindingsModelMapper>();
+
     private MetadataModel Metadata { get; }
     private BindingsContext BindingsContext { get; }
 
     private Dictionary<MetadataModel.IEntityReference, BindingsModel.IEntityReference> MetadataEntityToBindingsEntity { get; } = new();
+
+    public event Action<MetadataModel.Entity>? UnresolvedTypeDetected;
 
     public MetadataToBindingsModelMapper(MetadataModel metadata, BindingsContext bindingsContext) {
         Metadata = metadata;
@@ -220,7 +225,7 @@ public class MetadataToBindingsModelMapper {
         return bindingsReference;
     }
 
-    private static BindingsModel.Builtin MapBuiltinType(MetadataModel.Builtin metadata) {
+    private BindingsModel.Builtin MapBuiltinType(MetadataModel.Builtin metadata) {
         (string BuiltinName, Type? Type) baseType = metadata.Type switch {
             "int" => ("int", typeof(int)),
             "short" => ("short", typeof(short)),
@@ -232,10 +237,17 @@ public class MetadataToBindingsModelMapper {
             "unsigned_char" => ("byte", typeof(byte)),
             "float" => ("float", typeof(float)),
             "double" => ("double", typeof(double)),
-            "bool" => ("bool", typeof(bool)), // "bool" => ("ByteBool", null),
+            "bool" => ("bool", typeof(bool)),
             "void" => ("void", typeof(void)),
-            _ => (metadata.Type, null)
+            _ => (null!, null)
         };
+
+        if (baseType.BuiltinName == null!) {
+            // Subscriber can modify the entity or throw an error
+            UnresolvedTypeDetected?.Invoke(metadata);
+
+            baseType.BuiltinName = metadata.Type;
+        }
 
         return new BindingsModel.Builtin(
             baseType.BuiltinName,

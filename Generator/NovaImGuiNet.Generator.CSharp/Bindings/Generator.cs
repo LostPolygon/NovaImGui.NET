@@ -90,10 +90,26 @@ public class Generator {
 
         BindingsModel bindingsModel;
         using (new TimedLoggedOperation(Log, "Generating bindings model")) {
-            bindingsModel = new MetadataToBindingsModelMapper(
+            MetadataToBindingsModelMapper metadataToBindingsModelMapper = new(
                 metadataModel,
                 BindingsContext
-            ).Map();
+            );
+
+            metadataToBindingsModelMapper.UnresolvedTypeDetected += entity => {
+                switch (entity) {
+                    case MetadataModel.Builtin builtin:
+                        if (KnownBindingsEntitiesInfo.ExpectedTypesDefinedElsewhere.Contains(builtin.Type))
+                            return;
+
+                        break;
+                }
+
+                throw new KeyNotFoundException(
+                    $"Unresolved entity type, make sure you've included all necessary metadata: {entity}"
+                );
+            };
+
+            bindingsModel = metadataToBindingsModelMapper.Map();
         }
 
         using (new TimedLoggedOperation(Log, "Applying transformations")) {
