@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace NovaImGuiNet.Generator.Metadata;
 
@@ -6,6 +7,8 @@ namespace NovaImGuiNet.Generator.Metadata;
 /// Takes the metadata DTO and generates a model of connected metadata entities.
 /// </summary>
 public partial class MetadataModelResolver {
+    private static readonly ILogger Log = Logging.Create(nameof(MetadataModelResolver));
+
     private MetadataDto Dto { get; }
     private Dictionary<string, object> DtoNameToDtoEntity { get; } = new();
 
@@ -66,18 +69,45 @@ public partial class MetadataModelResolver {
         HashSet<MetadataModel.IEntityReference> allModelEntities = new(DtoNameToModelEntity.Values);
         Debug.Assert(allModelEntities.Count == DtoNameToModelEntity.Count);
 
-        foreach (MetadataDto.Typedef typedefDto in Dto.Typedefs) {
-            MetadataModel.Typedef typedefValue = MapTypedef(typedefDto);
-            MetadataModel.IEntityReference<MetadataModel.Typedef> typedefEntity =
-                typedefValue.AsEntityReference();
+        // This next part is terrible, but it solves the problem of
+        // 'how do we have multiple typedefs when we discriminate purely based on name'.
+        // In a nutshell, it removes all typedef values from the map
+        // (because some typedef might not have came from the top-level typedefs),
+        // then resolves typedef again and updates the references.
+        // This way, no matter where the typedef was encountered, everything uses the same entity reference.
+        foreach (IGrouping<string, MetadataDto.Typedef> typedefsByName in Dto.Typedefs.GroupBy(x => x.Name)) {
+            string name = typedefsByName.Key;
 
-            allModelEntities.Add(typedefEntity);
+            if (DtoNameToModelEntity.TryGetValue(name, out MetadataModel.IEntityReference? entityReference)) {
+                if (entityReference is MetadataModel.IEntityReference<MetadataModel.Typedef>) {
+                    entityReference.Value = null!;
+                }
+            }
         }
 
-        /*allModelEntities.UnionWith(
-            Dto.Typedefs
-                .Select(ResolveTypedef)
-        );*/
+        foreach (IGrouping<string, MetadataDto.Typedef> typedefsByName in Dto.Typedefs.GroupBy(x => x.Name)) {
+            string name = typedefsByName.Key;
+            MetadataDto.Typedef[] typedefDtos = typedefsByName.ToArray();
+
+            MetadataModel.Typedef firstTypedefModel = MapTypedef(typedefDtos[0]);
+
+            bool replaced = false;
+            if (DtoNameToModelEntity.TryGetValue(name, out MetadataModel.IEntityReference? entityReference)) {
+                if (entityReference.Value == null!) {
+                    entityReference.Value = firstTypedefModel;
+                    replaced = true;
+                }
+            }
+
+            if (!replaced) {
+                allModelEntities.Add(firstTypedefModel.AsEntityReference());
+            }
+
+            for (int i = 1; i < typedefDtos.Length; i++) {
+                MetadataModel.Typedef typedefModel = MapTypedef(typedefDtos[i]);
+                allModelEntities.Add(typedefModel.AsEntityReference());
+            }
+        }
 
         return allModelEntities;
     }
@@ -105,20 +135,20 @@ public partial class MetadataModelResolver {
     }
 
     private MetadataModel.IEntityReference ResolveTypeValue(MetadataDto.TypeValue typeValue) {
-        return ResolveTypeDescription(
+        return CreateOrResolveTypeDescription(
             typeValue.Description,
             typeValue.TypeDetails as MetadataDto.TypeValue.TypeDetailsFunctionPointer
         );
     }
 
-    private MetadataModel.IEntityReference ResolveTypeDescription(
+    private MetadataModel.IEntityReference CreateOrResolveTypeDescription(
         MetadataDto.TypeValue.TypeDescription typeDescription,
         MetadataDto.TypeValue.ITypeDetails? typeDetails
     ) {
         switch (typeDescription) {
             case MetadataDto.TypeValue.TypeDescriptionArray typeDescriptionArray:
                 return new MetadataModel.Array(
-                    ResolveTypeDescription(typeDescriptionArray.InnerType, null)!,
+                    CreateOrResolveTypeDescription(typeDescriptionArray.InnerType, null)!,
                     typeDescriptionArray.Bounds,
                     null
                 ).AsEntityReference();
@@ -133,16 +163,21 @@ public partial class MetadataModelResolver {
                 break;
             case MetadataDto.TypeValue.TypeDescriptionPointer typeDescriptionPointer:
                 return new MetadataModel.Pointer(
-                    ResolveTypeDescription(typeDescriptionPointer.InnerType, null)!,
+                    CreateOrResolveTypeDescription(typeDescriptionPointer.InnerType, null)!,
                     typeDescriptionPointer.IsNullable
                 ).AsEntityReference();
             case MetadataDto.TypeValue.TypeDescriptionType typeDescriptionType:
                 Debug.Assert(typeDetails != null, "typeDetails != null");
 
+                MetadataModel.IEntityReference<MetadataModel.Typedef>? existingTypedef =
+                    GetEntityReferenceByName<MetadataModel.Typedef>(typeDescriptionType.Name);
+                if (existingTypedef != null && existingTypedef.Value != null!)
+                    return existingTypedef;
+
                 return MapFunctionPointerType(
                     typeDescriptionType,
                     (MetadataDto.TypeValue.TypeDetailsFunctionPointer) typeDetails
-                );
+                ).AsEntityReference();
             case MetadataDto.TypeValue.TypeDescriptionUser typeDescriptionUser:
                 DtoNameToDtoEntity.TryGetValue(typeDescriptionUser.Name, out object? userTypeDto);
 
@@ -179,8 +214,11 @@ public partial class MetadataModelResolver {
                 MetadataModel.Field MapField(MetadataDto.Field fieldDto) {
                     MetadataModel.IEntityReference field = ResolveTypeValue(fieldDto.Type);
 
+                    MetadataModel.IEntityReference fieldType =
+                        ResolveTypeValue(fieldDto.Type);
+
                     MetadataModel.IEntityReference<MetadataModel.Delegate>? fieldDelegateTypeReference =
-                        field as MetadataModel.IEntityReference<MetadataModel.Delegate>;
+                        fieldType.ExpandTypedef<MetadataModel.Delegate>();
 
                     if (fieldDelegateTypeReference != null) {
                         structDelegates.Add(fieldDelegateTypeReference);
@@ -196,8 +234,7 @@ public partial class MetadataModelResolver {
                         false,
                         fieldDto.Width,
                         null,
-                        field,
-                        fieldDelegateTypeReference
+                        fieldType
                     );
                 }
 
@@ -292,19 +329,21 @@ public partial class MetadataModelResolver {
         return argument;
     }
 
+    private MetadataModel.IEntityReference<TEntity>? GetEntityReferenceByName<TEntity>(string dtoName) where TEntity : MetadataModel.Entity {
+        if (DtoNameToModelEntity.TryGetValue(dtoName, out MetadataModel.IEntityReference? entityReferenceRaw))
+            return entityReferenceRaw as MetadataModel.IEntityReference<TEntity>;
+
+        return null;
+    }
+
     private MetadataModel.IEntityReference<TEntity> ResolveEntity<TDto, TEntity>(
         string dtoName,
         TDto dto,
         Func<TDto, TEntity> resolver
     ) where TEntity : MetadataModel.Entity {
-        MetadataModel.IEntityReference<TEntity>? entityReference;
-        if (DtoNameToModelEntity.TryGetValue(dtoName, out MetadataModel.IEntityReference? entityReferenceRaw)) {
-            entityReference = entityReferenceRaw as MetadataModel.IEntityReference<TEntity>;
-            if (entityReference == null)
-                throw new InvalidOperationException($"Failed to resolve {nameof(TEntity)} entity for '{dtoName}'");
-
+        MetadataModel.IEntityReference<TEntity>? entityReference = GetEntityReferenceByName<TEntity>(dtoName);
+        if (entityReference != null)
             return entityReference;
-        }
 
         // Explicitly create an empty reference first, so that when converter is run,
         // it won't endlessly recurse trying to resolve the DTO entity by name
@@ -319,7 +358,7 @@ public partial class MetadataModelResolver {
         return entityReference;
     }
 
-    private MetadataModel.IEntityReference<MetadataModel.Delegate> MapFunctionPointerType(
+    private MetadataModel.Delegate MapFunctionPointerType(
         MetadataDto.TypeValue.TypeDescriptionType typeDescriptionType,
         MetadataDto.TypeValue.TypeDetailsFunctionPointer typeDetailsFunctionPointer
     ) {
@@ -343,7 +382,7 @@ public partial class MetadataModelResolver {
             typeDetailsFunctionPointer.IsInternal
         );
 
-        return modelDelegate.AsEntityReference();
+        return modelDelegate;
     }
 
     private MetadataModel.Typedef MapTypedef(MetadataDto.Typedef dto) =>

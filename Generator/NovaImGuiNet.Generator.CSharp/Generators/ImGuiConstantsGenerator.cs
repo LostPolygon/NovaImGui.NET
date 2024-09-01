@@ -46,7 +46,6 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
                 MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.Conditionals)),
                 defineDto.IsInternal,
                 true,
-                null,
                 null
             ) {
                 Name = defineDto.Name,

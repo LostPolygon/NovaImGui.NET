@@ -11,14 +11,22 @@ using static FunctionModifiers;
 using static TypedefModifiers;
 using static EnumModifiers;
 
-public class BindingsModelCSharpTransformer(
-    BindingsModel model,
-    MetadataDto metadataDto,
-    BindingsContext context
-) {
+public class BindingsModelCSharpTransformer {
     private static readonly ILogger Log = Logging.Create<BindingsModelCSharpTransformer>();
 
-    private BindingsModel Model { get; set; } = model;
+    public BindingsModelCSharpTransformer(
+        BindingsModel model,
+        MetadataDto metadataDto,
+        BindingsContext context
+    ) {
+        MetadataDto = metadataDto;
+        Context = context;
+        Model = model;
+    }
+
+    private BindingsModel Model { get; set; }
+    private MetadataDto MetadataDto { get; }
+    private BindingsContext Context { get; }
 
     public BindingsModel Transform() {
         using (new TimedLoggedOperation(Log, "Genericizing structs")) {
@@ -70,20 +78,21 @@ public class BindingsModelCSharpTransformer(
         Transform(
             "Calculating numeric array bounds in fixed array fields",
             Model.Structs,
-            structure => FixMissingFieldArrayNumericBounds(context, metadataDto, Model, structure)
+            structure => FixMissingFieldArrayNumericBounds(Context, MetadataDto, Model, structure)
         );
         Transform(
             "Exploding fixed size array fields with non-primitive types into multiple fields",
             Model.Structs,
             ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes
         );
-        if (context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes) {
+        if (Context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes) {
             Transform(
                 "Creating Span accessor properties for fixed size array fields with primitive types",
                 Model.Structs,
                 CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes
             );
         }
+
         Transform(
             "Convert bitfields into property accessors",
             Model.Structs,
@@ -96,12 +105,17 @@ public class BindingsModelCSharpTransformer(
         );
 
         using (new TimedLoggedOperation(Log, "Prettifying delegate names")) {
-            Model.Structs.ForEach(structure =>
-                structure.Value.Children.UpdateInPlace<IEntity, IEntityReference<Delegate>>(x => {
-                    x.Value = PrettifyDelegateName(x.Value);
-                    return x;
-                })
-            );
+            Model.Typedefs
+                .Where(x => x.ExpandWrappers<Delegate>() != null)
+                .ForEach(bindingsTypedef => {
+                    IEntityReference<Delegate> bindingsDelegate = bindingsTypedef.ExpandWrappers<Delegate>()!;
+                    bindingsDelegate.Value = PrettifyDelegateName(bindingsDelegate.Value);
+                    bindingsTypedef.Value.Name = bindingsDelegate.Value.Name;
+                });
+        }
+
+        using (new TimedLoggedOperation(Log, "Generating delegates for inline function definitions in function arguments")) {
+            Model = ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Context, Model);
         }
 
         // Functions and typedef delegates
@@ -145,7 +159,7 @@ public class BindingsModelCSharpTransformer(
 
         using (new TimedLoggedOperation(Log, "Converting C-style fixed-size array arguments to pointers to fixed-size struct")) {
             UpdateFunctionArguments((_, arg, _) =>
-                ConvertFixedSizeArrayArgumentToFixedSizeStruct(context, arg)
+                ConvertFixedSizeArrayArgumentToFixedSizeStruct(Context, arg)
             );
         }
 
@@ -164,7 +178,7 @@ public class BindingsModelCSharpTransformer(
         }
 
         using (new TimedLoggedOperation(Log, "Generating ImGuiConstants class")) {
-            Struct imGuiConstantsStruct = new ImGuiConstantsGenerator(context, metadataDto).Generate();
+            Struct imGuiConstantsStruct = new ImGuiConstantsGenerator(Context, MetadataDto).Generate();
             Model.Structs.Add(imGuiConstantsStruct.AsEntityReference());
         }
 

@@ -127,42 +127,6 @@ public static class StructModifiers {
         return field;
     }
 
-    private static Field FixMissingFieldArrayNumericBounds(
-        MetadataDto dto,
-        BindingsModel model,
-        Field field,
-        Array fieldTypeArray,
-        bool resolveNumericArrayBoundsForPrimitiveTypes
-    ) {
-        string? arrayBounds = fieldTypeArray.ArrayBounds;
-        long? arrayBoundsNumeric =
-            fieldTypeArray.ArrayBoundsNumeric ??
-            EvaluateExpressionAsLong(fieldTypeArray.ArrayBounds);
-
-        if (arrayBoundsNumeric == null &&
-            (!IsPrimitiveArrayElementType(fieldTypeArray.ElementType.Value) ||
-            resolveNumericArrayBoundsForPrimitiveTypes)
-           ) {
-            arrayBoundsNumeric = ResolveNumericArrayBoundsValue(dto, model, fieldTypeArray);
-        }
-
-        if (arrayBoundsNumeric == null) {
-            // This cast is needed when enum values are used as array bounds
-            arrayBounds = $"(int) ({fieldTypeArray.ArrayBounds})";
-        }
-
-        fieldTypeArray = fieldTypeArray with {
-            ArrayBounds = arrayBounds,
-            ArrayBoundsNumeric = arrayBoundsNumeric
-        };
-
-        field = field with {
-            Type = fieldTypeArray.AsEntityReference()
-        };
-
-        return field;
-    }
-
     public static Struct FixMissingFieldArrayNumericBounds(
         BindingsContext context,
         MetadataDto dto,
@@ -316,18 +280,18 @@ public static class StructModifiers {
             Field[] allFields = structure.Children.OfType<Field>().ToArray();
             for (int i = 0; i < allFields.Length; i++) {
                 Field field = allFields[i];
-                if (startIndex == -1 && field.Width != null) {
+                if (startIndex == -1 && field.BitWidth != null) {
                     startIndex = i;
                 } else if (startIndex != -1) {
-                    if (field.Width == null) {
+                    if (field.BitWidth == null) {
                         endIndex = i - 1;
                         break;
                     }
 
-                    if (field.Width == 0)
+                    if (field.BitWidth == 0)
                         throw new NotSupportedException($"Zero bitwidth fields are not supported ({structure.Name}.{field.Name})");
 
-                    currentBitSize += field.Width.Value;
+                    currentBitSize += field.BitWidth.Value;
                 }
             }
 
@@ -362,8 +326,8 @@ public static class StructModifiers {
         } while (true);*/
 
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
-            if (field.Width != null) {
-                Log.LogWarning($"Found bitfield {structure.Name}.{field.Name}:{field.Width} ({FormatType(field.Type.Value)})");
+            if (field.BitWidth != null) {
+                Log.LogWarning($"Found bitfield {structure.Name}.{field.Name}:{field.BitWidth} ({FormatType(field.Type.Value)})");
             }
 
             return field;
@@ -375,6 +339,42 @@ public static class StructModifiers {
     public static Delegate PrettifyDelegateName(Delegate @delegate) {
         @delegate.Name = @delegate.Name.RemoveFromEnd("Fn") + "Delegate";
         return @delegate;
+    }
+
+    private static Field FixMissingFieldArrayNumericBounds(
+        MetadataDto dto,
+        BindingsModel model,
+        Field field,
+        Array fieldTypeArray,
+        bool resolveNumericArrayBoundsForPrimitiveTypes
+    ) {
+        string? arrayBounds = fieldTypeArray.ArrayBounds;
+        long? arrayBoundsNumeric =
+            fieldTypeArray.ArrayBoundsNumeric ??
+            EvaluateExpressionAsLong(fieldTypeArray.ArrayBounds);
+
+        if (arrayBoundsNumeric == null &&
+            (!IsPrimitiveArrayElementType(fieldTypeArray.ElementType.Value) ||
+                resolveNumericArrayBoundsForPrimitiveTypes)
+           ) {
+            arrayBoundsNumeric = ResolveNumericArrayBoundsValue(dto, model, fieldTypeArray);
+        }
+
+        if (arrayBoundsNumeric == null) {
+            // This cast is needed when enum values are used as array bounds
+            arrayBounds = $"(int) ({fieldTypeArray.ArrayBounds})";
+        }
+
+        fieldTypeArray = fieldTypeArray with {
+            ArrayBounds = arrayBounds,
+            ArrayBoundsNumeric = arrayBoundsNumeric
+        };
+
+        field = field with {
+            Type = fieldTypeArray.AsEntityReference()
+        };
+
+        return field;
     }
 
     // C# doesn't support non-primitive fixed size array fields,
@@ -404,14 +404,14 @@ public static class StructModifiers {
         if (!isPrimitive || explodePrimitiveTypes) {
             fields = Enumerable.Range(0, (int) arrayBoundsValue.Value)
                 .Select(index => {
-                    Comments fieldComments = new(
-                        field.Comments.Attached,
-                        field.Comments.Attached,
-                        new EqualityList<string>(field.Comments.Notes)
-                    );
-                    fieldComments.WithAddedNotes(
-                        $"{field.Name} [{index} / {(int) arrayBoundsValue.Value} ({fieldTypeArray.ArrayBounds})]"
-                    );
+                    Comments fieldComments =
+                        new Comments(
+                            field.Comments.Attached,
+                            field.Comments.Attached,
+                            new EqualityList<string>(field.Comments.Notes)
+                        ).WithAddedNotes(
+                            $"{field.Name} [{index} / {(int) arrayBoundsValue.Value} ({fieldTypeArray.ArrayBounds})]"
+                        );
                     return field with {
                         Name = $"{field.Name}_{index}",
                         Type = arrayElementTypeReference,

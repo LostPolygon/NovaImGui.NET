@@ -9,7 +9,7 @@ public static class FunctionModifiers {
     public static string FixInvalidArgumentNames(string argumentName, int argumentIndex) {
         argumentName =
             String.IsNullOrEmpty(argumentName) ?
-                $"__unnamed_arg{argumentIndex}__" :
+                $"arg{argumentIndex + 1}" :
                 FixInvalidIdentifier(argumentName);
 
         return argumentName;

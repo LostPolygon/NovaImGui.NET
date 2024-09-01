@@ -159,8 +159,7 @@ public record MetadataModel(
         bool IsConstant,
         int? Width,
         string? Value,
-        IEntityReference Type,
-        IEntityReference? DelegateType
+        IEntityReference Type
     ) : IndependentEntity<Field>(Comments, Conditionals, SourceLocation, IsInternal);
 
     public enum StorageClass {
@@ -228,7 +227,7 @@ public record MetadataModel(
             return
                 $"{{ {nameof(Function)} {{ " +
                 $"[{(OriginalClass != null ? OriginalClass.Value.ToString() : "free")}]" +
-                $" {ToStringBase()}  }} }}";
+                $" {Name} - {ToStringBase()}  }} }}";
         }
     }
 

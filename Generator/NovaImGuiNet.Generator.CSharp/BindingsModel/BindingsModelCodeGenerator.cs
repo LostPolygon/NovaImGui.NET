@@ -139,16 +139,13 @@ public class BindingsModelCodeGenerator {
         ];
 
         if (callbacks.Length != 0) {
-            if (entity.OriginalFullyQualifiedName == "ImGui::Combo") {
-                Console.Write(6);
-            }
             MethodDeclarationSyntax managedMethodSyntax = Generate(false);
             MethodDeclarationSyntax unmanagedMethodSyntax = Generate(true);
-            WrapInSelfExclusiveConditionals(
-                ref managedMethodSyntax,
-                ref unmanagedMethodSyntax,
-                "NETSTANDARD2_0_OR_GREATER"
+            unmanagedMethodSyntax = ApplyConditionals(
+                unmanagedMethodSyntax,
+                [new Conditional("NET6_0_OR_GREATER")]
             );
+
             return [managedMethodSyntax, unmanagedMethodSyntax];
         }
 
@@ -180,45 +177,11 @@ public class BindingsModelCodeGenerator {
                     .AddAttributeLists(CreateMarshalAsAttributeLists(entity.ReturnType.Value, true))
                     .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
 
-            List<ParameterSyntax> parameters = [];
-            foreach (FunctionArgument argument in entity.Arguments) {
-                bool isDelegate = argument.Type.Value is Delegate;
-                ParameterSyntax parameter =
-                    Parameter(Identifier(argument.Name))
-                        .WithType(ParseTypeName(
-                            FormatType(
-                                argument.Type.Value,
-                                new FormatTypeOptions {
-                                    DelegatesAsFunctionPointers = delegatesAsFunctionPointers && isDelegate,
-                                    DontExpandTypedefs = true
-                                }
-                            )
-                        ))
-                        .AddAttributeLists(CreateMarshalAsAttributeLists(argument.Type.Value, false));
-
-                if (!String.IsNullOrEmpty(argument.DefaultValue)) {
-                    //parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
-
-                    /*parameter = parameter.AddAttributeLists(AttributeList(SeparatedList(
-                    [
-                        Attribute(ParseName("DefaultParameterValue"))
-                            .WithArgumentList(AttributeArgumentList(
-                                SeparatedList(
-                                    [
-                                        AttributeArgument(ParseExpression(argument.DefaultValue))
-                                    ]
-                                )
-                            ))
-                    ]
-                )));*/
-                }
-
-                parameters.Add(parameter);
-            }
+            IEnumerable<ParameterSyntax> parameters =
+                entity.Arguments.Select(arg => CreateMethodParameterSyntax(arg, delegatesAsFunctionPointers));
 
             methodDeclarationSyntax =
-                methodDeclarationSyntax
-                    .WithParameterList(ParameterList(SeparatedList(parameters)));
+                methodDeclarationSyntax.WithParameterList(ParameterList(SeparatedList(parameters)));
             methodDeclarationSyntax = ApplyCommonEntitySyntax(methodDeclarationSyntax, entity);
 
             List<string> generatorCommentItems = [$"OriginalFullyQualifiedName = {entity.OriginalFullyQualifiedName}"];
@@ -243,6 +206,48 @@ public class BindingsModelCodeGenerator {
                     .AddLeadingTriviaToEnd(generatorTrivia);
             return methodDeclarationSyntax;
         }
+    }
+
+    private static ParameterSyntax CreateMethodParameterSyntax(
+        FunctionArgument argument,
+        bool delegatesAsFunctionPointers
+    ) {
+        bool isDelegate = argument.Type.ExpandWrappers<Delegate>() != null;
+
+        ParameterSyntax parameter =
+            Parameter(Identifier(argument.Name))
+                .WithType(
+                    ParseTypeName(
+                        FormatType(
+                            argument.Type.Value,
+                            new FormatTypeOptions {
+                                DelegatesAsFunctionPointers = delegatesAsFunctionPointers && isDelegate,
+                                DontExpandTypedefs = !delegatesAsFunctionPointers,
+                                FullyQualifiedTypes = !delegatesAsFunctionPointers
+                            }
+                        )
+                    )
+                )
+                .AddAttributeLists(CreateMarshalAsAttributeLists(argument.Type.Value, false));
+
+        if (!String.IsNullOrEmpty(argument.DefaultValue)) {
+            //parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
+
+            /*parameter = parameter.AddAttributeLists(AttributeList(SeparatedList(
+                    [
+                        Attribute(ParseName("DefaultParameterValue"))
+                            .WithArgumentList(AttributeArgumentList(
+                                SeparatedList(
+                                    [
+                                        AttributeArgument(ParseExpression(argument.DefaultValue))
+                                    ]
+                                )
+                            ))
+                    ]
+                )));*/
+        }
+
+        return parameter;
     }
 
     private static EnumDeclarationSyntax GenerateBinding(Enum entity) {
@@ -338,14 +343,16 @@ public class BindingsModelCodeGenerator {
                         ApplyCommonEntitySyntax(memberSyntax.Syntax, memberSyntax)
                     );
                     break;
-                case IEntityReference<Delegate> @delegate: {
-                    DelegateDeclarationSyntax delegateSyntax = CreateDelegateDeclarationSyntax(@delegate.Value);
+                case IEntityReference<Delegate> delegateModel: {
+                    DelegateDeclarationSyntax delegateSyntax =
+                        CreateDelegateDeclarationSyntax(delegateModel.Value, delegateModel.Value.Name);
                     structSyntax = structSyntax.AddMembers(delegateSyntax);
                     break;
                 }
                 case Field field: {
                     FieldDeclarationSyntax fieldSyntax = GenerateField(entity, field, true);
-                    if (field.DelegateType != null) {
+                    IEntityReference<Delegate>? fieldTypeDelegate = field.Type.ExpandWrappers<Delegate>();
+                    if (fieldTypeDelegate != null) {
                         FieldDeclarationSyntax legacyFieldSyntax = GenerateField(entity, field, false);
                         WrapInSelfExclusiveConditionals(
                             ref legacyFieldSyntax,
@@ -433,13 +440,13 @@ public class BindingsModelCodeGenerator {
                     )));
         }
 
-        fieldDeclarationSyntax.AddAttributeLists(CreateMarshalAsAttributeLists(field.Type.Value, false));
+        fieldDeclarationSyntax = fieldDeclarationSyntax.AddAttributeLists(CreateMarshalAsAttributeLists(field.Type.Value, false));
         fieldDeclarationSyntax = ApplyCommonEntitySyntax(fieldDeclarationSyntax, field);
 
         return fieldDeclarationSyntax;
     }
 
-    private AttributeListSyntax[] CreateMarshalAsAttributeLists(Entity entity, bool isReturnValue) {
+    private static AttributeListSyntax[] CreateMarshalAsAttributeLists(Entity entity, bool isReturnValue) {
         string typeExpanded = FormatType(entity);
         if (typeExpanded == "bool") {
             return [CreateBoolMarshalAsAttribute(isReturnValue ? SyntaxKind.ReturnKeyword : null)];
@@ -448,7 +455,7 @@ public class BindingsModelCodeGenerator {
         return [];
     }
 
-    private AttributeListSyntax CreateBoolMarshalAsAttribute(SyntaxKind? target) =>
+    private static AttributeListSyntax CreateBoolMarshalAsAttribute(SyntaxKind? target) =>
         AttributeList(
             target != null ? AttributeTargetSpecifier(Token(target.Value)) : null,
             SeparatedList([
@@ -465,21 +472,21 @@ public class BindingsModelCodeGenerator {
         );
 
     private OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax> GenerateBinding(Typedef entity) {
-        OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax> declarationSyntax;
-        if (entity.Type.Value is Delegate userDelegate) {
-            declarationSyntax = CreateDelegateDeclarationSyntax(userDelegate);
-        } else {
-            IEntityReference aliased = entity.Type!;
-            while (aliased.Value is Typedef aliasedTypeInner) {
-                aliased = aliasedTypeInner.Type;
-            }
+        IEntityReference aliasedType = entity.Type;
+        while (aliasedType.Value is Typedef aliasedTypeInner) {
+            aliasedType = aliasedTypeInner.Type;
+        }
 
+        OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax> declarationSyntax;
+        if (aliasedType.Value is Delegate userDelegate) {
+            declarationSyntax = CreateDelegateDeclarationSyntax(userDelegate, entity.Name);
+        } else {
             declarationSyntax =
                 UsingDirective(
                         NameEquals(entity.Name),
                         IdentifierName(
                             FormatType(
-                                aliased.Value,
+                                aliasedType.Value,
                                 new FormatTypeOptions {
                                     FullyQualifiedBuiltins = true,
                                     FullyQualifiedTypes = true
@@ -498,7 +505,7 @@ public class BindingsModelCodeGenerator {
         return declarationSyntax;
     }
 
-    private static DelegateDeclarationSyntax CreateDelegateDeclarationSyntax(Delegate userDelegate) {
+    private static DelegateDeclarationSyntax CreateDelegateDeclarationSyntax(Delegate userDelegate, string name) {
         DelegateDeclarationSyntax delegateDeclaration =
             DelegateDeclaration(
                     ParseTypeName(
@@ -510,6 +517,7 @@ public class BindingsModelCodeGenerator {
                     userDelegate.Name
                 )
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.UnsafeKeyword))
+                .AddAttributeLists(CreateMarshalAsAttributeLists(userDelegate.ReturnType.Value, true))
                 .AddAttributeLists(AttributeList(SeparatedList([
                         Attribute(ParseName("UnmanagedFunctionPointer"))
                             .WithArgumentList(AttributeArgumentList(
@@ -520,17 +528,8 @@ public class BindingsModelCodeGenerator {
                     ]
                 )));
 
-        ParameterSyntax[] parameters = userDelegate.Arguments
-            .Select((arg, index) =>
-                Parameter(
-                    default,
-                    default,
-                    ParseTypeName(FormatType(arg.Type.Value, new FormatTypeOptions { FullyQualifiedTypes = true })),
-                    Identifier(arg.Name == null ? $"__unnamed_arg_{index}" : arg.Name),
-                    arg.DefaultValue != null ? EqualsValueClause(ParseExpression(arg.DefaultValue)) : default
-                )
-            )
-            .ToArray();
+        IEnumerable<ParameterSyntax> parameters =
+            userDelegate.Arguments.Select(arg => CreateMethodParameterSyntax(arg, false));
 
         delegateDeclaration = delegateDeclaration.WithParameterList(ParameterList(SeparatedList(parameters)));
         delegateDeclaration = ApplyCommonEntitySyntax(delegateDeclaration, userDelegate);

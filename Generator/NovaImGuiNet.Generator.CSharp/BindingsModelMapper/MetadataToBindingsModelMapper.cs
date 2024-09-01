@@ -96,8 +96,7 @@ public class MetadataToBindingsModelMapper {
             MetadataToBindingsModelMappingUtility.Map(metadata.Conditionals),
             metadata.IsInternal,
             metadata.IsConstant,
-            metadata.Width,
-            metadata.DelegateType != null ? ResolveEntity(metadata.DelegateType) : null
+            metadata.Width
         ) {
             Name = metadata.Name,
             Value = metadata.Value,
@@ -109,8 +108,7 @@ public class MetadataToBindingsModelMapper {
             case MetadataModel.IEntityReference<MetadataModel.Enum> metadata:
                 return MapEnum(metadata.Value);
             case MetadataModel.IEntityReference<MetadataModel.Array> metadata:
-                return
-                    ResolveArray(metadata);
+                return ResolveArray(metadata);
             case MetadataModel.IEntityReference<MetadataModel.Builtin> metadata:
                 return MapBuiltinType(metadata.Value);
             case MetadataModel.IEntityReference<MetadataModel.Pointer> metadata:
@@ -141,7 +139,7 @@ public class MetadataToBindingsModelMapper {
                         metadata.Value.ByValue,
                         [],
                         [
-                            ..metadata.Value.Delegates.Select(ResolveEntity).Cast<BindingsModel.IEntityReference<BindingsModel.Delegate>>(),
+                            //..metadata.Value.Delegates.Select(ResolveEntity).Cast<BindingsModel.IEntityReference<BindingsModel.Delegate>>(),
                             ..metadata.Value.Fields.Select(ConvertField)
                         ]
                     ) {

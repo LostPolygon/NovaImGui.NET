@@ -381,8 +381,7 @@ public record BindingsModel : BindingsModel.IEntity {
         public required string? Value { get; set; }
         public required IEntityReference Type { get; set; }
         public bool IsConstant { get; set; }
-        public int? Width { get; set; }
-        public IEntityReference? DelegateType { get; set; }
+        public int? BitWidth { get; set; }
 
         public Field() {
         }
@@ -392,12 +391,10 @@ public record BindingsModel : BindingsModel.IEntity {
             IReadOnlyList<Conditional> conditionals,
             bool isInternal,
             bool isConstant,
-            int? width,
-            IEntityReference? delegateType
+            int? bitWidth
         ) : base(comments, conditionals, isInternal) {
             IsConstant = isConstant;
-            Width = width;
-            DelegateType = delegateType;
+            BitWidth = bitWidth;
         }
     }
 
@@ -549,7 +546,10 @@ public record BindingsModel : BindingsModel.IEntity {
     public record struct Conditional(
         string Condition,
         string Expression
-    );
+    ) {
+        public Conditional(string expression) : this("if", expression) {
+        }
+    }
 
     public interface IEntityReference {
         Entity Value { get; set; }
