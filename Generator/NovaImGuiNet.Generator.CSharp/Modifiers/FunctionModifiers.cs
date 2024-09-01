@@ -1,6 +1,8 @@
-﻿using CaseConverter;
+﻿using System.Diagnostics;
+using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Extensions.Logging;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
@@ -9,48 +11,102 @@ using static CSharpCodeGenerationUtility;
 using static SyntaxFactory;
 
 public static class FunctionModifiers {
-    public static FunctionArgument PatchArgumentDefaultValues(BindingsModel model, IFunctionLike functionLike, FunctionArgument argument) {
-        string initialDefaultValue = argument.DefaultValue;
-        if (initialDefaultValue == null)
-            return argument;
+    private static readonly ILogger Log = Logging.Create(nameof(FunctionModifiers));
 
-        argument.DefaultValueForFuture = initialDefaultValue;
+    public static void PatchArgumentDefaultValues<T>(BindingsModel model, T functionLike) where T : IFunctionLike {
+        int? lastArgumentWithUnusableDeclarationDefaultValueIndex = null;
+        for (int index = 0; index < functionLike.Arguments.Count; index++) {
+            FunctionArgument argument = functionLike.Arguments[index];
+            if (argument.DeclarationDefaultValue == null)
+                continue;
+
+            bool fullyFixed = PatchArgumentDefaultValue(model, functionLike, argument);
+            if (!fullyFixed) {
+                lastArgumentWithUnusableDeclarationDefaultValueIndex = index;
+            }
+        }
+
+        if (lastArgumentWithUnusableDeclarationDefaultValueIndex == null)
+            return;
+
+        for (int index = 0; index <= lastArgumentWithUnusableDeclarationDefaultValueIndex; index++) {
+            FunctionArgument argument = functionLike.Arguments[index];
+            if (argument.DeclarationDefaultValue == null)
+                continue;
+
+            argument.DeclarationDefaultValue = null;
+        }
+    }
+
+    private static bool PatchArgumentDefaultValue(BindingsModel model, IFunctionLike functionLike, FunctionArgument argument) {
+        Debug.Assert(argument.DeclarationDefaultValue != null);
+        string initialDefaultValue = argument.DeclarationDefaultValue;
+
         argument.DefaultValue = initialDefaultValue;
+        argument.DeclarationDefaultValue = initialDefaultValue;
 
-        argument.DefaultValue = argument.DefaultValue switch {
+        argument.DeclarationDefaultValue = argument.DeclarationDefaultValue switch {
             "NULL" => "null",
             "ImVec2(0, 0)" => "default",
-            _ => argument.DefaultValue
+            "ImVec4(0, 0, 0, 0)" => "default",
+            "IM_COL32(255, 0, 0, 255)" => "IM_COL32_RED",
+            _ => argument.DeclarationDefaultValue
         };
 
-        if (argument.DefaultValue != initialDefaultValue)
-            return argument;
+        if (argument.DeclarationDefaultValue != initialDefaultValue)
+            return true;
 
-        foreach (IEntityReference<Enum> enumerationReference in model.Enums) {
+        foreach (EntityReferenceWrapper<Enum> enumerationReference in model.Enums) {
             Enum enumeration = enumerationReference.Value;
-            argument.DefaultValue = argument.DefaultValue.Replace($"{enumeration.Name}_", $"{enumeration.Name}.");
+            argument.DeclarationDefaultValue = argument.DeclarationDefaultValue.Replace($"{enumeration.Name}_", $"{enumeration.Name}.");
         }
 
-        if (argument.DefaultValue != initialDefaultValue)
-            return argument;
+        if (argument.DeclarationDefaultValue != initialDefaultValue)
+            return true;
 
-        if (argument.Type.ToString().Contains("ImGuiPopupFlags")) {
-            Console.Write(5);
+        Enum? argumentTypeEnum = (Enum?) argument.Type.ExpandWrappers<Enum>()?.Value;
+        if (argumentTypeEnum != null) {
+            // Find an enum member with matching string representation
+            Enum.Member? matchingEnumMember =
+                argumentTypeEnum.Members
+                    .FirstOrDefault(member => member.Value == argument.DeclarationDefaultValue);
+
+            if (matchingEnumMember != null) {
+                argument.DeclarationDefaultValue = $"{argumentTypeEnum.Name}.{matchingEnumMember.Name}";
+
+                //argument.DeclarationDefaultValue = $"({argumentTypeEnum.Name}) {argument.DeclarationDefaultValue}";
+            } else {
+                Log.LogWarning(
+                    $"Could not find matching enum member '{argument.DeclarationDefaultValue}'" +
+                    $" in enum '{argumentTypeEnum}'"
+                );
+            }
         }
 
-        // FIXME: this doesn't work because some enums like ImGuiPopupFlags are typedefd
-        if (argument.Type.Value is Enum argumentTypeEnum) {
-            argument.DefaultValue = $"({argumentTypeEnum.Name}) {argument.DefaultValue}";
+        if (argument.DeclarationDefaultValue != initialDefaultValue)
+            return true;
+
+        ExpressionSyntax expressionSyntax = ParseExpression(argument.DeclarationDefaultValue);
+        switch (expressionSyntax) {
+            case LiteralExpressionSyntax literalExpressionSyntax:
+                return literalExpressionSyntax.Kind() switch {
+                    SyntaxKind.StringLiteralExpression => false, // FIXME: we'll need this later
+                    _ => true
+                };
+            case PrefixUnaryExpressionSyntax:
+            case IdentifierNameSyntax:
+            case SizeOfExpressionSyntax:
+                return true;
+            case InvocationExpressionSyntax:
+                return false;
+            default:
+                Log.LogWarning(
+                    $"Argument '{argument.Name}' of function '{FormatType(functionLike)}' " +
+                    $"has unexpected array bounds value '{argument.DefaultValue}' " +
+                    $"that got understood as {expressionSyntax.GetType().Name}"
+                );
+                return false;
         }
-
-        if (argument.DefaultValue != initialDefaultValue)
-            return argument;
-
-        ExpressionSyntax expressionSyntax = ParseExpression(argument.DefaultValue);
-
-        //argument.DefaultValue = null;
-
-        return argument;
     }
 
     public static string FixInvalidArgumentNames(string argumentName, int argumentIndex) {
@@ -72,22 +128,22 @@ public static class FunctionModifiers {
 
     // TODO: merge with one below
     public static FunctionArgument PatchArrayArgumentsToUseByReference(FunctionArgument argument) {
-        if (argument.Type is not IEntityReference<Array> arrayType)
+        if (argument.Type.Value is not Array array)
             return argument;
 
         //if (argument.ArrayBounds == null)
         //    return argument;
 
-        if (arrayType.Value.ArrayBounds == null) {
+        if (array.ArrayBounds == null) {
             // 1. Convert boundless arrays to pointer
             argument = argument with {
-                Type = new Pointer(arrayType.Value.ElementType, false).AsEntityReference()
+                Type = new Pointer(array.ElementType, false).AsEntityReference()
             };
         } else {
             // 2. in C, passing fixed size array to a function is actually still passing a pointer.
             // So let's make it actually pass a pointer.
             argument = argument with {
-                Type = new Pointer(arrayType.Value.ElementType, false).AsEntityReference()
+                Type = new Pointer(array.ElementType, false).AsEntityReference()
             };
         }
 
@@ -100,12 +156,12 @@ public static class FunctionModifiers {
     /// so we replace them by fixed-size ImFixedArray&lt;T&gt; structures.
     /// </summary>
     public static FunctionArgument ConvertFixedSizeArrayArgumentToFixedSizeStruct(BindingsContext context, FunctionArgument argument) {
-        if (argument.Type is not IEntityReference<Array> argumentTypeArray || String.IsNullOrEmpty(argument.ArrayBounds))
+        if (argument.Type.Value is not Array argumentTypeArray || String.IsNullOrEmpty(argument.ArrayBounds))
             return argument;
 
         return argument with {
             Type = new Pointer(
-                CreateImFixedArrayFromArray(context, argument.ArrayBounds, argumentTypeArray.Value.ElementType.Value).AsEntityReference(),
+                CreateImFixedArrayFromArray(context, argument.ArrayBounds, argumentTypeArray.ElementType.Value).AsEntityReference(),
                 false
             ).AsEntityReference()
         };
