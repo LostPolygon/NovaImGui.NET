@@ -39,7 +39,7 @@ public class BindingsModelCodeGenerator {
         AddCompilationUnit("Typedefs.GlobalUsings", typedefBindings.globalUsingsCompilationUnit);
         AddCompilationUnit("Typedefs.Delegates", typedefBindings.delegatesCompilationUnit);
 
-        foreach (IEntityReference<Enum> enumeration in BindingsModel.Enums) {
+        foreach (EntityReferenceWrapper<Enum> enumeration in BindingsModel.Enums) {
             CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
                 enumeration.Value.Namespace,
                 GenerateBinding(enumeration.Value)
@@ -48,7 +48,7 @@ public class BindingsModelCodeGenerator {
             AddCompilationUnit(enumeration.Value, compilationUnitSyntax);
         }
 
-        foreach (IEntityReference<Struct> structure in BindingsModel.Structs) {
+        foreach (EntityReferenceWrapper<Struct> structure in BindingsModel.Structs) {
             if (structure.Value.SkipEmit)
                 continue;
 
@@ -68,7 +68,7 @@ public class BindingsModelCodeGenerator {
 
     private CompilationUnitSyntax GenerateFunctionsBindings() {
         List<MemberDeclarationSyntax> functions = [];
-        foreach (IEntityReference<Function> functionReference in BindingsModel.GetAllFunctions()) {
+        foreach (EntityReferenceWrapper<Function> functionReference in BindingsModel.GetAllFunctions()) {
             Function apiModelFunction = functionReference.Value;
             functions.AddRange(GenerateBinding(apiModelFunction));
         }
@@ -100,6 +100,7 @@ public class BindingsModelCodeGenerator {
             BindingsModel.Typedefs
                 .Select(t => t.Value)
                 .OrderBy(t => t.Type.Value is Delegate)
+                .Where(t => !t.SkipEmit)
                 .GroupBy(t => t.Namespace)
                 .Select(t => {
                     List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefBindingsNamespace = [];
@@ -129,13 +130,10 @@ public class BindingsModelCodeGenerator {
     }
 
     private IReadOnlyList<MethodDeclarationSyntax> GenerateBinding(Function entity) {
-        IEntityReference[] allChildTypes = entity.GetAllTypes([]).ToArray();
-        IEntityReference<Delegate>[] callbacks = [
-            ..allChildTypes.OfType<IEntityReference<Delegate>>(),
-            ..allChildTypes
-                .OfType<IEntityReference<Typedef>>()
-                .Select(t => t.Value.Type as IEntityReference<Delegate>)
-                .Where(t => t != null)
+        IEntityReference[] allChildTypes = entity.GetReferencedTypes([]).ToArray();
+        IEntityReference[] callbacks = [
+            ..allChildTypes.Where(x => x.Value is Delegate),
+            ..allChildTypes.Where(t => t.Value is Typedef { Type.Value: Delegate })
         ];
 
         if (callbacks.Length != 0) {
@@ -230,21 +228,8 @@ public class BindingsModelCodeGenerator {
                 )
                 .AddAttributeLists(CreateMarshalAsAttributeLists(argument.Type.Value, false));
 
-        if (!String.IsNullOrEmpty(argument.DefaultValue)) {
-            parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
-
-            /*parameter = parameter.AddAttributeLists(AttributeList(SeparatedList(
-                    [
-                        Attribute(ParseName("DefaultParameterValue"))
-                            .WithArgumentList(AttributeArgumentList(
-                                SeparatedList(
-                                    [
-                                        AttributeArgument(ParseExpression(argument.DefaultValue))
-                                    ]
-                                )
-                            ))
-                    ]
-                )));*/
+        if (!String.IsNullOrEmpty(argument.DeclarationDefaultValue)) {
+            parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DeclarationDefaultValue)));
         }
 
         return parameter;
@@ -343,15 +328,15 @@ public class BindingsModelCodeGenerator {
                         ApplyCommonEntitySyntax(memberSyntax.Syntax, memberSyntax)
                     );
                     break;
-                case IEntityReference<Delegate> delegateModel: {
+                case IEntityReference { Value: Delegate delegateModel }: {
                     DelegateDeclarationSyntax delegateSyntax =
-                        CreateDelegateDeclarationSyntax(delegateModel.Value, delegateModel.Value.Name);
+                        CreateDelegateDeclarationSyntax(delegateModel, delegateModel.Name);
                     structSyntax = structSyntax.AddMembers(delegateSyntax);
                     break;
                 }
                 case Field field: {
                     FieldDeclarationSyntax fieldSyntax = GenerateField(entity, field, true);
-                    IEntityReference<Delegate>? fieldTypeDelegate = field.Type.ExpandWrappers<Delegate>();
+                    IEntityReference? fieldTypeDelegate = field.Type.ExpandWrappers<Delegate>();
                     if (fieldTypeDelegate != null) {
                         FieldDeclarationSyntax legacyFieldSyntax = GenerateField(entity, field, false);
                         WrapInSelfExclusiveConditionals(

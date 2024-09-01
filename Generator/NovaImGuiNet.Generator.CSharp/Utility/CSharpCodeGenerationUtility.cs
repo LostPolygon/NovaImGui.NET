@@ -18,7 +18,7 @@ public static class CSharpCodeGenerationUtility {
         };
     }
 
-    public static string FormatType(Entity type, in FormatTypeOptions options = default) {
+    public static string FormatType(IEntity type, in FormatTypeOptions options = default) {
         Debug.Assert(type != null, "type != null");
 
         switch (type) {

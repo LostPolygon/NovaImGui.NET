@@ -22,12 +22,7 @@ public class MetadataToBindingsModelMapper {
     public BindingsModel Map() {
         ResolveAllModelEntities();
 
-        BindingsModel bindingsModel = new() {
-            Enums = GetModels<BindingsModel.IEntityReference<BindingsModel.Enum>>(),
-            Structs = GetModels<BindingsModel.IEntityReference<BindingsModel.Struct>>(),
-            Typedefs = GetModels<BindingsModel.IEntityReference<BindingsModel.Typedef>>(),
-            FreeFunctions = GetModels<BindingsModel.IEntityReference<BindingsModel.Function>>()
-        };
+        BindingsModel bindingsModel = new(MetadataEntityToBindingsEntity.Values.ToList());
 
         return bindingsModel;
 
@@ -90,7 +85,7 @@ public class MetadataToBindingsModelMapper {
             Name = metadata.Name,
             Type = ResolveEntity(metadata.Type),
             ArrayBounds = metadata.ArrayBounds,
-            DefaultValue = metadata.DefaultValue,
+            DeclarationDefaultValue = metadata.DefaultValue,
             IsVarargs = metadata.IsVarargs,
             IsInstancePointer = metadata.IsInstancePointer,
         };
@@ -190,7 +185,7 @@ public class MetadataToBindingsModelMapper {
                 MetadataToBindingsModelMappingUtility.Map(metadata.Value.Conditionals),
                 metadata.Value.IsInternal,
                 metadata.Value.OriginalClass != null ?
-                    (BindingsModel.IEntityReference<BindingsModel.Struct>) ResolveEntity(metadata.Value.OriginalClass) :
+                    new BindingsModel.EntityReferenceWrapper<BindingsModel.Struct>(ResolveEntity(metadata.Value.OriginalClass)) :
                     null,
                 metadata.Value.OriginalFullyQualifiedName,
                 metadata.Value.IsDefaultArgumentHelper,
@@ -205,16 +200,13 @@ public class MetadataToBindingsModelMapper {
             };
     }
 
-    private BindingsModel.IEntityReference ResolveEntity(
-        MetadataModel.IEntityReference metadata
-    ) {
+    private BindingsModel.IEntityReference ResolveEntity(MetadataModel.IEntityReference metadata) {
         ArgumentNullException.ThrowIfNull(metadata);
 
-        if (MetadataEntityToBindingsEntity.TryGetValue(metadata, out BindingsModel.IEntityReference? bindingsEntityRaw)) {
+        if (MetadataEntityToBindingsEntity.TryGetValue(metadata, out BindingsModel.IEntityReference? bindingsEntityRaw))
             return bindingsEntityRaw;
-        }
 
-        BindingsModel.IEntityReference bindingsReference = CreateEmptyBindingsEntityReferenceForMetadata(metadata.Value.GetType());
+        BindingsModel.IEntityReference bindingsReference = BindingsModel.CreateEmptyEntityReference();
         bool added = MetadataEntityToBindingsEntity.TryAdd(metadata, bindingsReference);
         Debug.Assert(added);
 
@@ -255,17 +247,4 @@ public class MetadataToBindingsModelMapper {
             (BindingsModel.StorageClass) metadata.StorageClass
         );
     }
-
-    private static BindingsModel.IEntityReference CreateEmptyBindingsEntityReferenceForMetadata(Type t) =>
-        t switch {
-            _ when t == typeof(MetadataModel.Array) => new BindingsModel.EntityReference<BindingsModel.Array>(),
-            _ when t == typeof(MetadataModel.Builtin) => new BindingsModel.EntityReference<BindingsModel.Builtin>(),
-            _ when t == typeof(MetadataModel.Delegate) => new BindingsModel.EntityReference<BindingsModel.Delegate>(),
-            _ when t == typeof(MetadataModel.Enum) => new BindingsModel.EntityReference<BindingsModel.Enum>(),
-            _ when t == typeof(MetadataModel.Function) => new BindingsModel.EntityReference<BindingsModel.Function>(),
-            _ when t == typeof(MetadataModel.Pointer) => new BindingsModel.EntityReference<BindingsModel.Pointer>(),
-            _ when t == typeof(MetadataModel.Struct) => new BindingsModel.EntityReference<BindingsModel.Struct>(),
-            _ when t == typeof(MetadataModel.Typedef) => new BindingsModel.EntityReference<BindingsModel.Typedef>(),
-            _ => throw new ArgumentOutOfRangeException(nameof(t), t, $"Unexpected type {t}")
-        };
 }

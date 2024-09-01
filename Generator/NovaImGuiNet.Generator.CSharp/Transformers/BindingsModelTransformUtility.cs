@@ -2,12 +2,12 @@ namespace NovaImGuiNet.Generator.CSharp;
 
 public static class BindingsModelTransformUtility {
     public static void Transform<TEntity>(
-        IList<BindingsModel.IEntityReference<TEntity>> entityReferences,
+        IList<BindingsModel.IEntityReference> entityReferences,
         Func<TEntity, TEntity?> transformer
     ) where TEntity : BindingsModel.Entity {
-        List<BindingsModel.IEntityReference<TEntity>> updated = [];
-        foreach (BindingsModel.IEntityReference<TEntity> entityReference in entityReferences) {
-            TEntity? value = entityReference.Value;
+        List<BindingsModel.IEntityReference> updated = [];
+        foreach (BindingsModel.IEntityReference entityReference in entityReferences) {
+            TEntity? value = (TEntity?) entityReference.Value;
 
             value = transformer(value);
             if (value == null)
@@ -18,7 +18,7 @@ public static class BindingsModelTransformUtility {
         }
 
         entityReferences.Clear();
-        foreach (BindingsModel.IEntityReference<TEntity> updatedEntity in updated) {
+        foreach (BindingsModel.IEntityReference updatedEntity in updated) {
             entityReferences.Add(updatedEntity);
         }
     }

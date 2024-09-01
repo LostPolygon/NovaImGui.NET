@@ -23,7 +23,7 @@ public static class StructModifiers {
         string newFieldTypeName,
         string newFieldName
     ) {
-        IEntityReference<Struct>? structureReference = model.Structs.FirstOrDefault(x => x.Value.Name == structName);
+        EntityReferenceWrapper<Struct>? structureReference = model.Structs.FirstOrDefault(x => x.Value.Name == structName);
         if (structureReference == null)
             throw new InvalidOperationException($"Struct with name '{structName}' not found");
 
@@ -35,34 +35,34 @@ public static class StructModifiers {
         if (field == null)
             throw new InvalidOperationException($"Field with name with prefix '{fieldNamePrefix}' not found in struct {structName}");
 
-        if (field.Type is not IEntityReference<Struct> fieldTypeReference)
+        if (field.Type.Value is not Struct fieldTypeStruct)
             throw new InvalidOperationException(
                 $"Field with name with prefix '{fieldNamePrefix}' in struct {structName} " +
                 $"has unexpected type {field.Type.GetType().FullName}"
             );
 
-        fieldTypeReference.Value.Name = newFieldTypeName;
+        fieldTypeStruct.Name = newFieldTypeName;
         field.Name = newFieldName;
 
         return model;
     }
 
     public static BindingsModel GenericizeStructByTypeName(BindingsModel model, string typeName, string newTypeName, string genericArgumentTypeName) {
-        IEntityReference<Struct>? structReference =
+        EntityReferenceWrapper<Struct>? structReference =
             model.Structs
                 .FirstOrDefault(x => x.Value.Name == typeName);
 
         if (structReference == null)
             throw new InvalidOperationException($"Found no struct with name {typeName}");
 
-        IEntityReference<Struct>? genericArgumentTypeReference =
+        EntityReferenceWrapper<Struct>? genericArgumentTypeReference =
             model.Structs
                 .FirstOrDefault(x => x.Value.Name == genericArgumentTypeName);
 
         if (genericArgumentTypeReference == null)
             throw new InvalidOperationException($"Found no struct with name {genericArgumentTypeName}");
 
-        GenericizeStruct(newTypeName, structReference, genericArgumentTypeReference);
+        GenericizeStruct(newTypeName, structReference, genericArgumentTypeReference.Reference);
         return model;
     }
 
@@ -72,7 +72,7 @@ public static class StructModifiers {
         string genericTypeDiscriminatorFieldName,
         bool dereferencePointerType
     ) {
-        IEntityReference<Struct>[] allStructs =
+        EntityReferenceWrapper<Struct>[] allStructs =
             model.Structs
                 .Where(x => x.Value.Name.StartsWith($"{baseTypeName}_", StringComparison.Ordinal))
                 .ToArray();
@@ -80,7 +80,7 @@ public static class StructModifiers {
         if (allStructs.Length == 0)
             throw new InvalidOperationException($"Found no structs with names starting with {baseTypeName}");
 
-        foreach (IEntityReference<Struct> structReference in allStructs) {
+        foreach (EntityReferenceWrapper<Struct> structReference in allStructs) {
             IEntityReference genericArgumentReference =
                 structReference.Value
                     .Children
@@ -88,8 +88,8 @@ public static class StructModifiers {
                     .First(x => x.Name == genericTypeDiscriminatorFieldName)
                     .Type;
 
-            if (dereferencePointerType && genericArgumentReference is IEntityReference<Pointer> pointerTypeReference) {
-                genericArgumentReference = pointerTypeReference.Value.ValueType;
+            if (dereferencePointerType && genericArgumentReference.Value is Pointer pointerType) {
+                genericArgumentReference = pointerType.ValueType;
             }
 
             GenericizeStruct(baseTypeName, structReference, genericArgumentReference);
@@ -116,7 +116,7 @@ public static class StructModifiers {
         if (arrayBounds == null)
             return field;
 
-        foreach (IEntityReference<Enum> enumerationReference in model.Enums) {
+        foreach (EntityReferenceWrapper<Enum> enumerationReference in model.Enums) {
             Enum enumeration = enumerationReference.Value;
             arrayBounds = arrayBounds.Replace($"{enumeration.Name}_", $"{enumeration.Name}.");
         }
@@ -164,7 +164,7 @@ public static class StructModifiers {
                 const int IM_UNICODE_CODEPOINT_MAX = 0xFFFF;
 #endif
                 fieldArrayType = fieldArrayType with {
-                    ArrayBoundsNumeric = (int) ((IM_UNICODE_CODEPOINT_MAX + 1) / 4096 / 8)
+                    ArrayBoundsNumeric = (IM_UNICODE_CODEPOINT_MAX + 1) / 4096 / 8
                 };
                 used4kPagesMapField.Type.Value = fieldArrayType;
                 break;
@@ -304,7 +304,7 @@ public static class StructModifiers {
 
             Field[] oldFields = allFields[startIndex..(endIndex + 1)];
             Debug.Assert(oldFields[0].Value == null);
-            Field combinedField = new Field() {
+            Field combinedField = new Field {
                 Name = String.Join("_", oldFields.Select(x => x.Name)),
                 Type = oldFields[0].Type,
                 Value = null,
@@ -520,7 +520,7 @@ public static class StructModifiers {
     }
 
     private static bool IsPrimitiveArrayElementType(Entity arrayElement) {
-        return arrayElement is Builtin or Typedef { Type: IEntityReference<Builtin> };
+        return arrayElement is Builtin or Typedef { Type.Value: Builtin };
     }
 
     private static IReadOnlyList<IEntity> AddUnmanagedFunctionPointerFieldRawPtrAccessor(Field field, Delegate userDelegate) {
@@ -528,9 +528,7 @@ public static class StructModifiers {
             ParseExpression($"(IntPtr) {field.Name}")
         );
         var propertySetLambda = ArrowExpressionClause(
-            ParseExpression(
-                $"{field.Name} = ({FormatUnmanagedFunctionPointer(userDelegate)}) value"
-            )
+            ParseExpression($"{field.Name} = ({FormatUnmanagedFunctionPointer(userDelegate)}) value")
         );
 
         PropertyDeclarationSyntax property =
@@ -554,7 +552,7 @@ public static class StructModifiers {
         MemberDeclarationSyntaxEntity entity = new(property, field);
         entity.Conditionals = [
             ..entity.Conditionals,
-            new Conditional("if", "!NETSTANDARD2_0_OR_GREATER")
+            new Conditional("!NETSTANDARD2_0_OR_GREATER")
         ];
 
         return [entity, field];
@@ -610,7 +608,7 @@ public static class StructModifiers {
 
     private static void GenericizeStruct(
         string newTypeName,
-        IEntityReference<Struct> structReference,
+        EntityReferenceWrapper<Struct> structReference,
         IEntityReference genericArgumentReference
     ) {
         Struct structure = structReference.Value;
@@ -621,6 +619,6 @@ public static class StructModifiers {
             SkipEmit = true
         };
 
-        structReference.Value = structure;
+        structReference.Reference.Value = structure;
     }
 }

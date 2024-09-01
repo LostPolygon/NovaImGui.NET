@@ -1,6 +1,5 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using MoreLinq.Extensions;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
