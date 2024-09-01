@@ -215,9 +215,10 @@ public static class StructModifiers {
                 };
                 keysDataCountField = keysDataCountField with {
                     Type = keysDataCountFieldArrayType.AsEntityReference(),
-                    Conditionals = new EqualityList<Conditional>(keysDataCountField.Conditionals) {
+                    Conditionals = [
+                        ..keysDataCountField.Conditionals,
                         new("ifdef", "!IMGUI_DISABLE_OBSOLETE_KEYIO")
-                    }
+                    ]
                 };
 
                 // When ImGuiKey.KeysData_SIZE = NamedKey_COUNT
@@ -237,9 +238,10 @@ public static class StructModifiers {
                 keysDataNamedKeyCountField.Type.Value = keysDataNamedKeyCountFieldArrayType;
                 keysDataNamedKeyCountField = keysDataNamedKeyCountField with {
                     Type = keysDataNamedKeyCountFieldArrayType.AsEntityReference(),
-                    Conditionals = new EqualityList<Conditional>(keysDataNamedKeyCountField.Conditionals) {
+                    Conditionals = [
+                        ..keysDataNamedKeyCountField.Conditionals,
                         new("ifdef", "IMGUI_DISABLE_OBSOLETE_KEYIO")
-                    }
+                    ]
                 };
 
                 structure.Children.UpdateInPlace(keysDataCountFieldOld, [keysDataCountField, keysDataNamedKeyCountField]);
@@ -405,13 +407,10 @@ public static class StructModifiers {
             fields = Enumerable.Range(0, (int) arrayBoundsValue.Value)
                 .Select(index => {
                     Comments fieldComments =
-                        new Comments(
-                            field.Comments.Attached,
-                            field.Comments.Attached,
-                            new EqualityList<string>(field.Comments.Notes)
-                        ).WithAddedNotes(
-                            $"{field.Name} [{index} / {(int) arrayBoundsValue.Value} ({fieldTypeArray.ArrayBounds})]"
-                        );
+                        field.Comments
+                            .WithAddedNotes(
+                                $"{field.Name} [{index} / {(int) arrayBoundsValue.Value} ({fieldTypeArray.ArrayBounds})]"
+                            );
                     return field with {
                         Name = $"{field.Name}_{index}",
                         Type = arrayElementTypeReference,

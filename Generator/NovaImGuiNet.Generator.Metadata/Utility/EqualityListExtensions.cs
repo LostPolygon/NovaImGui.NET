@@ -1,6 +1,6 @@
-namespace NovaImGuiNet.Generator;
+namespace NovaImGuiNet.Generator.Metadata;
 
-public static class EqualityListExtensions {
+internal static class EqualityListExtensions {
     public static EqualityList<TSource> ToEqualityList<TSource>(this IEnumerable<TSource> source) {
         return new EqualityList<TSource>(source);
     }

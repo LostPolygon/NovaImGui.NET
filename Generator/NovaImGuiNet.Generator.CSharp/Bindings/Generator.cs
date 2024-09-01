@@ -9,10 +9,6 @@ public class Generator {
 
     private BindingsContext BindingsContext { get; }
 
-    private MetadataDto MetadataDto { get; set; } = null!;
-
-    //private ApiModel ApiModelBeforeAugmenting { get; set; }
-
     public Generator(BindingsContext bindingsContext) {
         BindingsContext = bindingsContext;
     }
@@ -55,8 +51,9 @@ public class Generator {
     public void Execute() {
         Stopwatch totalStopwatch = Stopwatch.StartNew();
 
+        MetadataDto metadataDto;
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
-            MetadataDto = MergeDearBindingsDtos([
+            metadataDto = MergeDearBindingsDtos([
                 LoadDearBindingsDto("Resources/cimgui_imconfig.json"),
                 LoadDearBindingsDto("Resources/cimgui.json"),
                 LoadDearBindingsDto("Resources/cimgui_internal.json"),
@@ -68,7 +65,7 @@ public class Generator {
             ]);
 
             // HACK: add definition for FILE
-            MetadataDto.Typedefs.Add(new MetadataDto.Typedef {
+            metadataDto.Typedefs.Add(new MetadataDto.Typedef {
                 Name = "FILE",
                 Type = new MetadataDto.TypeValue {
                     Declaration = "void*",
@@ -84,39 +81,20 @@ public class Generator {
         }
 
         MetadataModel metadataModel;
-        using (new TimedLoggedOperation(Log, "Generating metadata model")) {
-            metadataModel = new MetadataModelResolver(MetadataDto).Map();
+        using (new TimedLoggedOperation(Log, "Resolving metadata model")) {
+            metadataModel = new MetadataModelResolver(metadataDto).Map();
         }
 
         BindingsModel bindingsModel;
-        using (new TimedLoggedOperation(Log, "Generating bindings model")) {
-            MetadataToBindingsModelMapper metadataToBindingsModelMapper = new(
-                metadataModel,
-                BindingsContext
-            );
-
-            metadataToBindingsModelMapper.UnresolvedTypeDetected += entity => {
-                switch (entity) {
-                    case MetadataModel.Builtin builtin:
-                        if (KnownBindingsEntitiesInfo.ExpectedTypesDefinedElsewhere.Contains(builtin.Type))
-                            return;
-
-                        break;
-                }
-
-                throw new KeyNotFoundException(
-                    $"Unresolved entity type, make sure you've included all necessary metadata: {entity}"
-                );
-            };
-
-            bindingsModel = metadataToBindingsModelMapper.Map();
+        using (new TimedLoggedOperation(Log, "Resolving bindings model")) {
+            bindingsModel = ResolveBindingsModel(metadataModel);
         }
 
         using (new TimedLoggedOperation(Log, "Applying transformations")) {
             bindingsModel =
                 new BindingsModelCSharpTransformer(
                     bindingsModel,
-                    MetadataDto,
+                    metadataDto,
                     BindingsContext
                 ).Transform();
         }
@@ -141,5 +119,28 @@ public class Generator {
 
         totalStopwatch.Stop();
         Log.LogInformation($"Done! (total time {totalStopwatch.Elapsed.TotalSeconds:0.00} s)");
+    }
+
+    private BindingsModel ResolveBindingsModel(MetadataModel metadataModel) {
+        BindingsModelFromMetadataResolver bindingsModelResolver = new(
+            metadataModel,
+            BindingsContext
+        );
+
+        bindingsModelResolver.UnresolvedTypeDetected += entity => {
+            switch (entity) {
+                case MetadataModel.Builtin builtin:
+                    if (KnownBindingsEntitiesInfo.ExpectedTypesDefinedElsewhere.Contains(builtin.Type))
+                        return;
+
+                    break;
+            }
+
+            throw new KeyNotFoundException(
+                $"Unresolved entity type, make sure you've included all necessary metadata: {entity}"
+            );
+        };
+
+        return bindingsModelResolver.Resolve();
     }
 }

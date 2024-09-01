@@ -279,12 +279,12 @@ public partial class BindingsModel {
     }
 
     public interface IFunctionLike : IIndependentEntity {
-        EqualityList<FunctionArgument> Arguments { get; set; }
+        List<FunctionArgument> Arguments { get; set; }
         IEntityReference ReturnType { get; set; }
     }
 
     public abstract record FunctionLike : IndependentEntity, IFunctionLike {
-        public required EqualityList<FunctionArgument> Arguments { get; set; }
+        public required List<FunctionArgument> Arguments { get; set; }
         public required IEntityReference ReturnType { get; set; }
 
         protected FunctionLike() {
@@ -392,7 +392,7 @@ public partial class BindingsModel {
 
         public Comments WithAddedNotes(params string[] notes) {
             return this with {
-                Notes = new EqualityList<string>([..Notes, ..notes])
+                Notes = [..Notes, ..notes]
             };
         }
     }

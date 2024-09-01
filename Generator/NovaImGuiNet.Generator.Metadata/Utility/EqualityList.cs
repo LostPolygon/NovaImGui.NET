@@ -1,6 +1,6 @@
-﻿namespace NovaImGuiNet.Generator;
+﻿namespace NovaImGuiNet.Generator.Metadata;
 
-public class EqualityList<T> : List<T>, IEquatable<EqualityList<T>> {
+internal class EqualityList<T> : List<T>, IEquatable<EqualityList<T>> {
     public EqualityList() {
     }
 

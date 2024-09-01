@@ -12,9 +12,9 @@ public record MetadataModel(
 
     public abstract record Entity : IConvertibleToEntityReference {
         // Messy hack to have two methods named AsEntityReference with different return types
-        protected abstract IEntityReference AsAnyEntityReferenceInternal();
+        protected abstract IEntityReference AsEntityReferenceInternal();
 
-        IEntityReference IConvertibleToEntityReference.AsEntityReference() => AsAnyEntityReferenceInternal();
+        IEntityReference IConvertibleToEntityReference.AsEntityReference() => AsEntityReferenceInternal();
 
         // This is smelly, but...
         public static IEntityReference CreateEmptyEntityReference<T>() where T : Entity {
@@ -37,7 +37,7 @@ public record MetadataModel(
     public abstract record Entity<T> : Entity where T : Entity {
         public IEntityReference<T> AsEntityReference() => new EntityReference<T>((this as T)!);
 
-        protected override IEntityReference AsAnyEntityReferenceInternal() => AsEntityReference();
+        protected override IEntityReference AsEntityReferenceInternal() => AsEntityReference();
     }
 
     public interface ITopLevelEntity : IIndependentEntity {
@@ -46,13 +46,13 @@ public record MetadataModel(
 
     public interface IIndependentEntity {
         Comments Comments { get; init; }
-        EqualityList<Conditional> Conditionals { get; init; }
+        IReadOnlyList<Conditional> Conditionals { get; init; }
         bool IsInternal { get; init; }
     }
 
     public abstract record IndependentEntity<T>(
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal
     ) : Entity<T>,
@@ -61,7 +61,7 @@ public record MetadataModel(
 
     public abstract record TopLevelEntity<T>(
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal,
         string Name
@@ -92,7 +92,7 @@ public record MetadataModel(
     public record Enum(
         string Name,
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal,
         IReadOnlyList<Enum.Member> Members,
@@ -107,7 +107,7 @@ public record MetadataModel(
             string? Value,
             long? ValueNumeric,
             Comments Comments,
-            EqualityList<Conditional> Conditionals,
+            IReadOnlyList<Conditional> Conditionals,
             SourceLocation? SourceLocation,
             bool IsInternal
         ) : IndependentEntity<Member>(Comments, Conditionals, SourceLocation, IsInternal);
@@ -116,7 +116,7 @@ public record MetadataModel(
     public record Struct(
         string Name,
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal,
         Struct.StructKind Kind,
@@ -139,7 +139,7 @@ public record MetadataModel(
     public record Typedef(
         string Name,
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal,
         IEntityReference Type
@@ -151,7 +151,7 @@ public record MetadataModel(
 
     public record Field(
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal,
         string Name,
@@ -177,15 +177,15 @@ public record MetadataModel(
     );
 
     public interface IFunctionLike {
-        EqualityList<FunctionArgument> Arguments { get; init; }
+        IReadOnlyList<FunctionArgument> Arguments { get; init; }
         IEntityReference ReturnType { get; init; }
     }
 
     public abstract record FunctionLike<T>(
-        EqualityList<FunctionArgument> Arguments,
+        IReadOnlyList<FunctionArgument> Arguments,
         IEntityReference ReturnType,
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal
     ) : IndependentEntity<T>(Comments, Conditionals, SourceLocation, IsInternal), IFunctionLike where T : Entity {
@@ -195,10 +195,10 @@ public record MetadataModel(
 
     public record Delegate(
         string Name,
-        EqualityList<FunctionArgument> Arguments,
+        IReadOnlyList<FunctionArgument> Arguments,
         IEntityReference ReturnType,
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal
     ) : FunctionLike<Delegate>(Arguments, ReturnType, Comments, Conditionals, SourceLocation, IsInternal) {
@@ -216,10 +216,10 @@ public record MetadataModel(
         bool HasImstrHelper,
         bool IsManualHelper,
         bool IsUnformattedHelper,
-        EqualityList<FunctionArgument> Arguments,
+        IReadOnlyList<FunctionArgument> Arguments,
         IEntityReference ReturnType,
         Comments Comments,
-        EqualityList<Conditional> Conditionals,
+        IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal
     ) : FunctionLike<Function>(Arguments, ReturnType, Comments, Conditionals, SourceLocation, IsInternal) {
@@ -232,19 +232,9 @@ public record MetadataModel(
     }
 
     public readonly record struct Comments(
-        EqualityList<string> Preceding,
-        EqualityList<string> Attached,
-        EqualityList<string> Notes
-    ) {
-        public Comments() : this([], [], []) {
-        }
-
-        public Comments WithAddedNotes(params string[] notes) {
-            return this with {
-                Notes = new EqualityList<string>([..Notes.ToArray(), ..notes])
-            };
-        }
-    }
+        IReadOnlyList<string> Preceding,
+        IReadOnlyList<string> Attached
+    );
 
     public record struct Conditional(string Condition, string Expression);
 

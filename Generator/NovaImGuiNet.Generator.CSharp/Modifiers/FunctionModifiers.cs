@@ -187,11 +187,13 @@ public static class FunctionModifiers {
     }
 
     public static void RemoveBrokenConditionalDefines<T>(T functionLike) where T : IFunctionLike {
-        IReadOnlyList<string> bannedConditionalExpression = ["defined(IMGUI_HAS_IMSTR)"];
+        IReadOnlyList<string> bannedConditionalExpression = [
+            "defined(IMGUI_HAS_IMSTR)"
+        ];
 
         functionLike.Conditionals =
             functionLike.Conditionals
                 .Where(cond => !bannedConditionalExpression.Any(banned => cond.Expression.Contains(banned)))
-                .ToEqualityList();
+                .ToArray();
     }
 }

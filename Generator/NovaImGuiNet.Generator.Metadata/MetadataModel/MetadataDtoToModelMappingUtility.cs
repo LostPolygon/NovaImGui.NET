@@ -31,10 +31,7 @@ public static class MetadataDtoToModelMappingUtility {
     public static MetadataModel.Comments Map(MetadataDto.Comments dto) {
         return new MetadataModel.Comments(
             new EqualityList<string>(dto.Preceding.Select(TransformLine)),
-            dto.Attached != null ?
-                [TransformLine(dto.Attached)] :
-                [],
-            []
+            dto.Attached != null ? [TransformLine(dto.Attached)] : []
         );
 
         static string TransformLine(string line) =>
@@ -44,7 +41,7 @@ public static class MetadataDtoToModelMappingUtility {
                 .Trim();
     }
 
-    public static EqualityList<MetadataModel.Conditional> Map(MetadataDto.Conditional[] dto) =>
+    public static IReadOnlyList<MetadataModel.Conditional> Map(MetadataDto.Conditional[] dto) =>
         dto
             .Select(c => new MetadataModel.Conditional(c.Condition, c.Expression))
             .ToEqualityList();
