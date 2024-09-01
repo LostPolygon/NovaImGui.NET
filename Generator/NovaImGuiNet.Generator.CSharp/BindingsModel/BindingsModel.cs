@@ -410,6 +410,7 @@ public record BindingsModel : BindingsModel.IEntity {
         public required bool IsVarargs { get; set; }
         public required bool IsInstancePointer { get; set; }
         public required string? DefaultValue { get; set; }
+        public string? DefaultValueForFuture { get; set; }
     }
 
     public interface IFunctionLike : IIndependentEntity {
@@ -586,17 +587,5 @@ public record BindingsModel : BindingsModel.IEntity {
 
             return Value.ToString();
         }
-    }
-
-    public void Deconstruct(
-        out List<IEntityReference<Enum>> Enums,
-        out List<IEntityReference<Struct>> Structs,
-        out List<IEntityReference<Typedef>> Typedefs,
-        out List<IEntityReference<Function>> FreeFunctions
-    ) {
-        Enums = this.Enums;
-        Structs = this.Structs;
-        Typedefs = this.Typedefs;
-        FreeFunctions = this.FreeFunctions;
     }
 }

@@ -1,11 +1,58 @@
 ﻿using CaseConverter;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
 using static BindingsModel;
 using static CSharpCodeGenerationUtility;
+using static SyntaxFactory;
 
 public static class FunctionModifiers {
+    public static FunctionArgument PatchArgumentDefaultValues(BindingsModel model, IFunctionLike functionLike, FunctionArgument argument) {
+        string initialDefaultValue = argument.DefaultValue;
+        if (initialDefaultValue == null)
+            return argument;
+
+        argument.DefaultValueForFuture = initialDefaultValue;
+        argument.DefaultValue = initialDefaultValue;
+
+        argument.DefaultValue = argument.DefaultValue switch {
+            "NULL" => "null",
+            "ImVec2(0, 0)" => "default",
+            _ => argument.DefaultValue
+        };
+
+        if (argument.DefaultValue != initialDefaultValue)
+            return argument;
+
+        foreach (IEntityReference<Enum> enumerationReference in model.Enums) {
+            Enum enumeration = enumerationReference.Value;
+            argument.DefaultValue = argument.DefaultValue.Replace($"{enumeration.Name}_", $"{enumeration.Name}.");
+        }
+
+        if (argument.DefaultValue != initialDefaultValue)
+            return argument;
+
+        if (argument.Type.ToString().Contains("ImGuiPopupFlags")) {
+            Console.Write(5);
+        }
+
+        // FIXME: this doesn't work because some enums like ImGuiPopupFlags are typedefd
+        if (argument.Type.Value is Enum argumentTypeEnum) {
+            argument.DefaultValue = $"({argumentTypeEnum.Name}) {argument.DefaultValue}";
+        }
+
+        if (argument.DefaultValue != initialDefaultValue)
+            return argument;
+
+        ExpressionSyntax expressionSyntax = ParseExpression(argument.DefaultValue);
+
+        //argument.DefaultValue = null;
+
+        return argument;
+    }
+
     public static string FixInvalidArgumentNames(string argumentName, int argumentIndex) {
         argumentName =
             String.IsNullOrEmpty(argumentName) ?

@@ -138,6 +138,12 @@ public class BindingsModelCSharpTransformer {
             });
         }
 
+        using (new TimedLoggedOperation(Log, "Patching function default values")) {
+            UpdateFunctionArguments((function, arg, _) =>
+                PatchArgumentDefaultValues(Model, function, arg)
+            );
+        }
+
         using (new TimedLoggedOperation(Log, "Fixing invalid argument names")) {
             UpdateFunctionArguments((_, arg, argIndex) => {
                 arg.Name = FixInvalidArgumentNames(arg.Name, argIndex);
@@ -146,12 +152,6 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (new TimedLoggedOperation(Log, "Prettifying argument names")) {
-            UpdateFunctionArguments((function, arg, _) =>
-                PrettifyArgumentName(function, arg)
-            );
-        }
-
-        using (new TimedLoggedOperation(Log, "Fixing invalid argument names")) {
             UpdateFunctionArguments((function, arg, _) =>
                 PrettifyArgumentName(function, arg)
             );

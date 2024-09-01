@@ -231,7 +231,7 @@ public class BindingsModelCodeGenerator {
                 .AddAttributeLists(CreateMarshalAsAttributeLists(argument.Type.Value, false));
 
         if (!String.IsNullOrEmpty(argument.DefaultValue)) {
-            //parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
+            parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
 
             /*parameter = parameter.AddAttributeLists(AttributeList(SeparatedList(
                     [
