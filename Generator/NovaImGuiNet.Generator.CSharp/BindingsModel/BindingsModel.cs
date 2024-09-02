@@ -3,7 +3,7 @@
 namespace NovaImGuiNet.Generator.CSharp;
 
 public partial class BindingsModel {
-    public List<IEntityReference> Children { get; }
+    public List<IEntityReference> Children { get; } = [];
 
     public IReadOnlyList<EntityReferenceWrapper<Enum>> Enums => GetChildren<Enum>();
     public IReadOnlyList<EntityReferenceWrapper<Struct>> Structs => GetChildren<Struct>();

@@ -7,7 +7,7 @@ public static class BindingsModelTransformUtility {
     ) where TEntity : BindingsModel.Entity {
         List<BindingsModel.IEntityReference> updated = [];
         foreach (BindingsModel.IEntityReference entityReference in entityReferences) {
-            TEntity? value = (TEntity?) entityReference.Value;
+            TEntity? value = (TEntity) entityReference.Value;
 
             value = transformer(value);
             if (value == null)

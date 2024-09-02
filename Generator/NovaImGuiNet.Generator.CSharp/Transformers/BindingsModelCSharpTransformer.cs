@@ -220,6 +220,12 @@ public class BindingsModelCSharpTransformer {
             Model = StructFunctionGenerator.Generate(Context, Model);
         }
 
+        using (new TimedLoggedOperation(Log, "Disable ImVec")) {
+            Model.Structs
+                .Where(x => x.Value.Name is "ImVec2" or "ImVec4")
+                .ForEach(x => x.Value.SkipEmit = true);
+        }
+
         return Model;
     }
 

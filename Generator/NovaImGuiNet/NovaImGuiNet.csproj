@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         
-        <DefineConstants>IMGUI_DISABLE_OBSOLETE_FUNCTIONS; IMGUI_HAS_DOCK; NOVA_IMGUI_NET_MAIN</DefineConstants>
+        <DefineConstants>IMGUI_DISABLE_OBSOLETE_FUNCTIONS; IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN</DefineConstants>
         
         <LangVersion>12</LangVersion>
     </PropertyGroup>

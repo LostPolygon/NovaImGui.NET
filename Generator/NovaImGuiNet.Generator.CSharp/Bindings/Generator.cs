@@ -57,7 +57,7 @@ public class Generator {
                 LoadDearBindingsDto("Resources/cimgui_imconfig.json"),
                 LoadDearBindingsDto("Resources/cimgui.json"),
                 LoadDearBindingsDto("Resources/cimgui_internal.json"),
-                LoadDearBindingsDto("Resources/cimgui_internal_imstb_textedit_minimal.json")
+                LoadDearBindingsDto("Resources/cimgui_internal_imstb_textedit_minimal.json"),
 
                 //LoadDearBindingsDto("Resources/cimgui_impl_sdl2.json"),
                 //LoadDearBindingsDto("Resources/cimgui_impl_sdlrenderer2.json"),

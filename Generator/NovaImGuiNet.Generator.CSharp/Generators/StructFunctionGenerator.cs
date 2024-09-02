@@ -71,12 +71,13 @@ public static class StructFunctionGenerator {
         if (isInstanceMethod) {
             prettyName = prettyName
                 .RemoveFromStart(structure.Name + "_")
-                .ToPascalCase();
+                .FirstCharToUpperCase();
         } else {
-            if (!prettyName.StartsWith("cIm", StringComparison.Ordinal)) {
+            bool isFreeFunction = nativeFunction.Name.StartsWith("cIm", StringComparison.Ordinal);
+            if (!isFreeFunction) {
                 prettyName = prettyName
                     .RemoveFromStart("ImGui_")
-                    .ToPascalCase();
+                    .FirstCharToUpperCase();
             }
         }
 

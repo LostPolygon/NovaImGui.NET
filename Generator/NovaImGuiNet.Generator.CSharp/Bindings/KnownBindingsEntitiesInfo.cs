@@ -5,6 +5,16 @@ public static class KnownBindingsEntitiesInfo {
         "size_t",
         "varargs",
         "va_list",
+
         "ImStr",
+
+        "HWND",
+        "UINT",
+        "WPARAM",
+        "LPARAM",
+        "LRESULT",
+
+        "SDL_Event",
+        "SDL_Renderer",
     ];
 }
