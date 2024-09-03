@@ -54,14 +54,16 @@ public class Generator {
         MetadataDto metadataDto;
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
             metadataDto = MergeDearBindingsDtos([
+                LoadDearBindingsDto("Resources/cimgui_impl_sdl2.json"),
+                LoadDearBindingsDto("Resources/cimgui_impl_sdlrenderer2.json"),
+                LoadDearBindingsDto("Resources/cimgui_impl_win32.json"),
+
                 LoadDearBindingsDto("Resources/cimgui_imconfig.json"),
                 LoadDearBindingsDto("Resources/cimgui.json"),
                 LoadDearBindingsDto("Resources/cimgui_internal.json"),
                 LoadDearBindingsDto("Resources/cimgui_internal_imstb_textedit_minimal.json"),
 
-                //LoadDearBindingsDto("Resources/cimgui_impl_sdl2.json"),
-                //LoadDearBindingsDto("Resources/cimgui_impl_sdlrenderer2.json"),
-                //LoadDearBindingsDto("Resources/cimgui_impl_win32.json")
+
             ]);
 
             // HACK: add definition for FILE
@@ -76,7 +78,8 @@ public class Generator {
                             BuiltinType = "void"
                         }
                     }
-                }
+                },
+                SourceLocation = new MetadataDto.SourceLocation("imgui.h", 0)
             });
         }
 
@@ -99,7 +102,7 @@ public class Generator {
                 ).Transform();
         }
 
-        IReadOnlySet<BindingsCompilationUnit> compilationUnits;
+        IReadOnlyList<BindingsCompilationUnit> compilationUnits;
         using (new TimedLoggedOperation(Log, "Generating C# code")) {
             BindingsModelCodeGenerator codeGenerator = new(bindingsModel, BindingsContext);
             compilationUnits = codeGenerator.Generate();

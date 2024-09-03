@@ -1,10 +1,13 @@
 using System.Runtime.InteropServices;
+using NovaImGuiNet.Internal;
 
 namespace NovaImGuiNet.Tests;
 
 public unsafe class StructSizeTests {
     [Test]
     public void SizeOf() {
+        Assert.That(sizeof(bool), Is.EqualTo(1));
+
         Assert.That(Marshal.SizeOf<ImGuiStackLevelInfo>(), Is.EqualTo(72));
         Assert.That(sizeof(ImGuiStackLevelInfo), Is.EqualTo(72));
 

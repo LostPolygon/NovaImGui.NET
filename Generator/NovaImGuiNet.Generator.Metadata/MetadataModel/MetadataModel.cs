@@ -47,6 +47,7 @@ public record MetadataModel(
     public interface IIndependentEntity {
         Comments Comments { get; init; }
         IReadOnlyList<Conditional> Conditionals { get; init; }
+        SourceLocation? SourceLocation { get; init; }
         bool IsInternal { get; init; }
     }
 
@@ -55,9 +56,7 @@ public record MetadataModel(
         IReadOnlyList<Conditional> Conditionals,
         SourceLocation? SourceLocation,
         bool IsInternal
-    ) : Entity<T>,
-        IIndependentEntity
-        where T : Entity;
+    ) : Entity<T>, IIndependentEntity where T : Entity;
 
     public abstract record TopLevelEntity<T>(
         Comments Comments,

@@ -108,7 +108,7 @@ public static class FunctionModifiers {
         argument.Type.Value =
             new Pointer(
                 CreateImFixedArrayFromArray(
-                    context.Namespace,
+                    context.RootNamespace,
                     argument.ArrayBounds,
                     argumentTypeArray.ElementType
                 ).AsEntityReference(),

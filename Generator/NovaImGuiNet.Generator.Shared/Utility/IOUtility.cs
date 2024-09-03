@@ -10,7 +10,8 @@ public static class IOUtility {
         }
 
         foreach (DirectoryInfo subDirectory in directory.GetDirectories()) {
-            subDirectory.Delete(true);
+            subDirectory.Empty(skipDeleteFileMatcher);
+            subDirectory.Delete();
         }
     }
 }

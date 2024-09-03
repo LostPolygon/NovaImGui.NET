@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis.CSharp;
+﻿using System.Diagnostics;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NovaImGuiNet.Generator.Metadata;
 
@@ -9,14 +10,26 @@ using static SyntaxFactory;
 using static CSharpCodeGenerationUtility;
 
 public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDto dto) {
-    public Struct Generate() {
+    public IEnumerable<Struct> Generate(IReadOnlyDictionary<string, string> fileNameToNamespace) {
+        IEnumerable<IGrouping<string, MetadataDto.Define>> definesByFileNames =
+            dto.Defines
+                .GroupBy(x => x.SourceLocation.Filename);
+
+        foreach (IGrouping<string,MetadataDto.Define> definesByFileName in definesByFileNames) {
+            fileNameToNamespace.TryGetValue(definesByFileName.Key, out string? ns);
+            Debug.Assert(ns != null);
+            yield return GenerateForNamespace(ns, definesByFileName.ToArray());
+        }
+    }
+
+    private Struct GenerateForNamespace(string ns, IReadOnlyList<MetadataDto.Define> defineDtos) {
         List<Field> constants = [];
 
         // TODO: implement generating 'public static readonly IReadOnlyList<string> CompilerDefines = [];'
         // ReSharper disable once CollectionNeverQueried.Local
         List<string> compilerDefines = [];
 
-        foreach (MetadataDto.Define defineDto in dto.Defines) {
+        foreach (MetadataDto.Define defineDto in defineDtos) {
             if (IsDefineSkipped(defineDto))
                 continue;
 
@@ -44,6 +57,7 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
             Field field = new(
                 MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.Comments)),
                 MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.Conditionals)),
+                MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.SourceLocation)),
                 defineDto.IsInternal,
                 true,
                 null
@@ -59,7 +73,7 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
         Struct structure = new() {
             Kind = Struct.StructKind.StaticClass,
             Name = "ImGuiConstants",
-            Namespace = bindingsContext.Namespace,
+            Namespace = ns,
             Comments = new Comments(["Dear ImGui compilation constants"], [], [])
         };
 

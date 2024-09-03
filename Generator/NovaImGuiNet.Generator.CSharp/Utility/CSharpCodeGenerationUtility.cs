@@ -65,7 +65,7 @@ public static class CSharpCodeGenerationUtility {
                         FormatUnmanagedFunctionPointer(userDelegate) :
                         $"{userDelegate.Name}";
             default:
-                throw new ArgumentOutOfRangeException(nameof(type));
+                throw new ArgumentOutOfRangeException(nameof(type), type, null);
         }
     }
 

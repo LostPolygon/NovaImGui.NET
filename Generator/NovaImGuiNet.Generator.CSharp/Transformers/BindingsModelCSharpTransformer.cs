@@ -29,6 +29,19 @@ public class BindingsModelCSharpTransformer {
     private BindingsContext Context { get; }
 
     public BindingsModel Transform() {
+        Dictionary<string, string> fileNameToNamespace = new() {
+            ["imgui.h"] = "NovaImGuiNet",
+            ["imgui_internal.h"] = "NovaImGuiNet.Internal",
+            ["imstb_textedit_minimal.h"] = "NovaImGuiNet.Internal",
+            ["imgui_impl_sdl2.h"] = "NovaImGuiNet.Backend.Sdl2",
+            ["imgui_impl_sdlrenderer2.h"] = "NovaImGuiNet.Backend.Sdl2Renderer",
+            ["imgui_impl_win32.h"] = "NovaImGuiNet.Backend.Win32",
+        };
+
+        using (new TimedLoggedOperation(Log, "Assigning namespaces")) {
+            Model = ModelModifiers.AssignNamespaces(Context, Model, fileNameToNamespace);
+        }
+
         using (new TimedLoggedOperation(Log, "Genericizing structs")) {
             Model = GenericizeStructsByFieldType(Model, "ImVector", "Data", true);
             Model = GenericizeStructsByFieldType(Model, "ImSpan", "Data", true);
@@ -206,8 +219,11 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (new TimedLoggedOperation(Log, "Generating ImGuiConstants class")) {
-            Struct imGuiConstantsStruct = new ImGuiConstantsGenerator(Context, MetadataDto).Generate();
-            Model.Children.Add(imGuiConstantsStruct.AsEntityReference());
+            Model.Children.AddRange(
+                new ImGuiConstantsGenerator(Context, MetadataDto)
+                    .Generate(fileNameToNamespace)
+                    .Select(x => x.AsEntityReference())
+            );
         }
 
         using (new TimedLoggedOperation(Log, "FUN: convert const char* arguments to string")) {
@@ -217,7 +233,7 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (new TimedLoggedOperation(Log, "Generating managed methods")) {
-            Model = StructFunctionGenerator.Generate(Context, Model);
+            //Model = StructFunctionGenerator.Generate(Context, Model);
         }
 
         using (new TimedLoggedOperation(Log, "Disable ImVec")) {

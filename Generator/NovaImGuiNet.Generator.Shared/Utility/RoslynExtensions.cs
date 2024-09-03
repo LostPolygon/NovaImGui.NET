@@ -27,10 +27,7 @@ public static class RoslynExtensions {
     ) where TSyntax : SyntaxNode {
         return
             node.WithLeadingTrivia(
-                TriviaList([
-                    ..node.GetLeadingTrivia(),
-                    ..trivia
-                ])
+                node.GetLeadingTrivia().AddRange(trivia)
             );
     }
 

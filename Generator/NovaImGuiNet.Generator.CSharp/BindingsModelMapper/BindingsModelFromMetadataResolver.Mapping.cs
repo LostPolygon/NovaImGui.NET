@@ -2,21 +2,24 @@ using NovaImGuiNet.Generator.Metadata;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
+using static MetadataToBindingsModelMappingUtility;
+
 public partial class BindingsModelFromMetadataResolver {
     private BindingsModel.Enum ResolveEnum(MetadataModel.Enum metadata) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(metadata.Comments),
-            MetadataToBindingsModelMappingUtility.Map(metadata.Conditionals),
+            Map(metadata.Comments),
+            Map(metadata.Conditionals),
+            Map(metadata.SourceLocation),
             metadata.IsInternal,
             metadata.IsFlagsEnum
         ) {
             Name = metadata.Name,
-            Namespace = bindingsContext.Namespace,
             Members = metadata.Members
                 .Select(member =>
                     new BindingsModel.Enum.Member(
-                        MetadataToBindingsModelMappingUtility.Map(member.Comments),
-                        MetadataToBindingsModelMappingUtility.Map(member.Conditionals),
+                        Map(member.Comments),
+                        Map(member.Conditionals),
+                        Map(metadata.SourceLocation),
                         metadata.IsInternal
                     ) {
                         Name = member.Name,
@@ -27,32 +30,32 @@ public partial class BindingsModelFromMetadataResolver {
                 .ToList()
         };
 
-    private BindingsModel.Typedef ResolveTypedef(MetadataModel.IEntityReference<MetadataModel.Typedef> metadata) =>
+    private BindingsModel.Typedef ResolveTypedef(MetadataModel.Typedef metadata) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Comments),
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Conditionals),
-            metadata.Value.IsInternal
+            Map(metadata.Comments),
+            Map(metadata.Conditionals),
+            Map(metadata.SourceLocation),
+            metadata.IsInternal
         ) {
-            Name = metadata.Value.Name,
-            Namespace = bindingsContext.Namespace,
-            Type = ResolveEntity(metadata.Value.Type)
+            Name = metadata.Name,
+            Type = ResolveEntity(metadata.Type)
         };
 
-    private BindingsModel.Struct ResolveStruct(MetadataModel.IEntityReference<MetadataModel.Struct> metadata) =>
+    private BindingsModel.Struct ResolveStruct(MetadataModel.Struct metadata) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Comments),
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Conditionals),
-            metadata.Value.IsInternal,
-            metadata.Value.ByValue,
+            Map(metadata.Comments),
+            Map(metadata.Conditionals),
+            Map(metadata.SourceLocation),
+            metadata.IsInternal,
+            metadata.ByValue,
             [],
             [
-                //..metadata.Value.Delegates.Select(ResolveEntity).Cast<BindingsModel.IEntityReference<BindingsModel.Delegate>>(),
-                ..metadata.Value.Fields.Select(ResolveStructField)
+                //..metadata.Delegates.Select(ResolveEntity).Cast<BindingsModel.IEntityReference<BindingsModel.Delegate>>(),
+                ..metadata.Fields.Select(ResolveStructField)
             ]
         ) {
-            Name = metadata.Value.Name,
-            Namespace = bindingsContext.Namespace,
-            Kind = metadata.Value.Kind switch {
+            Name = metadata.Name,
+            Kind = metadata.Kind switch {
                 MetadataModel.Struct.StructKind.Struct => BindingsModel.Struct.StructKind.Struct,
                 MetadataModel.Struct.StructKind.Union => BindingsModel.Struct.StructKind.Union,
                 MetadataModel.Struct.StructKind.StaticClass => BindingsModel.Struct.StructKind.StaticClass,
@@ -62,8 +65,9 @@ public partial class BindingsModelFromMetadataResolver {
 
     private BindingsModel.Field ResolveStructField(MetadataModel.Field metadata) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(metadata.Comments),
-            MetadataToBindingsModelMappingUtility.Map(metadata.Conditionals),
+            Map(metadata.Comments),
+            Map(metadata.Conditionals),
+            Map(metadata.SourceLocation),
             metadata.IsInternal,
             metadata.IsConstant,
             metadata.Width
@@ -73,36 +77,38 @@ public partial class BindingsModelFromMetadataResolver {
             Type = ResolveEntity(metadata.Type),
         };
 
-    private BindingsModel.Function ResolveFunction(MetadataModel.IEntityReference<MetadataModel.Function> metadata) =>
+    private BindingsModel.Function ResolveFunction(MetadataModel.Function metadata) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Comments),
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Conditionals),
-            metadata.Value.IsInternal,
-            metadata.Value.OriginalClass != null ?
-                new BindingsModel.EntityReferenceWrapper<BindingsModel.Struct>(ResolveEntity(metadata.Value.OriginalClass)) :
+            Map(metadata.Comments),
+            Map(metadata.Conditionals),
+            Map(metadata.SourceLocation),
+            metadata.IsInternal,
+            metadata.OriginalClass != null ?
+                new BindingsModel.EntityReferenceWrapper<BindingsModel.Struct>(ResolveEntity(metadata.OriginalClass)) :
                 null,
-            metadata.Value.OriginalFullyQualifiedName,
-            metadata.Value.IsDefaultArgumentHelper,
-            metadata.Value.IsImstrHelper,
-            metadata.Value.HasImstrHelper,
-            metadata.Value.IsManualHelper,
-            metadata.Value.IsUnformattedHelper
+            metadata.OriginalFullyQualifiedName,
+            metadata.IsDefaultArgumentHelper,
+            metadata.IsImstrHelper,
+            metadata.HasImstrHelper,
+            metadata.IsManualHelper,
+            metadata.IsUnformattedHelper
         ) {
-            Name = metadata.Value.Name,
-            Arguments = metadata.Value.Arguments.Select(ResolveFunctionArgument).ToList(),
-            ReturnType = ResolveEntity(metadata.Value.ReturnType),
+            Name = metadata.Name,
+            Arguments = metadata.Arguments.Select(ResolveFunctionArgument).ToList(),
+            ReturnType = ResolveEntity(metadata.ReturnType),
             IsNativeFunction = true
         };
 
-    private BindingsModel.Delegate ResolveDelegate(MetadataModel.IEntityReference<MetadataModel.Delegate> metadata) =>
+    private BindingsModel.Delegate ResolveDelegate(MetadataModel.Delegate metadata) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Comments),
-            MetadataToBindingsModelMappingUtility.Map(metadata.Value.Conditionals),
-            metadata.Value.IsInternal
+            Map(metadata.Comments),
+            Map(metadata.Conditionals),
+            Map(metadata.SourceLocation),
+            metadata.IsInternal
         ) {
-            Name = metadata.Value.Name,
-            Arguments = metadata.Value.Arguments.Select(ResolveFunctionArgument).ToList(),
-            ReturnType = ResolveEntity(metadata.Value.ReturnType)
+            Name = metadata.Name,
+            Arguments = metadata.Arguments.Select(ResolveFunctionArgument).ToList(),
+            ReturnType = ResolveEntity(metadata.ReturnType)
         };
 
     private BindingsModel.FunctionArgument ResolveFunctionArgument(MetadataModel.FunctionArgument metadata) =>
@@ -115,30 +121,30 @@ public partial class BindingsModelFromMetadataResolver {
             IsInstancePointer = metadata.IsInstancePointer,
         };
 
-    private BindingsModel.Entity ResolvePointer(MetadataModel.IEntityReference<MetadataModel.Pointer> metadata) {
+    private BindingsModel.Entity ResolvePointer(MetadataModel.Pointer metadata) {
         // Special-case const char*
         bool isConstCharPointer =
-            metadata.Value.ValueType.Value is MetadataModel.Builtin {
+            metadata.ValueType.Value is MetadataModel.Builtin {
                 Type: "char",
                 StorageClass: MetadataModel.StorageClass.Const
             };
 
-        BindingsModel.IEntityReference valueType = ResolveEntity(metadata.Value.ValueType);
+        BindingsModel.IEntityReference valueType = ResolveEntity(metadata.ValueType);
         if (isConstCharPointer && valueType.Value is BindingsModel.Builtin builtin) {
             builtin.IsConstCharPointer = true;
         }
 
         return new BindingsModel.Pointer(
             valueType,
-            metadata.Value.IsNullable
+            metadata.IsNullable
         );
     }
 
-    private BindingsModel.Array ResolveArray(MetadataModel.IEntityReference<MetadataModel.Array> metadata) =>
+    private BindingsModel.Array ResolveArray(MetadataModel.Array metadata) =>
         new(
-            ResolveEntity(metadata.Value.ElementType),
-            metadata.Value.ArrayBounds,
-            metadata.Value.ArrayBoundsNumeric
+            ResolveEntity(metadata.ElementType),
+            metadata.ArrayBounds,
+            metadata.ArrayBoundsNumeric
         );
 
     private BindingsModel.Builtin ResolveBuiltinType(MetadataModel.Builtin metadata) {

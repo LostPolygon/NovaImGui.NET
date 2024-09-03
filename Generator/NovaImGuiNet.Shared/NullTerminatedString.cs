@@ -1,13 +1,11 @@
-﻿using System.Text;
+﻿#if NETSTANDARD2_0_OR_GREATER
+using System.Text;
+#endif
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct NullTerminatedString {
-    public readonly byte* Data;
-
-    public NullTerminatedString(byte* data) {
-        Data = data;
-    }
+public readonly unsafe struct NullTerminatedString(byte* data) {
+    public readonly byte* Data = data;
 
     public ReadOnlySpan<byte> AsReadOnlyUtf8ByteSpan() {
 #if NETSTANDARD2_0_OR_GREATER
@@ -22,12 +20,12 @@ public readonly unsafe struct NullTerminatedString {
     }
 
     public override string? ToString() {
-        if (Data == null)
-            return null;
-
 #if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         return Marshal.PtrToStringUTF8((IntPtr) Data);
 #else
+        if (Data == null)
+            return null;
+
         ReadOnlySpan<byte> utf8ByteSpan = AsReadOnlyUtf8ByteSpan();
         fixed (byte* ptr = &utf8ByteSpan.GetPinnableReference()) {
             return Encoding.UTF8.GetString(ptr, utf8ByteSpan.Length);

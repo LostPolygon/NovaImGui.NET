@@ -11,4 +11,12 @@ public static class MetadataToBindingsModelMappingUtility {
 
     public static BindingsModel.Comments Map(MetadataModel.Comments metadata) =>
         new(metadata.Preceding, metadata.Attached, []);
+
+    public static BindingsModel.SourceLocation? Map(MetadataModel.SourceLocation? metadata) {
+        if (metadata != null) {
+            return new(metadata.Filename, metadata.Line);
+        } else {
+            return null;
+        }
+    }
 }

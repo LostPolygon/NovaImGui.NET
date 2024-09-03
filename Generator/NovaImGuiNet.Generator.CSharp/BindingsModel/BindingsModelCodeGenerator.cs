@@ -23,21 +23,47 @@ public class BindingsModelCodeGenerator {
         BindingsContext = bindingsContext;
     }
 
-    public IReadOnlySet<BindingsCompilationUnit> Generate() {
-        HashSet<BindingsCompilationUnit> nameToCodeMap = [];
+    public IReadOnlyList<BindingsCompilationUnit> Generate() {
+        List<BindingsCompilationUnit> compilationUnits = [];
 
-        void AddCompilationUnit(OneOf<ITopLevelEntity, string> entityOrName, CSharpSyntaxNode syntaxNode) {
-            bool added = nameToCodeMap.Add(new BindingsCompilationUnit(entityOrName, syntaxNode));
-            Debug.Assert(added);
+        void AddCompilationUnit(
+            OneOf<ITopLevelEntity, CompilationUnitFileInformation> entityOrFileInformation,
+            CSharpSyntaxNode syntaxNode,
+            string? category = null
+        ) {
+            compilationUnits.Add(
+                new BindingsCompilationUnit(
+                    entityOrFileInformation,
+                    syntaxNode,
+                    category
+                )
+            );
         }
 
         (
-            CompilationUnitSyntax globalUsingsCompilationUnit,
-            CompilationUnitSyntax delegatesCompilationUnit
-            ) typedefBindings = GenerateTypedefBindings();
+            IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> globalUsingsCompilationUnits,
+            IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> delegatesCompilationUnits
+        ) = GenerateTypedefBindings();
 
-        AddCompilationUnit("Typedefs.GlobalUsings", typedefBindings.globalUsingsCompilationUnit);
-        AddCompilationUnit("Typedefs.Delegates", typedefBindings.delegatesCompilationUnit);
+        foreach ((CompilationUnitSyntax compilationUnit, string ns) globalUsingsCompilationUnit in globalUsingsCompilationUnits) {
+            AddCompilationUnit(
+                new CompilationUnitFileInformation(
+                    "GlobalUsings",
+                    globalUsingsCompilationUnit.ns
+                ),
+                globalUsingsCompilationUnit.compilationUnit
+            );
+        }
+
+        foreach ((CompilationUnitSyntax compilationUnit, string ns) delegatesCompilationUnit in delegatesCompilationUnits) {
+            AddCompilationUnit(
+                new CompilationUnitFileInformation(
+                    "Delegates",
+                    delegatesCompilationUnit.ns
+                ),
+                delegatesCompilationUnit.compilationUnit
+            );
+        }
 
         foreach (EntityReferenceWrapper<Enum> enumeration in BindingsModel.Enums) {
             CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
@@ -45,7 +71,7 @@ public class BindingsModelCodeGenerator {
                 GenerateBinding(enumeration.Value)
             );
 
-            AddCompilationUnit(enumeration.Value, compilationUnitSyntax);
+            AddCompilationUnit(enumeration.Value, compilationUnitSyntax, "Enums");
         }
 
         foreach (EntityReferenceWrapper<Struct> structure in BindingsModel.Structs) {
@@ -57,82 +83,118 @@ public class BindingsModelCodeGenerator {
                 GenerateBinding(structure.Value)
             );
 
-            AddCompilationUnit(structure.Value, compilationUnitSyntax);
+            AddCompilationUnit(structure.Value, compilationUnitSyntax, "Structs");
         }
 
-        CompilationUnitSyntax functionsCompilationUnit = GenerateNativeFunctionBindings();
-        AddCompilationUnit("ImGuiNative", functionsCompilationUnit);
+        IEnumerable<CompilationUnitWithNamespace> functionsCompilationUnits = GenerateNativeFunctionBindings();
+        foreach (CompilationUnitWithNamespace functionsCompilationUnit in functionsCompilationUnits) {
+            AddCompilationUnit(
+                new CompilationUnitFileInformation("ImGuiNative", functionsCompilationUnit.Namespace),
+                functionsCompilationUnit.CompilationUnitSyntax
+            );
+        }
 
-        return nameToCodeMap;
+        return compilationUnits;
     }
 
-    private CompilationUnitSyntax GenerateNativeFunctionBindings() {
-        List<MemberDeclarationSyntax> functions = [];
-        EntityReferenceWrapper<Function>[] allNativeFunctions =
+    private IEnumerable<CompilationUnitWithNamespace> GenerateNativeFunctionBindings() {
+        IGrouping<string?, EntityReferenceWrapper<Function>>[] allNativeFunctionsByNamespace =
             BindingsModel
                 .GetAllFunctions()
                 .Where(x => x.Value.IsNativeFunction)
+                .GroupBy(x => x.Value.Namespace)
                 .ToArray();
 
-        foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
-            Function apiModelFunction = functionReference.Value;
-            functions.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
+        foreach (IGrouping<string, EntityReferenceWrapper<Function>> entityReferenceWrappers in allNativeFunctionsByNamespace) {
+            string ns = entityReferenceWrappers.Key;
+            EntityReferenceWrapper<Function>[] allNativeFunctions = entityReferenceWrappers.ToArray();
+
+            List<MemberDeclarationSyntax> functions = [];
+            foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
+                Function apiModelFunction = functionReference.Value;
+                functions.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
+            }
+
+            ClassDeclarationSyntax classDeclaration =
+                ClassDeclaration(Identifier("ImGuiNative"))
+                    .AddModifiers(
+                        Token(SyntaxKind.PublicKeyword),
+                        Token(SyntaxKind.StaticKeyword),
+                        Token(SyntaxKind.UnsafeKeyword),
+                        Token(SyntaxKind.PartialKeyword)
+                    )
+                    .AddMembers(
+                        ParseMemberDeclaration("public const string ImGuiDllName = \"cimgui\";")!,
+                        ParseMemberDeclaration("public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
+                    )
+                    .AddMembers(functions.ToArray());
+
+            CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
+                ns,
+                classDeclaration
+            );
+
+            yield return new CompilationUnitWithNamespace(compilationUnitSyntax, ns);
         }
-
-        ClassDeclarationSyntax classDeclaration =
-            ClassDeclaration(Identifier("ImGuiNative"))
-                .AddModifiers(
-                    Token(SyntaxKind.PublicKeyword),
-                    Token(SyntaxKind.StaticKeyword),
-                    Token(SyntaxKind.UnsafeKeyword),
-                    Token(SyntaxKind.PartialKeyword)
-                )
-                .AddMembers(
-                    ParseMemberDeclaration("public const string ImGuiDllName = \"cimgui\";")!,
-                    ParseMemberDeclaration("public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
-                )
-                .AddMembers(functions.ToArray());
-
-        CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-            BindingsContext.Namespace,
-            classDeclaration
-        );
-
-        return compilationUnitSyntax;
     }
 
-    private(CompilationUnitSyntax globalUsingsCompilationUnit, CompilationUnitSyntax delegatesCompilationUnit) GenerateTypedefBindings() {
+    private(
+        IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> globalUsingsCompilationUnit,
+        IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> delegatesCompilationUnits
+        ) GenerateTypedefBindings() {
         (string @namespace, List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefBindingsNamespace)[] typedefBindings =
             BindingsModel.Typedefs
                 .Select(t => t.Value)
                 .OrderBy(t => t.Type.Value is Delegate)
                 .Where(t => !t.SkipEmit)
                 .GroupBy(t => t.Namespace)
-                .Select(t => {
+                .Select(typedefsByNamespace => {
                     List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefBindingsNamespace = [];
-                    foreach (Typedef typedefByNamespace in t) {
-                        typedefBindingsNamespace.Add(GenerateBinding(typedefByNamespace));
+                    foreach (Typedef typedef in typedefsByNamespace) {
+                        typedefBindingsNamespace.Add(GenerateBinding(typedef));
                     }
 
-                    return (t.Key, typedefBindingsNamespace);
+                    return (typedefsByNamespace.Key, typedefBindingsNamespace);
                 })
                 .ToArray();
 
-        CompilationUnitSyntax delegatesCompilationUnit =
-            CompilationUnit()
-                .AddMembers(CreateNamespaceDeclarationSyntax(BindingsContext.Namespace));
-        CompilationUnitSyntax globalUsingsCompilationUnit = CompilationUnit();
+        List<(CompilationUnitSyntax compilationUnit, string ns)> delegatesCompilationUnits = [];
+        List<(CompilationUnitSyntax compilationUnit, string ns)> globalUsingsCompilationUnits = [];
 
-        foreach ((string @namespace, List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefs) in typedefBindings) {
+        foreach ((string ns, List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefs) in typedefBindings) {
+            List<DelegateDeclarationSyntax> delegates = [];
+            List<UsingDirectiveSyntax> globalUsings = [];
+
             foreach (OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax> typedef in typedefs) {
                 typedef.Switch(
-                    delegateBinding => delegatesCompilationUnit = delegatesCompilationUnit.AddMembers(delegateBinding),
-                    globalUsingBinding => globalUsingsCompilationUnit = globalUsingsCompilationUnit.AddUsings(globalUsingBinding)
+                    delegateBinding => delegates.Add(delegateBinding),
+                    globalUsingBinding => globalUsings.Add(globalUsingBinding)
+                );
+            }
+
+            if (globalUsings.Count != 0) {
+                globalUsingsCompilationUnits.Add(
+                    (
+                        CompilationUnit()
+                            .AddUsings(globalUsings.ToArray()),
+                        ns
+                    )
+                );
+            }
+
+            if (delegates.Count != 0) {
+                delegatesCompilationUnits.Add(
+                    (
+                        CompilationUnit()
+                            .AddMembers(CreateNamespaceDeclarationSyntax(ns))
+                            .AddMembers(delegates.Cast<MemberDeclarationSyntax>().ToArray()),
+                        ns
+                    )
                 );
             }
         }
 
-        return (globalUsingsCompilationUnit, delegatesCompilationUnit);
+        return (globalUsingsCompilationUnits, delegatesCompilationUnits);
     }
 
     private IReadOnlyList<MethodDeclarationSyntax> GenerateNativeFunctionBinding(Function function) {
@@ -403,13 +465,13 @@ public class BindingsModelCodeGenerator {
                         ApplyCommonEntitySyntax(memberSyntax.Syntax, memberSyntax)
                     );
                     break;
-                case IEntityReference { Value: Delegate delegateModel }: {
+                case Delegate delegateModel: {
                     DelegateDeclarationSyntax delegateSyntax =
                         CreateDelegateDeclarationSyntax(delegateModel, delegateModel.Name);
                     structSyntax = structSyntax.AddMembers(delegateSyntax);
                     break;
                 }
-                case IEntityReference { Value: Function functionModel }: {
+                case Function functionModel: {
                     Debug.Assert(functionModel.Body != null);
 
                     MethodDeclarationSyntax methodSyntax =

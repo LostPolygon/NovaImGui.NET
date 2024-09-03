@@ -16,7 +16,14 @@ public partial class BindingsModelFromMetadataResolver(
 
     public BindingsModel Resolve() {
         ResolveAllModelEntities();
-        BindingsModel bindingsModel = new(MetadataEntityToBindingsEntity.Values.ToList());
+
+        List<BindingsModel.IEntityReference> topLevelEntities =
+            MetadataEntityToBindingsEntity.Values
+                .ToList()
+                .Where(x => x.Value is BindingsModel.Enum or BindingsModel.Typedef or BindingsModel.Struct or BindingsModel.Function)
+                .ToList();
+
+        BindingsModel bindingsModel = new(topLevelEntities);
         return bindingsModel;
     }
 
@@ -42,19 +49,18 @@ public partial class BindingsModelFromMetadataResolver(
         }
     }
 
-    private BindingsModel.Entity ConvertEntity(MetadataModel.IEntityReference metadataRaw) {
-        return metadataRaw switch {
-            MetadataModel.IEntityReference<MetadataModel.Enum> metadata => ResolveEnum(metadata.Value),
-            MetadataModel.IEntityReference<MetadataModel.Array> metadata => ResolveArray(metadata),
-            MetadataModel.IEntityReference<MetadataModel.Builtin> metadata => ResolveBuiltinType(metadata.Value),
-            MetadataModel.IEntityReference<MetadataModel.Pointer> metadata => ResolvePointer(metadata),
-            MetadataModel.IEntityReference<MetadataModel.Delegate> metadata => ResolveDelegate(metadata),
-            MetadataModel.IEntityReference<MetadataModel.Function> metadata => ResolveFunction(metadata),
-            MetadataModel.IEntityReference<MetadataModel.Struct> metadata => ResolveStruct(metadata),
-            MetadataModel.IEntityReference<MetadataModel.Typedef> metadata => ResolveTypedef(metadata),
-            _ => throw new ArgumentOutOfRangeException(nameof(metadataRaw))
+    private BindingsModel.Entity ConvertEntity(MetadataModel.IEntityReference metadata) =>
+        metadata.Value switch {
+            MetadataModel.Enum value => ResolveEnum(value),
+            MetadataModel.Array value => ResolveArray(value),
+            MetadataModel.Builtin value => ResolveBuiltinType(value),
+            MetadataModel.Pointer value => ResolvePointer(value),
+            MetadataModel.Delegate value => ResolveDelegate(value),
+            MetadataModel.Function value => ResolveFunction(value),
+            MetadataModel.Struct value => ResolveStruct(value),
+            MetadataModel.Typedef value => ResolveTypedef(value),
+            _ => throw new ArgumentOutOfRangeException(nameof(metadata), metadata, null)
         };
-    }
 
     private BindingsModel.IEntityReference ResolveEntity(MetadataModel.IEntityReference metadata) {
         ArgumentNullException.ThrowIfNull(metadata);

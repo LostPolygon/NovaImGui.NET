@@ -33,12 +33,11 @@ public partial class BindingsModel {
         ];
     }
 
-    private List<EntityReferenceWrapper<T>> GetChildren<T>() where T : Entity {
-        return Children
+    private List<EntityReferenceWrapper<T>> GetChildren<T>() where T : Entity =>
+        Children
             .Where(x => x.Value is T)
             .Select(x => new EntityReferenceWrapper<T>(x))
             .ToList();
-    }
 
     public static IEntityReference CreateEmptyEntityReference() => new EntityReference();
 }

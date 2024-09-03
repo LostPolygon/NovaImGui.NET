@@ -26,7 +26,6 @@ CodeFormatMode codeFormatMode = CodeFormatMode.Fancy;
 
 BindingsContext bindingsContext = new(
     "NovaImGuiNet",
-    "NovaImGuiNet.Internal",
     outputPath,
     new BindingsGenerationOptions() {
         CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes = true,

@@ -19,6 +19,7 @@ public partial class BindingsModel {
     public interface IIndependentEntity : IEntity {
         Comments Comments { get; set; }
         IReadOnlyList<Conditional> Conditionals { get; set; }
+        SourceLocation? SourceLocation { get; }
         bool IsInternal { get; set; }
         bool IsDisabled { get; set; }
         bool SkipEmit { get; set; }
@@ -26,7 +27,7 @@ public partial class BindingsModel {
 
     public interface ITopLevelEntity : IIndependentEntity {
         string Name { get; set; }
-        string Namespace { get; set; }
+        string? Namespace { get; set; }
     }
 
     public abstract record Entity : IConvertibleToEntityReference, IEntity {
@@ -41,6 +42,7 @@ public partial class BindingsModel {
     public abstract record IndependentEntity : Entity, IIndependentEntity {
         public Comments Comments { get; set; } = new();
         public IReadOnlyList<Conditional> Conditionals { get; set; } = [];
+        public SourceLocation? SourceLocation { get; set; }
         public bool IsInternal { get; set; }
         public bool IsDisabled { get; set; }
         public bool SkipEmit { get; set; }
@@ -51,10 +53,12 @@ public partial class BindingsModel {
         protected IndependentEntity(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal
         ) {
             Comments = comments;
             Conditionals = conditionals;
+            SourceLocation = sourceLocation;
             IsInternal = isInternal;
         }
 
@@ -65,7 +69,7 @@ public partial class BindingsModel {
 
     public abstract record TopLevelEntity : IndependentEntity, ITopLevelEntity {
         public required string Name { get; set; }
-        public required string Namespace { get; set; }
+        public string Namespace { get; set; }
 
         protected TopLevelEntity() {
         }
@@ -73,8 +77,9 @@ public partial class BindingsModel {
         protected TopLevelEntity(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
         }
 
         public override string ToString() {
@@ -130,9 +135,10 @@ public partial class BindingsModel {
         public Enum(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal,
             bool isFlagsEnum
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
             IsFlagsEnum = isFlagsEnum;
         }
 
@@ -151,8 +157,9 @@ public partial class BindingsModel {
             public Member(
                 Comments comments,
                 IReadOnlyList<Conditional> conditionals,
+                SourceLocation? sourceLocation,
                 bool isInternal
-            ) : base(comments, conditionals, isInternal) {
+            ) : base(comments, conditionals, sourceLocation, isInternal) {
             }
         }
     }
@@ -160,7 +167,8 @@ public partial class BindingsModel {
     public record Struct : TopLevelEntity {
         private static readonly IReadOnlyList<Type> AllowedChildrenTypes = [
             typeof(Field),
-            typeof(IEntityReference),
+            typeof(Function),
+            typeof(Delegate),
             typeof(SyntaxEntity<MemberDeclarationSyntax>),
         ];
 
@@ -176,11 +184,12 @@ public partial class BindingsModel {
         public Struct(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal,
             bool byValue,
             IReadOnlyList<IEntityReference> genericArguments,
             IReadOnlyList<IEntity> children
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
             ByValue = byValue;
             GenericArguments = genericArguments;
             Children.AddRange(children);
@@ -224,8 +233,9 @@ public partial class BindingsModel {
         public Typedef(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
         }
 
         public override IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
@@ -256,10 +266,11 @@ public partial class BindingsModel {
         public Field(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal,
             bool isConstant,
             int? bitWidth
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
             IsConstant = isConstant;
             BitWidth = bitWidth;
         }
@@ -285,7 +296,9 @@ public partial class BindingsModel {
         IEntityReference ReturnType { get; set; }
     }
 
-    public abstract record FunctionLike : IndependentEntity, IFunctionLike {
+    public abstract record FunctionLike : IndependentEntity, IFunctionLike, ITopLevelEntity {
+        public required string Name { get; set; }
+        public string? Namespace { get; set; }
         public required List<FunctionArgument> Arguments { get; set; }
         public required IEntityReference ReturnType { get; set; }
 
@@ -295,8 +308,9 @@ public partial class BindingsModel {
         protected FunctionLike(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
         }
 
         public override IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
@@ -315,16 +329,15 @@ public partial class BindingsModel {
     }
 
     public record Delegate : FunctionLike {
-        public required string Name { get; set; }
-
         public Delegate() {
         }
 
         public Delegate(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
         }
 
         public override string ToString() {
@@ -333,7 +346,6 @@ public partial class BindingsModel {
     }
 
     public record Function : FunctionLike {
-        public required string Name { get; set; }
         public required bool IsNativeFunction { get; set; }
         public EntityReferenceWrapper<Struct>? OwnerStruct { get; set; }
         public string? OriginalFullyQualifiedName { get; set; }
@@ -350,6 +362,7 @@ public partial class BindingsModel {
         public Function(
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal,
             EntityReferenceWrapper<Struct>? ownerStruct,
             string originalFullyQualifiedName,
@@ -358,7 +371,7 @@ public partial class BindingsModel {
             bool hasImstrHelper,
             bool isManualHelper,
             bool isUnformattedHelper
-        ) : base(comments, conditionals, isInternal) {
+        ) : base(comments, conditionals, sourceLocation, isInternal) {
             OwnerStruct = ownerStruct;
             OriginalFullyQualifiedName = originalFullyQualifiedName;
             IsDefaultArgumentHelper = isDefaultArgumentHelper;
@@ -409,11 +422,14 @@ public partial class BindingsModel {
         }
     }
 
+    public record SourceLocation(string Filename, int Line);
+
     public abstract record SyntaxEntity<T> : IIndependentEntity {
         public T Syntax { get; set; }
         public Comments Comments { get; set; } = new();
 
         public IReadOnlyList<Conditional> Conditionals { get; set; } = [];
+        public SourceLocation? SourceLocation { get; }
         public bool IsInternal { get; set; }
         public bool IsDisabled { get; set; }
         public bool SkipEmit { get; set; }
@@ -425,13 +441,14 @@ public partial class BindingsModel {
         protected SyntaxEntity(
             T syntax,
             IIndependentEntity other
-        ) : this(syntax, other.Comments, other.Conditionals, other.IsInternal, other.IsDisabled, other.SkipEmit) {
+        ) : this(syntax, other.Comments, other.Conditionals, other.SourceLocation, other.IsInternal, other.IsDisabled, other.SkipEmit) {
         }
 
         protected SyntaxEntity(
             T syntax,
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal,
             bool isDisabled,
             bool skipEmit
@@ -439,6 +456,7 @@ public partial class BindingsModel {
             Syntax = syntax;
             Comments = comments;
             Conditionals = conditionals;
+            SourceLocation = sourceLocation;
             IsInternal = isInternal;
             IsDisabled = isDisabled;
             SkipEmit = skipEmit;
@@ -468,10 +486,11 @@ public partial class BindingsModel {
             MemberDeclarationSyntax syntax,
             Comments comments,
             IReadOnlyList<Conditional> conditionals,
+            SourceLocation? sourceLocation,
             bool isInternal,
             bool isDisabled,
             bool skipEmit
-        ) : base(syntax, comments, conditionals, isInternal, isDisabled, skipEmit) {
+        ) : base(syntax, comments, conditionals, sourceLocation, isInternal, isDisabled, skipEmit) {
         }
     }
 
@@ -479,11 +498,11 @@ public partial class BindingsModel {
         public T Value => (T) Reference.Value;
     }
 
-    public interface IEntityReference : IEntity {
+    public interface IEntityReference {
         Entity Value { get; set; }
     }
 
-    private record EntityReference(Entity Value) : IEntityReference, IEntity {
+    private record EntityReference(Entity Value) : IEntityReference {
         public Entity Value { get; set; } = Value;
 
         public EntityReference() : this((Entity) null!) {
