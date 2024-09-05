@@ -1,6 +1,8 @@
-﻿namespace NovaImGuiNet;
+﻿using System.Collections;
 
-public struct ImFixedArray256<T> : IEquatable<ImFixedArray256<T>> where T : unmanaged {
+namespace NovaImGuiNet;
+
+public struct ImFixedArray256<T> : IList<T>, IEquatable<ImFixedArray256<T>> where T : unmanaged, IEquatable<T> {
     public T Value1;
     public T Value2;
     public T Value3;
@@ -257,6 +259,23 @@ public struct ImFixedArray256<T> : IEquatable<ImFixedArray256<T>> where T : unma
     public T Value254;
     public T Value255;
     public T Value256;
+
+    public T this[int index] {
+        get {
+            // Following trick can reduce the range check by one
+            if ((uint) index >= 255)
+                throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray256 index must be between 0 and 255.");
+            
+            return Unsafe.Add(ref Value1, index);
+        }
+        set {
+            // Following trick can reduce the range check by one
+            if ((uint) index >= 255)
+                throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray256 index must be between 0 and 255.");
+            
+            Unsafe.Add(ref Value1, index) = value;
+        }
+    }
 
     public ImFixedArray256(T value1, T value2, T value3, T value4, T value5, T value6, T value7, T value8, T value9, T value10, T value11, T value12, T value13, T value14, T value15, T value16, T value17, T value18, T value19, T value20, T value21, T value22, T value23, T value24, T value25, T value26, T value27, T value28, T value29, T value30, T value31, T value32, T value33, T value34, T value35, T value36, T value37, T value38, T value39, T value40, T value41, T value42, T value43, T value44, T value45, T value46, T value47, T value48, T value49, T value50, T value51, T value52, T value53, T value54, T value55, T value56, T value57, T value58, T value59, T value60, T value61, T value62, T value63, T value64, T value65, T value66, T value67, T value68, T value69, T value70, T value71, T value72, T value73, T value74, T value75, T value76, T value77, T value78, T value79, T value80, T value81, T value82, T value83, T value84, T value85, T value86, T value87, T value88, T value89, T value90, T value91, T value92, T value93, T value94, T value95, T value96, T value97, T value98, T value99, T value100, T value101, T value102, T value103, T value104, T value105, T value106, T value107, T value108, T value109, T value110, T value111, T value112, T value113, T value114, T value115, T value116, T value117, T value118, T value119, T value120, T value121, T value122, T value123, T value124, T value125, T value126, T value127, T value128, T value129, T value130, T value131, T value132, T value133, T value134, T value135, T value136, T value137, T value138, T value139, T value140, T value141, T value142, T value143, T value144, T value145, T value146, T value147, T value148, T value149, T value150, T value151, T value152, T value153, T value154, T value155, T value156, T value157, T value158, T value159, T value160, T value161, T value162, T value163, T value164, T value165, T value166, T value167, T value168, T value169, T value170, T value171, T value172, T value173, T value174, T value175, T value176, T value177, T value178, T value179, T value180, T value181, T value182, T value183, T value184, T value185, T value186, T value187, T value188, T value189, T value190, T value191, T value192, T value193, T value194, T value195, T value196, T value197, T value198, T value199, T value200, T value201, T value202, T value203, T value204, T value205, T value206, T value207, T value208, T value209, T value210, T value211, T value212, T value213, T value214, T value215, T value216, T value217, T value218, T value219, T value220, T value221, T value222, T value223, T value224, T value225, T value226, T value227, T value228, T value229, T value230, T value231, T value232, T value233, T value234, T value235, T value236, T value237, T value238, T value239, T value240, T value241, T value242, T value243, T value244, T value245, T value246, T value247, T value248, T value249, T value250, T value251, T value252, T value253, T value254, T value255, T value256) {
         Value1 = value1;
@@ -515,6 +534,12 @@ public struct ImFixedArray256<T> : IEquatable<ImFixedArray256<T>> where T : unma
         Value254 = value254;
         Value255 = value255;
         Value256 = value256;
+    }
+
+    public unsafe Span<T> AsSpan() {
+        fixed (T* ptr = &Value1) {
+            return new Span<T>(ptr, 256);
+        }
     }
 
     public bool Equals(ImFixedArray256<T> other) {
@@ -1043,14 +1068,6 @@ public struct ImFixedArray256<T> : IEquatable<ImFixedArray256<T>> where T : unma
         }
     }
 
-    public static bool operator ==(ImFixedArray256<T> left, ImFixedArray256<T> right) {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(ImFixedArray256<T> left, ImFixedArray256<T> right) {
-        return !left.Equals(right);
-    }
-
     public override string ToString() {
         return
             $"{nameof(Value1)}: {Value1}, " +
@@ -1309,5 +1326,323 @@ public struct ImFixedArray256<T> : IEquatable<ImFixedArray256<T>> where T : unma
             $"{nameof(Value254)}: {Value254}, " +
             $"{nameof(Value255)}: {Value255}, " +
             $"{nameof(Value256)}: {Value256}";
+    }
+
+    #region IEnumerable<T>
+
+    public IEnumerator<T> GetEnumerator() {
+        // Hardly anyone will use this, so it's fine
+        yield return Value1;
+        yield return Value2;
+        yield return Value3;
+        yield return Value4;
+        yield return Value5;
+        yield return Value6;
+        yield return Value7;
+        yield return Value8;
+        yield return Value9;
+        yield return Value10;
+        yield return Value11;
+        yield return Value12;
+        yield return Value13;
+        yield return Value14;
+        yield return Value15;
+        yield return Value16;
+        yield return Value17;
+        yield return Value18;
+        yield return Value19;
+        yield return Value20;
+        yield return Value21;
+        yield return Value22;
+        yield return Value23;
+        yield return Value24;
+        yield return Value25;
+        yield return Value26;
+        yield return Value27;
+        yield return Value28;
+        yield return Value29;
+        yield return Value30;
+        yield return Value31;
+        yield return Value32;
+        yield return Value33;
+        yield return Value34;
+        yield return Value35;
+        yield return Value36;
+        yield return Value37;
+        yield return Value38;
+        yield return Value39;
+        yield return Value40;
+        yield return Value41;
+        yield return Value42;
+        yield return Value43;
+        yield return Value44;
+        yield return Value45;
+        yield return Value46;
+        yield return Value47;
+        yield return Value48;
+        yield return Value49;
+        yield return Value50;
+        yield return Value51;
+        yield return Value52;
+        yield return Value53;
+        yield return Value54;
+        yield return Value55;
+        yield return Value56;
+        yield return Value57;
+        yield return Value58;
+        yield return Value59;
+        yield return Value60;
+        yield return Value61;
+        yield return Value62;
+        yield return Value63;
+        yield return Value64;
+        yield return Value65;
+        yield return Value66;
+        yield return Value67;
+        yield return Value68;
+        yield return Value69;
+        yield return Value70;
+        yield return Value71;
+        yield return Value72;
+        yield return Value73;
+        yield return Value74;
+        yield return Value75;
+        yield return Value76;
+        yield return Value77;
+        yield return Value78;
+        yield return Value79;
+        yield return Value80;
+        yield return Value81;
+        yield return Value82;
+        yield return Value83;
+        yield return Value84;
+        yield return Value85;
+        yield return Value86;
+        yield return Value87;
+        yield return Value88;
+        yield return Value89;
+        yield return Value90;
+        yield return Value91;
+        yield return Value92;
+        yield return Value93;
+        yield return Value94;
+        yield return Value95;
+        yield return Value96;
+        yield return Value97;
+        yield return Value98;
+        yield return Value99;
+        yield return Value100;
+        yield return Value101;
+        yield return Value102;
+        yield return Value103;
+        yield return Value104;
+        yield return Value105;
+        yield return Value106;
+        yield return Value107;
+        yield return Value108;
+        yield return Value109;
+        yield return Value110;
+        yield return Value111;
+        yield return Value112;
+        yield return Value113;
+        yield return Value114;
+        yield return Value115;
+        yield return Value116;
+        yield return Value117;
+        yield return Value118;
+        yield return Value119;
+        yield return Value120;
+        yield return Value121;
+        yield return Value122;
+        yield return Value123;
+        yield return Value124;
+        yield return Value125;
+        yield return Value126;
+        yield return Value127;
+        yield return Value128;
+        yield return Value129;
+        yield return Value130;
+        yield return Value131;
+        yield return Value132;
+        yield return Value133;
+        yield return Value134;
+        yield return Value135;
+        yield return Value136;
+        yield return Value137;
+        yield return Value138;
+        yield return Value139;
+        yield return Value140;
+        yield return Value141;
+        yield return Value142;
+        yield return Value143;
+        yield return Value144;
+        yield return Value145;
+        yield return Value146;
+        yield return Value147;
+        yield return Value148;
+        yield return Value149;
+        yield return Value150;
+        yield return Value151;
+        yield return Value152;
+        yield return Value153;
+        yield return Value154;
+        yield return Value155;
+        yield return Value156;
+        yield return Value157;
+        yield return Value158;
+        yield return Value159;
+        yield return Value160;
+        yield return Value161;
+        yield return Value162;
+        yield return Value163;
+        yield return Value164;
+        yield return Value165;
+        yield return Value166;
+        yield return Value167;
+        yield return Value168;
+        yield return Value169;
+        yield return Value170;
+        yield return Value171;
+        yield return Value172;
+        yield return Value173;
+        yield return Value174;
+        yield return Value175;
+        yield return Value176;
+        yield return Value177;
+        yield return Value178;
+        yield return Value179;
+        yield return Value180;
+        yield return Value181;
+        yield return Value182;
+        yield return Value183;
+        yield return Value184;
+        yield return Value185;
+        yield return Value186;
+        yield return Value187;
+        yield return Value188;
+        yield return Value189;
+        yield return Value190;
+        yield return Value191;
+        yield return Value192;
+        yield return Value193;
+        yield return Value194;
+        yield return Value195;
+        yield return Value196;
+        yield return Value197;
+        yield return Value198;
+        yield return Value199;
+        yield return Value200;
+        yield return Value201;
+        yield return Value202;
+        yield return Value203;
+        yield return Value204;
+        yield return Value205;
+        yield return Value206;
+        yield return Value207;
+        yield return Value208;
+        yield return Value209;
+        yield return Value210;
+        yield return Value211;
+        yield return Value212;
+        yield return Value213;
+        yield return Value214;
+        yield return Value215;
+        yield return Value216;
+        yield return Value217;
+        yield return Value218;
+        yield return Value219;
+        yield return Value220;
+        yield return Value221;
+        yield return Value222;
+        yield return Value223;
+        yield return Value224;
+        yield return Value225;
+        yield return Value226;
+        yield return Value227;
+        yield return Value228;
+        yield return Value229;
+        yield return Value230;
+        yield return Value231;
+        yield return Value232;
+        yield return Value233;
+        yield return Value234;
+        yield return Value235;
+        yield return Value236;
+        yield return Value237;
+        yield return Value238;
+        yield return Value239;
+        yield return Value240;
+        yield return Value241;
+        yield return Value242;
+        yield return Value243;
+        yield return Value244;
+        yield return Value245;
+        yield return Value246;
+        yield return Value247;
+        yield return Value248;
+        yield return Value249;
+        yield return Value250;
+        yield return Value251;
+        yield return Value252;
+        yield return Value253;
+        yield return Value254;
+        yield return Value255;
+        yield return Value256;
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() {
+        return GetEnumerator();
+    }
+
+    #endregion
+
+    #region IList<T>
+
+    public int IndexOf(T item) {
+        return AsSpan().IndexOf(item);
+    }
+
+    public void Insert(int index, T item) {
+        throw new NotSupportedException();
+    }
+
+    public void RemoveAt(int index) {
+        throw new NotSupportedException();
+    }
+    
+    public void Add(T item) {
+        throw new NotSupportedException();
+    }
+
+    public void Clear() {
+        throw new NotSupportedException();
+    }
+
+    public bool Contains(T item) {
+        throw new NotSupportedException();
+    }
+
+    public void CopyTo(T[] array, int arrayIndex) {
+        throw new NotSupportedException();
+    }
+
+    public bool Remove(T item) {
+        throw new NotSupportedException();
+    }
+
+    public int Count { get; } = 256;
+
+    public bool IsReadOnly { get; } = false;
+
+    #endregion
+
+    public static implicit operator Span<T>(ImFixedArray256<T> array) => array.AsSpan();
+    
+    public static bool operator ==(ImFixedArray256<T> left, ImFixedArray256<T> right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(ImFixedArray256<T> left, ImFixedArray256<T> right) {
+        return !left.Equals(right);
     }
 }

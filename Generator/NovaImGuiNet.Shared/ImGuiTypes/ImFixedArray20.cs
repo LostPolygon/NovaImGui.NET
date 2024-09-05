@@ -1,6 +1,8 @@
-﻿namespace NovaImGuiNet;
+﻿using System.Collections;
 
-public struct ImFixedArray20<T> : IEquatable<ImFixedArray20<T>> where T : unmanaged {
+namespace NovaImGuiNet;
+
+public struct ImFixedArray20<T> : IList<T>, IEquatable<ImFixedArray20<T>> where T : unmanaged, IEquatable<T> {
     public T Value1;
     public T Value2;
     public T Value3;
@@ -21,6 +23,23 @@ public struct ImFixedArray20<T> : IEquatable<ImFixedArray20<T>> where T : unmana
     public T Value18;
     public T Value19;
     public T Value20;
+
+    public T this[int index] {
+        get {
+            // Following trick can reduce the range check by one
+            if ((uint) index >= 19)
+                throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray20 index must be between 0 and 19.");
+            
+            return Unsafe.Add(ref Value1, index);
+        }
+        set {
+            // Following trick can reduce the range check by one
+            if ((uint) index >= 19)
+                throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray20 index must be between 0 and 19.");
+            
+            Unsafe.Add(ref Value1, index) = value;
+        }
+    }
 
     public ImFixedArray20(T value1, T value2, T value3, T value4, T value5, T value6, T value7, T value8, T value9, T value10, T value11, T value12, T value13, T value14, T value15, T value16, T value17, T value18, T value19, T value20) {
         Value1 = value1;
@@ -43,6 +62,12 @@ public struct ImFixedArray20<T> : IEquatable<ImFixedArray20<T>> where T : unmana
         Value18 = value18;
         Value19 = value19;
         Value20 = value20;
+    }
+
+    public unsafe Span<T> AsSpan() {
+        fixed (T* ptr = &Value1) {
+            return new Span<T>(ptr, 20);
+        }
     }
 
     public bool Equals(ImFixedArray20<T> other) {
@@ -99,14 +124,6 @@ public struct ImFixedArray20<T> : IEquatable<ImFixedArray20<T>> where T : unmana
         }
     }
 
-    public static bool operator ==(ImFixedArray20<T> left, ImFixedArray20<T> right) {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(ImFixedArray20<T> left, ImFixedArray20<T> right) {
-        return !left.Equals(right);
-    }
-
     public override string ToString() {
         return
             $"{nameof(Value1)}: {Value1}, " +
@@ -129,5 +146,87 @@ public struct ImFixedArray20<T> : IEquatable<ImFixedArray20<T>> where T : unmana
             $"{nameof(Value18)}: {Value18}, " +
             $"{nameof(Value19)}: {Value19}, " +
             $"{nameof(Value20)}: {Value20}";
+    }
+
+    #region IEnumerable<T>
+
+    public IEnumerator<T> GetEnumerator() {
+        // Hardly anyone will use this, so it's fine
+        yield return Value1;
+        yield return Value2;
+        yield return Value3;
+        yield return Value4;
+        yield return Value5;
+        yield return Value6;
+        yield return Value7;
+        yield return Value8;
+        yield return Value9;
+        yield return Value10;
+        yield return Value11;
+        yield return Value12;
+        yield return Value13;
+        yield return Value14;
+        yield return Value15;
+        yield return Value16;
+        yield return Value17;
+        yield return Value18;
+        yield return Value19;
+        yield return Value20;
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() {
+        return GetEnumerator();
+    }
+
+    #endregion
+
+    #region IList<T>
+
+    public int IndexOf(T item) {
+        return AsSpan().IndexOf(item);
+    }
+
+    public void Insert(int index, T item) {
+        throw new NotSupportedException();
+    }
+
+    public void RemoveAt(int index) {
+        throw new NotSupportedException();
+    }
+    
+    public void Add(T item) {
+        throw new NotSupportedException();
+    }
+
+    public void Clear() {
+        throw new NotSupportedException();
+    }
+
+    public bool Contains(T item) {
+        throw new NotSupportedException();
+    }
+
+    public void CopyTo(T[] array, int arrayIndex) {
+        throw new NotSupportedException();
+    }
+
+    public bool Remove(T item) {
+        throw new NotSupportedException();
+    }
+
+    public int Count { get; } = 20;
+
+    public bool IsReadOnly { get; } = false;
+
+    #endregion
+
+    public static implicit operator Span<T>(ImFixedArray20<T> array) => array.AsSpan();
+    
+    public static bool operator ==(ImFixedArray20<T> left, ImFixedArray20<T> right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(ImFixedArray20<T> left, ImFixedArray20<T> right) {
+        return !left.Equals(right);
     }
 }

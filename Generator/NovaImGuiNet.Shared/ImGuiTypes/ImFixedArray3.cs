@@ -1,14 +1,39 @@
-﻿namespace NovaImGuiNet;
+﻿using System.Collections;
 
-public struct ImFixedArray3<T> : IEquatable<ImFixedArray3<T>> where T : unmanaged {
+namespace NovaImGuiNet;
+
+public struct ImFixedArray3<T> : IList<T>, IEquatable<ImFixedArray3<T>> where T : unmanaged, IEquatable<T> {
     public T Value1;
     public T Value2;
     public T Value3;
+
+    public T this[int index] {
+        get {
+            // Following trick can reduce the range check by one
+            if ((uint) index >= 2)
+                throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray3 index must be between 0 and 2.");
+
+            return Unsafe.Add(ref Value1, index);
+        }
+        set {
+            // Following trick can reduce the range check by one
+            if ((uint) index >= 2)
+                throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray3 index must be between 0 and 2.");
+
+            Unsafe.Add(ref Value1, index) = value;
+        }
+    }
 
     public ImFixedArray3(T value1, T value2, T value3) {
         Value1 = value1;
         Value2 = value2;
         Value3 = value3;
+    }
+
+    public unsafe Span<T> AsSpan() {
+        fixed (T* ptr = &Value1) {
+            return new Span<T>(ptr, 3);
+        }
     }
 
     public bool Equals(ImFixedArray3<T> other) {
@@ -31,18 +56,75 @@ public struct ImFixedArray3<T> : IEquatable<ImFixedArray3<T>> where T : unmanage
         }
     }
 
+    public override string ToString() {
+        return
+            $"{nameof(Value1)}: {Value1}, " +
+            $"{nameof(Value2)}: {Value2}, " +
+            $"{nameof(Value3)}: {Value3}";
+    }
+
+    #region IEnumerable<T>
+
+    public IEnumerator<T> GetEnumerator() {
+        // Hardly anyone will use this, so it's fine
+        yield return Value1;
+        yield return Value2;
+        yield return Value3;
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() {
+        return GetEnumerator();
+    }
+
+    #endregion
+
+    #region IList<T>
+
+    public int IndexOf(T item) {
+        return AsSpan().IndexOf(item);
+    }
+
+    public void Insert(int index, T item) {
+        throw new NotSupportedException();
+    }
+
+    public void RemoveAt(int index) {
+        throw new NotSupportedException();
+    }
+
+    public void Add(T item) {
+        throw new NotSupportedException();
+    }
+
+    public void Clear() {
+        throw new NotSupportedException();
+    }
+
+    public bool Contains(T item) {
+        throw new NotSupportedException();
+    }
+
+    public void CopyTo(T[] array, int arrayIndex) {
+        throw new NotSupportedException();
+    }
+
+    public bool Remove(T item) {
+        throw new NotSupportedException();
+    }
+
+    public int Count { get; } = 3;
+
+    public bool IsReadOnly { get; } = false;
+
+    #endregion
+
+    public static implicit operator Span<T>(ImFixedArray3<T> array) => array.AsSpan();
+
     public static bool operator ==(ImFixedArray3<T> left, ImFixedArray3<T> right) {
         return left.Equals(right);
     }
 
     public static bool operator !=(ImFixedArray3<T> left, ImFixedArray3<T> right) {
         return !left.Equals(right);
-    }
-
-    public override string ToString() {
-        return
-            $"{nameof(Value1)}: {Value1}, " +
-            $"{nameof(Value2)}: {Value2}, " +
-            $"{nameof(Value3)}: {Value3}";
     }
 }
