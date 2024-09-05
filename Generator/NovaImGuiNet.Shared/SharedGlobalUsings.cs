@@ -11,8 +11,12 @@ global using int64_t = System.Int64;
 //global using LPARAM = nint;
 //global using LRESULT = nint;
 
+#if !USE_UNITY_VECTORS
 global using ImVec2 = System.Numerics.Vector2;
 global using ImVec4 = System.Numerics.Vector4;
+
+global using ImVec3 = System.Numerics.Vector3; // Doesn't exist in Dear ImGui, but convenient for consistency
+#endif
 
 #if !NOVA_IMGUI_NET_MAIN
 global using unsafe ImPoolIdx = System.Int32;
