@@ -14,27 +14,25 @@ public static class FunctionModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(FunctionModifiers));
 
     public static void PatchArgumentDefaultValues<T>(BindingsModel model, T functionLike) where T : IFunctionLike {
-        int? lastArgumentWithUnusableDeclarationDefaultValueIndex = null;
+        int? lastArgumentWithInvalidDefaultValueIndex = null;
         for (int index = 0; index < functionLike.Arguments.Count; index++) {
             FunctionArgument argument = functionLike.Arguments[index];
-            if (argument.DeclarationDefaultValue == null)
+            if (argument.DefaultValue == null)
                 continue;
 
-            bool fullyFixed = PatchArgumentDefaultValue(model, functionLike, argument);
-            if (!fullyFixed) {
-                lastArgumentWithUnusableDeclarationDefaultValueIndex = index;
+            PatchArgumentDefaultValue(model, functionLike, argument, out bool isDefaultValueValidInDeclaration);
+            if (!isDefaultValueValidInDeclaration) {
+                argument.IsDefaultValueValidInDeclaration = false;
+                lastArgumentWithInvalidDefaultValueIndex = index;
             }
         }
 
-        if (lastArgumentWithUnusableDeclarationDefaultValueIndex == null)
+        if (lastArgumentWithInvalidDefaultValueIndex == null)
             return;
 
-        for (int index = 0; index <= lastArgumentWithUnusableDeclarationDefaultValueIndex; index++) {
+        for (int index = 0; index <= lastArgumentWithInvalidDefaultValueIndex; index++) {
             FunctionArgument argument = functionLike.Arguments[index];
-            if (argument.DeclarationDefaultValue == null)
-                continue;
-
-            argument.DeclarationDefaultValue = null;
+            argument.IsDefaultValueValidInDeclaration = false;
         }
     }
 
@@ -51,23 +49,6 @@ public static class FunctionModifiers {
         if (!argument.Name.StartsWith("__")) {
             argument.Name = argument.Name.SnakeCaseToCamelCase();
         }
-
-        return argument;
-    }
-
-    // FIXME: temporary hack for fun
-    public static FunctionArgument ReplaceConstCharPointerWithString(FunctionArgument argument) {
-        bool isConstCharPointer =
-            argument.Type.ExpandTypedef()!.Value is Pointer { ValueType.Value: Builtin { IsConstCharPointer: true } };
-
-        if (!isConstCharPointer)
-            return argument;
-
-        argument.Type = new Builtin(
-            "string",
-            typeof(string),
-            StorageClass.Const
-        ).AsEntityReference();
 
         return argument;
     }
@@ -102,22 +83,43 @@ public static class FunctionModifiers {
     /// so we replace them by fixed-size ImFixedArray&lt;T&gt; structures.
     /// </summary>
     public static FunctionArgument ConvertFixedSizeArrayArgumentToFixedSizeStruct(BindingsContext context, FunctionArgument argument) {
-        if (argument.Type.Value is not Array argumentTypeArray || String.IsNullOrEmpty(argument.ArrayBounds))
+        if (argument.Type.Value is not Array argumentTypeArray || String.IsNullOrEmpty(argumentTypeArray.ArrayBounds))
             return argument;
 
-        argument.Type.Value =
-            new Pointer(
-                CreateImFixedArrayFromArray(
-                    context.RootNamespace,
-                    argument.ArrayBounds,
-                    argumentTypeArray.ElementType
-                ).AsEntityReference(),
-                false
-            );
+        if (argumentTypeArray.ArrayBoundsNumeric == null)
+            throw new InvalidOperationException($"Argument '{argument}' doesn't have numeric array bounds set");
+
+        bool canBeConvertedToImVec =
+            argumentTypeArray.ElementType.Value is Builtin { BuiltinName: "float" } &&
+            argumentTypeArray.ArrayBoundsNumeric is >= 2 and <= 4;
+        if (canBeConvertedToImVec) {
+            string imVecName = $"ImVec{argumentTypeArray.ArrayBoundsNumeric}";
+            argument.Type.Value =
+                new Pointer(
+                    new Struct {
+                        Kind = Struct.StructKind.Struct,
+                        Name = imVecName,
+                        Namespace = context.RootNamespace,
+                        ByValue = true,
+                        NoEmit = true
+                    }.AsEntityReference(),
+                    false
+                );
+        } else {
+            argument.Type.Value =
+                new Pointer(
+                    CreateImFixedArrayFromArray(
+                        context.RootNamespace,
+                        argumentTypeArray.ArrayBoundsNumeric.Value,
+                        argumentTypeArray.ElementType
+                    ).AsEntityReference(),
+                    false
+                );
+        }
 
         return argument;
 
-        static Struct CreateImFixedArrayFromArray(string @namespace, string arrayBounds, IEntityReference arrayElementType) {
+        static Struct CreateImFixedArrayFromArray(string @namespace, long arrayBounds, IEntityReference arrayElementType) {
             return new Struct {
                 Kind = Struct.StructKind.Struct,
                 Name = $"ImFixedArray{arrayBounds}",
@@ -171,74 +173,81 @@ public static class FunctionModifiers {
         ];
     }
 
-    private static bool PatchArgumentDefaultValue(BindingsModel model, IFunctionLike functionLike, FunctionArgument argument) {
-        Debug.Assert(argument.DeclarationDefaultValue != null);
-        string initialDefaultValue = argument.DeclarationDefaultValue;
+    private static void PatchArgumentDefaultValue(
+        BindingsModel model,
+        IFunctionLike functionLike,
+        FunctionArgument argument,
+        out bool isDefaultValueValidInDeclaration
+    ) {
+        Debug.Assert(argument.DefaultValue != null);
 
-        argument.DefaultValue = initialDefaultValue;
-        argument.DeclarationDefaultValue = initialDefaultValue;
+        isDefaultValueValidInDeclaration = true;
+        string initialDefaultValue = argument.DefaultValue;
 
-        argument.DeclarationDefaultValue = argument.DeclarationDefaultValue switch {
-            "NULL" => "null",
+        argument.DefaultValue = initialDefaultValue switch {
+            "NULL" => "default",
             "ImVec2(0, 0)" => "default",
             "ImVec4(0, 0, 0, 0)" => "default",
             "IM_COL32(255, 0, 0, 255)" => "IM_COL32_RED",
-            _ => argument.DeclarationDefaultValue
+            _ => argument.DefaultValue
         };
 
-        if (argument.DeclarationDefaultValue != initialDefaultValue)
-            return true;
+        if (argument.DefaultValue != initialDefaultValue)
+            return;
 
         foreach (EntityReferenceWrapper<Enum> enumerationReference in model.Enums) {
             Enum enumeration = enumerationReference.Value;
-            argument.DeclarationDefaultValue = argument.DeclarationDefaultValue.Replace($"{enumeration.Name}_", $"{enumeration.Name}.");
+            argument.DefaultValue = argument.DefaultValue.Replace($"{enumeration.Name}_", $"{enumeration.Name}.");
         }
 
-        if (argument.DeclarationDefaultValue != initialDefaultValue)
-            return true;
+        if (argument.DefaultValue != initialDefaultValue)
+            return;
 
-        Enum? argumentTypeEnum = (Enum?) argument.Type.ExpandWrappers<Enum>()?.Value;
+        Enum? argumentTypeEnum = (Enum?) argument.Type.ExpandTypedefsAndPointers<Enum>()?.Value;
         if (argumentTypeEnum != null) {
             // Find an enum member with matching string representation
             Enum.Member? matchingEnumMember =
                 argumentTypeEnum.Members
-                    .FirstOrDefault(member => member.Value == argument.DeclarationDefaultValue);
+                    .FirstOrDefault(member => member.Value == argument.DefaultValue);
 
             if (matchingEnumMember != null) {
-                argument.DeclarationDefaultValue = $"{argumentTypeEnum.Name}.{matchingEnumMember.Name}";
-
-                //argument.DeclarationDefaultValue = $"({argumentTypeEnum.Name}) {argument.DeclarationDefaultValue}";
+                argument.DefaultValue = $"{argumentTypeEnum.Name}.{matchingEnumMember.Name}";
             } else {
                 Log.LogWarning(
-                    $"Could not find matching enum member '{argument.DeclarationDefaultValue}'" +
+                    $"Could not find matching enum member '{argument.DefaultValue}'" +
                     $" in enum '{argumentTypeEnum}'"
                 );
             }
         }
 
-        if (argument.DeclarationDefaultValue != initialDefaultValue)
-            return true;
+        if (argument.DefaultValue != initialDefaultValue)
+            return;
 
-        ExpressionSyntax expressionSyntax = ParseExpression(argument.DeclarationDefaultValue);
+        ExpressionSyntax expressionSyntax = ParseExpression(argument.DefaultValue);
         switch (expressionSyntax) {
             case LiteralExpressionSyntax literalExpressionSyntax:
-                return literalExpressionSyntax.Kind() switch {
-                    SyntaxKind.StringLiteralExpression => false, // FIXME: we'll need this later
-                    _ => true
-                };
+                switch (literalExpressionSyntax.Kind()) {
+                    case SyntaxKind.StringLiteralExpression:
+                        isDefaultValueValidInDeclaration = false;
+                        return; // FIXME: we'll need this later
+                    default:
+                        return;
+                }
             case PrefixUnaryExpressionSyntax:
             case IdentifierNameSyntax:
             case SizeOfExpressionSyntax:
-                return true;
+                return;
             case InvocationExpressionSyntax:
-                return false;
+                isDefaultValueValidInDeclaration = false;
+                return;
             default:
                 Log.LogWarning(
                     $"Argument '{argument.Name}' of function '{FormatType(functionLike)}' " +
                     $"has unexpected array bounds value '{argument.DefaultValue}' " +
                     $"that got understood as {expressionSyntax.GetType().Name}"
                 );
-                return false;
+                isDefaultValueValidInDeclaration = false;
+                return;
         }
     }
 }
