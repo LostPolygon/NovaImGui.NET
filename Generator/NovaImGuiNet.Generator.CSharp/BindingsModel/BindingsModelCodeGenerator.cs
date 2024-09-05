@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.CodeAnalysis;
@@ -24,7 +25,7 @@ public class BindingsModelCodeGenerator {
     }
 
     public IReadOnlyList<BindingsCompilationUnit> Generate() {
-        List<BindingsCompilationUnit> compilationUnits = [];
+        ConcurrentBag<BindingsCompilationUnit> compilationUnits = [];
 
         void AddCompilationUnit(
             OneOf<ITopLevelEntity, CompilationUnitFileInformation> entityOrFileInformation,
@@ -75,7 +76,7 @@ public class BindingsModelCodeGenerator {
         }
 
         foreach (EntityReferenceWrapper<Struct> structure in BindingsModel.Structs) {
-            if (structure.Value.SkipEmit)
+            if (structure.Value.NoEmit)
                 continue;
 
             CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
@@ -94,7 +95,7 @@ public class BindingsModelCodeGenerator {
             );
         }
 
-        return compilationUnits;
+        return compilationUnits.ToArray();
     }
 
     private IEnumerable<CompilationUnitWithNamespace> GenerateNativeFunctionBindings() {
@@ -109,10 +110,10 @@ public class BindingsModelCodeGenerator {
             string ns = entityReferenceWrappers.Key;
             EntityReferenceWrapper<Function>[] allNativeFunctions = entityReferenceWrappers.ToArray();
 
-            List<MemberDeclarationSyntax> functions = [];
+            List<MemberDeclarationSyntax> methodSyntaxes = [];
             foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
                 Function apiModelFunction = functionReference.Value;
-                functions.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
+                methodSyntaxes.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
             }
 
             ClassDeclarationSyntax classDeclaration =
@@ -127,7 +128,7 @@ public class BindingsModelCodeGenerator {
                         ParseMemberDeclaration("public const string ImGuiDllName = \"cimgui\";")!,
                         ParseMemberDeclaration("public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
                     )
-                    .AddMembers(functions.ToArray());
+                    .AddMembers(methodSyntaxes.ToArray());
 
             CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
                 ns,
@@ -146,7 +147,7 @@ public class BindingsModelCodeGenerator {
             BindingsModel.Typedefs
                 .Select(t => t.Value)
                 .OrderBy(t => t.Type.Value is Delegate)
-                .Where(t => !t.SkipEmit)
+                .Where(t => !t.NoEmit)
                 .GroupBy(t => t.Namespace)
                 .Select(typedefsByNamespace => {
                     List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefBindingsNamespace = [];
@@ -175,8 +176,7 @@ public class BindingsModelCodeGenerator {
             if (globalUsings.Count != 0) {
                 globalUsingsCompilationUnits.Add(
                     (
-                        CompilationUnit()
-                            .AddUsings(globalUsings.ToArray()),
+                        CompilationUnit().AddUsings(globalUsings.ToArray()),
                         ns
                     )
                 );
@@ -218,7 +218,7 @@ public class BindingsModelCodeGenerator {
         return [Generate(false)];
 
         MethodDeclarationSyntax Generate(bool delegatesAsFunctionPointers) {
-            bool useLibraryImport = true;
+            const bool useLibraryImport = false;
 
             List<AttributeSyntax> importAttributes;
             if (useLibraryImport) {
@@ -256,7 +256,7 @@ public class BindingsModelCodeGenerator {
             }
 
             MethodDeclarationSyntax methodSyntax =
-                GenerateFunctionBinding(
+                GenerateFunctionBindingMethodSyntax(
                         function,
                         false,
                         true,
@@ -303,7 +303,7 @@ public class BindingsModelCodeGenerator {
         }
     }
 
-    private static MethodDeclarationSyntax GenerateFunctionBinding(
+    private static MethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
         Function function,
         bool isInstanceMethod,
         bool isNativeMethod,
@@ -336,7 +336,9 @@ public class BindingsModelCodeGenerator {
         }
 
         IEnumerable<ParameterSyntax> parameters =
-            function.Arguments.Select(arg => CreateMethodParameterSyntax(arg, delegatesAsFunctionPointers));
+            function.Arguments.Select(arg =>
+                CreateMethodParameterSyntax(arg, delegatesAsFunctionPointers)
+            );
 
         methodDeclarationSyntax =
             methodDeclarationSyntax.WithParameterList(ParameterList(SeparatedList(parameters)));
@@ -348,7 +350,7 @@ public class BindingsModelCodeGenerator {
         FunctionArgument argument,
         bool delegatesAsFunctionPointers
     ) {
-        bool isDelegate = argument.Type.ExpandWrappers<Delegate>() != null;
+        bool isDelegate = argument.Type.ExpandTypedefsAndPointers<Delegate>() != null;
 
         ParameterSyntax parameter =
             Parameter(Identifier(argument.Name))
@@ -358,28 +360,66 @@ public class BindingsModelCodeGenerator {
                             argument.Type.Value,
                             new FormatTypeOptions {
                                 DelegatesAsFunctionPointers = delegatesAsFunctionPointers && isDelegate,
-                                DontExpandTypedefs = !delegatesAsFunctionPointers,
+                                ExpandTypedefs = delegatesAsFunctionPointers,
                             }
                         )
                     )
                 )
                 .AddAttributeLists(CreateMarshalAsAttributeLists(argument.Type.Value, false));
 
-        if (!String.IsNullOrEmpty(argument.DeclarationDefaultValue)) {
-            parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DeclarationDefaultValue)));
+        if (argument.PassType != FunctionArgumentPassType.Normal) {
+            parameter = parameter.AddModifiers(
+                Token(
+                    argument.PassType switch {
+                        FunctionArgumentPassType.Ref => SyntaxKind.RefKeyword,
+                        FunctionArgumentPassType.Out => SyntaxKind.OutKeyword,
+                        FunctionArgumentPassType.In => SyntaxKind.InKeyword,
+                        _ => throw new ArgumentOutOfRangeException()
+                    }
+                )
+            );
+        }
+
+        if (argument.DefaultValue != null) {
+            if (argument.IsDefaultValueValidInDeclaration) {
+                parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
+            } else {
+                parameter = parameter.AddAttributeLists(AttributeList(SeparatedList([
+                    Attribute(
+                        ParseName("ImGuiDefaultValue"),
+                        AttributeArgumentList(
+                            SeparatedList(
+                                [
+                                    AttributeArgument(
+                                        LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(argument.DefaultValue))
+                                    )
+                                ]
+                            )
+                        )
+                    )
+                ])));
+            }
         }
 
         return parameter;
     }
 
     private static EnumDeclarationSyntax GenerateBinding(Enum entity) {
-        EnumDeclarationSyntax declarationSyntax =
+        EnumDeclarationSyntax enumDeclaration =
             EnumDeclaration(Identifier(entity.Name))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword));
 
-        if (entity.IsFlagsEnum) {
-            declarationSyntax =
-                declarationSyntax
+        if (entity.UnderlyingType != null) {
+            enumDeclaration =
+                enumDeclaration
+                    .AddBaseListTypes(SimpleBaseType(ParseTypeName(
+                        FormatType(entity.UnderlyingType.Value)
+                    )));
+        }
+
+        if (entity.IsFlags) {
+            enumDeclaration =
+                enumDeclaration
                     .AddAttributeLists(
                         AttributeList(SingletonSeparatedList(Attribute(IdentifierName("Flags"))))
                     );
@@ -404,7 +444,7 @@ public class BindingsModelCodeGenerator {
             members.Add(member);
         }
 
-        declarationSyntax = declarationSyntax.WithMembers(
+        enumDeclaration = enumDeclaration.WithMembers(
             SeparatedList(
                 members,
 
@@ -413,8 +453,8 @@ public class BindingsModelCodeGenerator {
             )
         );
 
-        declarationSyntax = ApplyCommonEntitySyntax(declarationSyntax, entity, true);
-        return declarationSyntax;
+        enumDeclaration = ApplyCommonEntitySyntax(enumDeclaration, entity, true);
+        return enumDeclaration;
     }
 
     private TypeDeclarationSyntax GenerateBinding(Struct entity) {
@@ -457,25 +497,24 @@ public class BindingsModelCodeGenerator {
         }
 
         structSyntax = structSyntax.AddModifiers(modifiers.Select(Token).ToArray());
-
+        List<MemberDeclarationSyntax> structMembers = [];
         foreach (IEntity entityChild in entity.Children) {
             switch (entityChild) {
                 case SyntaxEntity<MemberDeclarationSyntax> memberSyntax:
-                    structSyntax = structSyntax.AddMembers(
-                        ApplyCommonEntitySyntax(memberSyntax.Syntax, memberSyntax)
-                    );
+                    memberSyntax.Syntax = ApplyCommonEntitySyntax(memberSyntax.Syntax, memberSyntax);
+                    structMembers.Add(memberSyntax.Syntax);
                     break;
                 case Delegate delegateModel: {
                     DelegateDeclarationSyntax delegateSyntax =
                         CreateDelegateDeclarationSyntax(delegateModel, delegateModel.Name);
-                    structSyntax = structSyntax.AddMembers(delegateSyntax);
+                    structMembers.Add(delegateSyntax);
                     break;
                 }
                 case Function functionModel: {
                     Debug.Assert(functionModel.Body != null);
 
                     MethodDeclarationSyntax methodSyntax =
-                        GenerateFunctionBinding(
+                        GenerateFunctionBindingMethodSyntax(
                             functionModel,
                             functionModel.OwnerStruct != null,
                             false,
@@ -484,13 +523,12 @@ public class BindingsModelCodeGenerator {
                         );
 
                     methodSyntax = ApplyCommonEntitySyntax(methodSyntax, functionModel);
-
-                    structSyntax = structSyntax.AddMembers(methodSyntax);
+                    structMembers.Add(methodSyntax);
                     break;
                 }
                 case Field field: {
                     FieldDeclarationSyntax fieldSyntax = GenerateField(entity, field, true);
-                    IEntityReference? fieldTypeDelegate = field.Type.ExpandWrappers<Delegate>();
+                    IEntityReference? fieldTypeDelegate = field.Type.ExpandTypedefsAndPointers<Delegate>();
                     if (fieldTypeDelegate != null) {
                         FieldDeclarationSyntax legacyFieldSyntax = GenerateField(entity, field, false);
                         WrapInSelfExclusiveConditionals(
@@ -499,9 +537,10 @@ public class BindingsModelCodeGenerator {
                             "NETSTANDARD2_0_OR_GREATER"
                         );
 
-                        structSyntax = structSyntax.AddMembers(fieldSyntax, legacyFieldSyntax);
+                        structMembers.Add(fieldSyntax);
+                        structMembers.Add(legacyFieldSyntax);
                     } else {
-                        structSyntax = structSyntax.AddMembers(fieldSyntax);
+                        structMembers.Add(fieldSyntax);
                     }
 
                     break;
@@ -510,6 +549,7 @@ public class BindingsModelCodeGenerator {
             }
         }
 
+        structSyntax = structSyntax.AddMembers(structMembers.ToArray());
         structSyntax = ApplyCommonEntitySyntax(structSyntax, entity, true);
 
         return structSyntax;
@@ -522,7 +562,7 @@ public class BindingsModelCodeGenerator {
                 field.Type.Value,
                 new FormatTypeOptions {
                     DelegatesAsFunctionPointers = true,
-                    DontExpandTypedefs = true
+                    ExpandTypedefs = false
                 }
             );
         } else {
@@ -628,7 +668,8 @@ public class BindingsModelCodeGenerator {
                                 aliasedType.Value,
                                 new FormatTypeOptions {
                                     FullyQualifiedBuiltins = true,
-                                    FullyQualifiedTypes = true
+                                    FullyQualifiedTypes = true,
+                                    ExpandTypedefs = true // Global usings can't reference other global usings
                                 }
                             )
                         )
