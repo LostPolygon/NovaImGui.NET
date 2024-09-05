@@ -8,6 +8,8 @@
 // since it contains a bool field and that's broken when
 // runtime marshaling is not disabled (which is only supported on .NET 7+)
 // https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib1050-1069
-[assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
+
+// FIXME: disabled as runtime marshaling is required for passing managed callbacks
+//[assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
 #endif
 
