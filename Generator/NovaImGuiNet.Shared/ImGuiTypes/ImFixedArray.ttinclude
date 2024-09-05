@@ -8,7 +8,7 @@ using System.Collections;
 #>
 namespace <#= @namespace #>;
 
-public struct <#= typeName #><T> : IList<T>, IEquatable<<#= typeName #><T>> where T : unmanaged, IEquatable<T> {
+public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatable<T> {
 <#
    for (int index = 1; index <= tupleSize; index++) {
 #>
@@ -48,46 +48,6 @@ public struct <#= typeName #><T> : IList<T>, IEquatable<<#= typeName #><T>> wher
         fixed (T* ptr = &Value1) {
             return new Span<T>(ptr, <#= tupleSize #>);
         }
-    }
-
-    public bool Equals(<#= typeName #><T> other) {
-        return
-<#
-   for (int index = 1; index <= tupleSize; index++) {
-#>
-            Value<#= index #>.Equals(other.Value<#= index #>)<#= index == tupleSize ? ";" : " &&" #>
-<#
-   }
-#>
-    }
-
-    public override bool Equals(object? obj) {
-        return obj is <#= typeName #><T> other && Equals(other);
-    }
-
-    public override int GetHashCode() {
-        unchecked {
-            int hashCode = Value1.GetHashCode();
-<#
-   for (int index = 2; index <= tupleSize; index++) {
-#>
-            hashCode = (hashCode * 397) ^ Value<#= index #>.GetHashCode();
-<#
-   }
-#>
-            return hashCode;
-        }
-    }
-
-    public override string ToString() {
-        return
-<#
-   for (int index = 1; index <= tupleSize; index++) {
-#>
-            $"{nameof(Value<#= index #>)}: {Value<#= index #>}<#= index == tupleSize ? "\";" : ", \" +" #>
-<#
-   }
-#>
     }
 
     #region IEnumerable<T>
@@ -143,19 +103,11 @@ public struct <#= typeName #><T> : IList<T>, IEquatable<<#= typeName #><T>> wher
         throw new NotSupportedException();
     }
 
-    public int Count { get; } = <#= tupleSize #>;
+    public int Count => <#= tupleSize #>;
 
-    public bool IsReadOnly { get; } = false;
+    public bool IsReadOnly => false;
 
     #endregion
 
     public static implicit operator Span<T>(<#= typeName #><T> array) => array.AsSpan();
-    
-    public static bool operator ==(<#= typeName #><T> left, <#= typeName #><T> right) {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(<#= typeName #><T> left, <#= typeName #><T> right) {
-        return !left.Equals(right);
-    }
 }

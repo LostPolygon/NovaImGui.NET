@@ -2,7 +2,7 @@
 
 namespace NovaImGuiNet;
 
-public struct ImFixedArray20<T> : IList<T>, IEquatable<ImFixedArray20<T>> where T : unmanaged, IEquatable<T> {
+public record struct ImFixedArray20<T> : IList<T> where T : unmanaged, IEquatable<T> {
     public T Value1;
     public T Value2;
     public T Value3;
@@ -68,84 +68,6 @@ public struct ImFixedArray20<T> : IList<T>, IEquatable<ImFixedArray20<T>> where 
         fixed (T* ptr = &Value1) {
             return new Span<T>(ptr, 20);
         }
-    }
-
-    public bool Equals(ImFixedArray20<T> other) {
-        return
-            Value1.Equals(other.Value1) &&
-            Value2.Equals(other.Value2) &&
-            Value3.Equals(other.Value3) &&
-            Value4.Equals(other.Value4) &&
-            Value5.Equals(other.Value5) &&
-            Value6.Equals(other.Value6) &&
-            Value7.Equals(other.Value7) &&
-            Value8.Equals(other.Value8) &&
-            Value9.Equals(other.Value9) &&
-            Value10.Equals(other.Value10) &&
-            Value11.Equals(other.Value11) &&
-            Value12.Equals(other.Value12) &&
-            Value13.Equals(other.Value13) &&
-            Value14.Equals(other.Value14) &&
-            Value15.Equals(other.Value15) &&
-            Value16.Equals(other.Value16) &&
-            Value17.Equals(other.Value17) &&
-            Value18.Equals(other.Value18) &&
-            Value19.Equals(other.Value19) &&
-            Value20.Equals(other.Value20);
-    }
-
-    public override bool Equals(object? obj) {
-        return obj is ImFixedArray20<T> other && Equals(other);
-    }
-
-    public override int GetHashCode() {
-        unchecked {
-            int hashCode = Value1.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value2.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value3.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value4.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value5.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value6.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value7.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value8.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value9.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value10.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value11.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value12.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value13.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value14.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value15.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value16.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value17.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value18.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value19.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value20.GetHashCode();
-            return hashCode;
-        }
-    }
-
-    public override string ToString() {
-        return
-            $"{nameof(Value1)}: {Value1}, " +
-            $"{nameof(Value2)}: {Value2}, " +
-            $"{nameof(Value3)}: {Value3}, " +
-            $"{nameof(Value4)}: {Value4}, " +
-            $"{nameof(Value5)}: {Value5}, " +
-            $"{nameof(Value6)}: {Value6}, " +
-            $"{nameof(Value7)}: {Value7}, " +
-            $"{nameof(Value8)}: {Value8}, " +
-            $"{nameof(Value9)}: {Value9}, " +
-            $"{nameof(Value10)}: {Value10}, " +
-            $"{nameof(Value11)}: {Value11}, " +
-            $"{nameof(Value12)}: {Value12}, " +
-            $"{nameof(Value13)}: {Value13}, " +
-            $"{nameof(Value14)}: {Value14}, " +
-            $"{nameof(Value15)}: {Value15}, " +
-            $"{nameof(Value16)}: {Value16}, " +
-            $"{nameof(Value17)}: {Value17}, " +
-            $"{nameof(Value18)}: {Value18}, " +
-            $"{nameof(Value19)}: {Value19}, " +
-            $"{nameof(Value20)}: {Value20}";
     }
 
     #region IEnumerable<T>
@@ -214,19 +136,11 @@ public struct ImFixedArray20<T> : IList<T>, IEquatable<ImFixedArray20<T>> where 
         throw new NotSupportedException();
     }
 
-    public int Count { get; } = 20;
+    public int Count => 20;
 
-    public bool IsReadOnly { get; } = false;
+    public bool IsReadOnly => false;
 
     #endregion
 
     public static implicit operator Span<T>(ImFixedArray20<T> array) => array.AsSpan();
-    
-    public static bool operator ==(ImFixedArray20<T> left, ImFixedArray20<T> right) {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(ImFixedArray20<T> left, ImFixedArray20<T> right) {
-        return !left.Equals(right);
-    }
 }

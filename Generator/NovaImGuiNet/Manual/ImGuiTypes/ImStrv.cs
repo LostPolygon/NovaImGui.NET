@@ -1,3 +1,3 @@
 ﻿namespace NovaImGuiNet;
 
-public struct ImStrv;
+public record struct ImStrv;

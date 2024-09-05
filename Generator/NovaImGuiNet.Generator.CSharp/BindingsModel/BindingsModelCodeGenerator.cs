@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -26,6 +27,7 @@ public class BindingsModelCodeGenerator {
 
     public IReadOnlyList<BindingsCompilationUnit> Generate() {
         ConcurrentBag<BindingsCompilationUnit> compilationUnits = [];
+        List<Action> generationActions = [];
 
         void AddCompilationUnit(
             OneOf<ITopLevelEntity, CompilationUnitFileInformation> entityOrFileInformation,
@@ -41,59 +43,84 @@ public class BindingsModelCodeGenerator {
             );
         }
 
-        (
-            IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> globalUsingsCompilationUnits,
-            IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> delegatesCompilationUnits
-        ) = GenerateTypedefBindings();
-
-        foreach ((CompilationUnitSyntax compilationUnit, string ns) globalUsingsCompilationUnit in globalUsingsCompilationUnits) {
-            AddCompilationUnit(
-                new CompilationUnitFileInformation(
-                    "GlobalUsings",
-                    globalUsingsCompilationUnit.ns
-                ),
-                globalUsingsCompilationUnit.compilationUnit
-            );
+        void AddTask(Action action) {
+            generationActions.Add(action);
         }
 
-        foreach ((CompilationUnitSyntax compilationUnit, string ns) delegatesCompilationUnit in delegatesCompilationUnits) {
-            AddCompilationUnit(
-                new CompilationUnitFileInformation(
-                    "Delegates",
-                    delegatesCompilationUnit.ns
-                ),
-                delegatesCompilationUnit.compilationUnit
-            );
+        void AddItemWrapperTask<T>(IEnumerable<EntityReferenceWrapper<T>> enumerable, Action<T> action) where T : TopLevelEntity {
+            foreach (EntityReferenceWrapper<T> item in enumerable) {
+                if (item.Value.NoEmit)
+                    continue;
+
+                generationActions.Add(() => action(item.Value));
+            }
         }
 
-        foreach (EntityReferenceWrapper<Enum> enumeration in BindingsModel.Enums) {
-            CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                enumeration.Value.Namespace,
-                GenerateBinding(enumeration.Value)
-            );
+        AddTask(() => {
+            (
+                IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> globalUsingsCompilationUnits,
+                IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> delegatesCompilationUnits
+            ) = GenerateTypedefBindings();
 
-            AddCompilationUnit(enumeration.Value, compilationUnitSyntax, "Enums");
-        }
+            foreach ((CompilationUnitSyntax compilationUnit, string ns) globalUsingsCompilationUnit in globalUsingsCompilationUnits) {
+                AddCompilationUnit(
+                    new CompilationUnitFileInformation(
+                        "GlobalUsings",
+                        globalUsingsCompilationUnit.ns
+                    ),
+                    globalUsingsCompilationUnit.compilationUnit
+                );
+            }
 
-        foreach (EntityReferenceWrapper<Struct> structure in BindingsModel.Structs) {
-            if (structure.Value.NoEmit)
-                continue;
+            foreach ((CompilationUnitSyntax compilationUnit, string ns) delegatesCompilationUnit in delegatesCompilationUnits) {
+                AddCompilationUnit(
+                    new CompilationUnitFileInformation(
+                        "Delegates",
+                        delegatesCompilationUnit.ns
+                    ),
+                    delegatesCompilationUnit.compilationUnit
+                );
+            }
+        });
 
-            CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                structure.Value.Namespace,
-                GenerateBinding(structure.Value)
-            );
+        AddItemWrapperTask(
+            BindingsModel.Enums,
+            enumeration => {
+                CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
+                    enumeration.Namespace,
+                    GenerateBinding(enumeration)
+                );
 
-            AddCompilationUnit(structure.Value, compilationUnitSyntax, "Structs");
-        }
+                AddCompilationUnit(enumeration, compilationUnitSyntax, "Enums");
+            }
+        );
 
-        IEnumerable<CompilationUnitWithNamespace> functionsCompilationUnits = GenerateNativeFunctionBindings();
-        foreach (CompilationUnitWithNamespace functionsCompilationUnit in functionsCompilationUnits) {
-            AddCompilationUnit(
-                new CompilationUnitFileInformation("ImGuiNative", functionsCompilationUnit.Namespace),
-                functionsCompilationUnit.CompilationUnitSyntax
-            );
-        }
+        AddItemWrapperTask(
+            BindingsModel.Structs,
+            structure => {
+                CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
+                    structure.Namespace,
+                    GenerateBinding(structure)
+                );
+
+                AddCompilationUnit(structure, compilationUnitSyntax, "Structs");
+            }
+        );
+
+        AddTask(() => {
+            IEnumerable<CompilationUnitWithNamespace> functionsCompilationUnits = GenerateNativeFunctionBindings();
+            foreach (CompilationUnitWithNamespace functionsCompilationUnit in functionsCompilationUnits) {
+                AddCompilationUnit(
+                    new CompilationUnitFileInformation("ImGuiNative", functionsCompilationUnit.Namespace),
+                    functionsCompilationUnit.CompilationUnitSyntax
+                );
+            }
+        });
+
+        Parallel.ForEach(
+            Partitioner.Create(generationActions.ToArray(), true),
+            action => action()
+        );
 
         return compilationUnits.ToArray();
     }
@@ -547,6 +574,81 @@ public class BindingsModelCodeGenerator {
                 }
                 default: throw new InvalidOperationException($"Unexpected struct child type {entityChild.GetType()}");
             }
+        }
+
+        if (entity.Kind != Struct.StructKind.StaticClass) {
+            structSyntax = structSyntax
+                .WithBaseList(
+                    BaseList(SeparatedList<BaseTypeSyntax>().Add(
+                        SimpleBaseType(ParseTypeName($"IEquatable<{entity.Name}>"))
+                    ))
+                );
+
+            // GetHashCode()
+            structMembers.Add(
+                MethodDeclaration(ParseTypeName("int"), Identifier("GetHashCode"))
+                    .WithModifiers(TokenList(
+                        Token(SyntaxKind.PublicKeyword),
+                        Token(SyntaxKind.OverrideKeyword)
+                    ))
+                    .WithExpressionBody(
+                        ArrowExpressionClause(
+                            ParseExpression($"EqualityComparer<{entity.Name}>.Default.GetHashCode(this)")
+                        )
+                    )
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                    .WithLeadingTrivia(CarriageReturnLineFeed)
+                    .WithTrailingTrivia(LineFeed)
+            );
+
+            // Equals(object? obj)
+            structMembers.Add(
+                MethodDeclaration(ParseTypeName("bool"), Identifier("Equals"))
+                    .WithModifiers(TokenList(
+                        Token(SyntaxKind.PublicKeyword),
+                        Token(SyntaxKind.OverrideKeyword)
+                    ))
+                    .WithParameterList(
+                        ParameterList(
+                            SeparatedList([
+                                Parameter(Identifier("obj"))
+                                    .WithType(ParseTypeName("object?"))
+                            ])
+                        )
+                    )
+                    .WithExpressionBody(
+                        ArrowExpressionClause(
+                            ParseExpression($"obj is {entity.Name} other && Equals(other)")
+                        )
+                    )
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                    .WithLeadingTrivia(CarriageReturnLineFeed)
+                    .WithTrailingTrivia(LineFeed)
+            );
+
+            // Equals(T other)
+            structMembers.Add(
+                MethodDeclaration(ParseTypeName("bool"), Identifier("Equals"))
+                    .WithModifiers(TokenList(
+                        Token(SyntaxKind.PublicKeyword)
+                    ))
+                    .WithParameterList(
+                        ParameterList(
+                            SeparatedList([
+                                Parameter(Identifier("other"))
+                                    .WithType(ParseTypeName(entity.Name))
+                            ])
+                        )
+                    )
+                    .WithExpressionBody(
+                        ArrowExpressionClause(
+                            ParseExpression($"EqualityComparer<{entity.Name}>.Default.Equals(this, other)")
+                        )
+                    )
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                    .WithLeadingTrivia(CarriageReturnLineFeed)
+                    .WithTrailingTrivia(LineFeed)
+            );
         }
 
         structSyntax = structSyntax.AddMembers(structMembers.ToArray());

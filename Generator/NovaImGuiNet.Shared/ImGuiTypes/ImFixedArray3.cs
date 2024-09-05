@@ -2,7 +2,7 @@
 
 namespace NovaImGuiNet;
 
-public struct ImFixedArray3<T> : IList<T>, IEquatable<ImFixedArray3<T>> where T : unmanaged, IEquatable<T> {
+public record struct ImFixedArray3<T> : IList<T> where T : unmanaged, IEquatable<T> {
     public T Value1;
     public T Value2;
     public T Value3;
@@ -12,14 +12,14 @@ public struct ImFixedArray3<T> : IList<T>, IEquatable<ImFixedArray3<T>> where T 
             // Following trick can reduce the range check by one
             if ((uint) index >= 2)
                 throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray3 index must be between 0 and 2.");
-
+            
             return Unsafe.Add(ref Value1, index);
         }
         set {
             // Following trick can reduce the range check by one
             if ((uint) index >= 2)
                 throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray3 index must be between 0 and 2.");
-
+            
             Unsafe.Add(ref Value1, index) = value;
         }
     }
@@ -34,33 +34,6 @@ public struct ImFixedArray3<T> : IList<T>, IEquatable<ImFixedArray3<T>> where T 
         fixed (T* ptr = &Value1) {
             return new Span<T>(ptr, 3);
         }
-    }
-
-    public bool Equals(ImFixedArray3<T> other) {
-        return
-            Value1.Equals(other.Value1) &&
-            Value2.Equals(other.Value2) &&
-            Value3.Equals(other.Value3);
-    }
-
-    public override bool Equals(object? obj) {
-        return obj is ImFixedArray3<T> other && Equals(other);
-    }
-
-    public override int GetHashCode() {
-        unchecked {
-            int hashCode = Value1.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value2.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value3.GetHashCode();
-            return hashCode;
-        }
-    }
-
-    public override string ToString() {
-        return
-            $"{nameof(Value1)}: {Value1}, " +
-            $"{nameof(Value2)}: {Value2}, " +
-            $"{nameof(Value3)}: {Value3}";
     }
 
     #region IEnumerable<T>
@@ -91,7 +64,7 @@ public struct ImFixedArray3<T> : IList<T>, IEquatable<ImFixedArray3<T>> where T 
     public void RemoveAt(int index) {
         throw new NotSupportedException();
     }
-
+    
     public void Add(T item) {
         throw new NotSupportedException();
     }
@@ -112,19 +85,11 @@ public struct ImFixedArray3<T> : IList<T>, IEquatable<ImFixedArray3<T>> where T 
         throw new NotSupportedException();
     }
 
-    public int Count { get; } = 3;
+    public int Count => 3;
 
-    public bool IsReadOnly { get; } = false;
+    public bool IsReadOnly => false;
 
     #endregion
 
     public static implicit operator Span<T>(ImFixedArray3<T> array) => array.AsSpan();
-
-    public static bool operator ==(ImFixedArray3<T> left, ImFixedArray3<T> right) {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(ImFixedArray3<T> left, ImFixedArray3<T> right) {
-        return !left.Equals(right);
-    }
 }

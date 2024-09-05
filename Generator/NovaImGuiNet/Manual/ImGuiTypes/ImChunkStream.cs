@@ -1,5 +1,5 @@
 ﻿namespace NovaImGuiNet;
 
-public struct ImChunkStream<T> where T : unmanaged {
+public record struct ImChunkStream<T> where T : unmanaged {
     public ImVector<byte> Buf;
 }

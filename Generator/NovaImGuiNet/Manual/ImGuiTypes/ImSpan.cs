@@ -2,7 +2,7 @@
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct ImSpan<T> : IEnumerable<T> where T : unmanaged {
+public readonly unsafe struct ImSpan<T> : IEnumerable<T>, IEquatable<ImSpan<T>> where T : unmanaged {
     public readonly T* Data;
     public readonly T* DataEnd;
 
@@ -74,4 +74,9 @@ public readonly unsafe struct ImSpan<T> : IEnumerable<T> where T : unmanaged {
         public void Dispose() {
         }
     }
+
+    public override int GetHashCode() => EqualityComparer<ImSpan<T>>.Default.GetHashCode(this);
+    public override bool Equals(object? obj) => obj is ImSpan<T> other && Equals(other);
+
+    public bool Equals(ImSpan<T> other) => EqualityComparer<ImSpan<T>>.Default.Equals(this, other);
 }

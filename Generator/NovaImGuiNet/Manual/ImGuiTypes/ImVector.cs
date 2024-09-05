@@ -2,7 +2,7 @@ using System.Collections;
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct ImVector<T> : IList<T> where T : unmanaged {
+public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> where T : unmanaged {
     public readonly int Size;
     public readonly int Capacity;
     public readonly T* Data;
@@ -26,6 +26,11 @@ public readonly unsafe struct ImVector<T> : IList<T> where T : unmanaged {
     }
 
     public IntPtr AddressAt(int index) => (IntPtr) (&Data[index]);
+
+    public override int GetHashCode() => EqualityComparer<ImVector<T>>.Default.GetHashCode(this);
+    public override bool Equals(object? obj) => obj is ImVector<T> other && Equals(other);
+
+    public bool Equals(ImVector<T> other) => EqualityComparer<ImVector<T>>.Default.Equals(this, other);
 
     T IList<T>.this[int index] {
         get => this[index];

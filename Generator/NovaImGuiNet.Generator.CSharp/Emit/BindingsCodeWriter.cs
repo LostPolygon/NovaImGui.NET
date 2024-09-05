@@ -1,12 +1,11 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Formatting;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
 using MoreLinq;
-using OneOf;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
@@ -23,11 +22,13 @@ public class BindingsCodeWriter {
     }
 
     public void SaveToDirectory() {
+#if DEBUG
         foreach (var grouping in CompilationUnits.GroupBy(CreateFileName)) {
             if (grouping.Count() > 1) {
                 throw new InvalidOperationException($"Multiple compilation units for {grouping.Key}");
             }
         }
+#endif
 
         string[] directories =
             CompilationUnits
@@ -40,8 +41,7 @@ public class BindingsCodeWriter {
         directories.ForEach(dir => Directory.CreateDirectory(CreateFilePath(dir)));
 
         Parallel.ForEach(
-            CompilationUnits,
-            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+            Partitioner.Create(CompilationUnits.ToArray(), true),
             SaveEntityToFile
         );
     }
@@ -58,11 +58,17 @@ public class BindingsCodeWriter {
         string fileName = bindingsCompilationUnit.EntityOrCompilationUnitFileInformation.Match(
             entity => {
                 string name = entity.Name;
-                name = entity switch {
-                    BindingsModel.Enum => $"{entity.Namespace}{categorySeparator}{entity.Name}",
-                    BindingsModel.Struct => $"{entity.Namespace}{categorySeparator}{entity.Name}",
-                    _ => name
-                };
+                switch (entity) {
+                    case BindingsModel.Enum:
+                    case BindingsModel.Struct:
+                        if (entity.Name == "ImGui") {
+                            categorySeparator = "/";
+                        }
+
+                        name = $"{entity.Namespace}{categorySeparator}{entity.Name}";
+                        break;
+                }
+
                 return name;
             },
             fileInfo => $"{fileInfo.Namespace}{categorySeparator}{fileInfo.Name}"
@@ -97,6 +103,17 @@ public class BindingsCodeWriter {
 
         Debug.Assert(formatMode == CodeFormatMode.Fancy);
 
+        AdhocWorkspace workspace = GetAdhocWorkspace();
+
+        SyntaxNode formattedNode = Formatter.Format(
+            node,
+            workspace
+        );
+
+        return formattedNode;
+    }
+
+    private static AdhocWorkspace GetAdhocWorkspace() {
         AdhocWorkspace workspace = new();
         OptionSet options = workspace.Options;
 
@@ -112,13 +129,6 @@ public class BindingsCodeWriter {
         EnableOption(ref options, CSharpFormattingOptions.IndentBlock);
 
         workspace.TryApplyChanges(workspace.CurrentSolution.WithOptions(options));
-
-        SyntaxNode formattedNode = Formatter.Format(
-            node,
-            workspace,
-            options
-        );
-
-        return formattedNode;
+        return workspace;
     }
 }

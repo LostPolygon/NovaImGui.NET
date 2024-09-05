@@ -2,7 +2,7 @@
 
 namespace NovaImGuiNet;
 
-public struct ImFixedArray4<T> : IList<T>, IEquatable<ImFixedArray4<T>> where T : unmanaged, IEquatable<T> {
+public record struct ImFixedArray4<T> : IList<T> where T : unmanaged, IEquatable<T> {
     public T Value1;
     public T Value2;
     public T Value3;
@@ -36,36 +36,6 @@ public struct ImFixedArray4<T> : IList<T>, IEquatable<ImFixedArray4<T>> where T 
         fixed (T* ptr = &Value1) {
             return new Span<T>(ptr, 4);
         }
-    }
-
-    public bool Equals(ImFixedArray4<T> other) {
-        return
-            Value1.Equals(other.Value1) &&
-            Value2.Equals(other.Value2) &&
-            Value3.Equals(other.Value3) &&
-            Value4.Equals(other.Value4);
-    }
-
-    public override bool Equals(object? obj) {
-        return obj is ImFixedArray4<T> other && Equals(other);
-    }
-
-    public override int GetHashCode() {
-        unchecked {
-            int hashCode = Value1.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value2.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value3.GetHashCode();
-            hashCode = (hashCode * 397) ^ Value4.GetHashCode();
-            return hashCode;
-        }
-    }
-
-    public override string ToString() {
-        return
-            $"{nameof(Value1)}: {Value1}, " +
-            $"{nameof(Value2)}: {Value2}, " +
-            $"{nameof(Value3)}: {Value3}, " +
-            $"{nameof(Value4)}: {Value4}";
     }
 
     #region IEnumerable<T>
@@ -118,19 +88,11 @@ public struct ImFixedArray4<T> : IList<T>, IEquatable<ImFixedArray4<T>> where T 
         throw new NotSupportedException();
     }
 
-    public int Count { get; } = 4;
+    public int Count => 4;
 
-    public bool IsReadOnly { get; } = false;
+    public bool IsReadOnly => false;
 
     #endregion
 
     public static implicit operator Span<T>(ImFixedArray4<T> array) => array.AsSpan();
-    
-    public static bool operator ==(ImFixedArray4<T> left, ImFixedArray4<T> right) {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(ImFixedArray4<T> left, ImFixedArray4<T> right) {
-        return !left.Equals(right);
-    }
 }
