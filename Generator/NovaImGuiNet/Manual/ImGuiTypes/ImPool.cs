@@ -1,6 +1,6 @@
 ﻿namespace NovaImGuiNet;
 
-public record struct ImPool<T> where T : unmanaged {
+public record struct ImPool<T> where T : unmanaged, IEquatable<T> {
     ///<summary>Contiguous data</summary>
     public ImVector<T> Buf;
     ///<summary>ID-&gt;Index</summary>

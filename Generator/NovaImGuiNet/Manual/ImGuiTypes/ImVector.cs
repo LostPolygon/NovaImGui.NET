@@ -46,8 +46,9 @@ public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> wh
             Enumerable.Empty<T>().GetEnumerator() :
             GetEnumerator();
 
-    //public bool Contains(T item) => AsSpan().Contains(item);
-    public bool Contains(T item) => throw new NotSupportedException();
+    public bool Contains(T item) {
+        return IndexOf(item) != -1;
+    }
 
     public void CopyTo(T[] array, int arrayIndex) => AsSpan().CopyTo(array.AsSpan(arrayIndex));
 
@@ -55,8 +56,17 @@ public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> wh
 
     public bool IsReadOnly => false;
 
-    //public int IndexOf(T item) => AsSpan().IndexOf(item);
-    public int IndexOf(T item) => throw new NotSupportedException();
+    public int IndexOf(T item) {
+        EqualityComparer<T> comparer = EqualityComparer<T>.Default;
+
+        Span<T> span = AsSpan();
+        for (int index = 0; index < span.Length; index++) {
+            if (comparer.Equals(span[index], item))
+                return index;
+        }
+
+        return -1;
+    }
 
     public void Add(T item) {
         throw new NotSupportedException();

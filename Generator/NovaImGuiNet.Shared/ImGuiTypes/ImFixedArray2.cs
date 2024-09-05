@@ -8,17 +8,15 @@ public record struct ImFixedArray2<T> : IList<T> where T : unmanaged, IEquatable
 
     public T this[int index] {
         get {
-            // Following trick can reduce the range check by one
             if ((uint) index >= 1)
                 throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray2 index must be between 0 and 1.");
-            
+
             return Unsafe.Add(ref Value1, index);
         }
         set {
-            // Following trick can reduce the range check by one
             if ((uint) index >= 1)
                 throw new ArgumentOutOfRangeException(nameof(index), "ImFixedArray2 index must be between 0 and 1.");
-            
+
             Unsafe.Add(ref Value1, index) = value;
         }
     }
@@ -61,7 +59,7 @@ public record struct ImFixedArray2<T> : IList<T> where T : unmanaged, IEquatable
     public void RemoveAt(int index) {
         throw new NotSupportedException();
     }
-    
+
     public void Add(T item) {
         throw new NotSupportedException();
     }
