@@ -20,9 +20,13 @@ public static class TypedefModifiers {
         return typedef;
     }
 
-    public static BindingsModel RewriteTypedefsToEnums(BindingsModel model) {
-        // If there are typedefs that don't point to an enum,
-        // but have the same(ish) name as an enum, changed them to point to an actual enum
+    public static BindingsModel UpdateEnumTypedefs(BindingsModel model) {
+        // In Dear ImGui code, enums are defined as a C++ enum,
+        // plus a typedef specifying the underlying type.
+        //
+        // 1) Match up the enum and its typedef
+        // 2) Update the underlying enum type from typedef
+        // 3) Point the typedef to the target enum
         foreach (EntityReferenceWrapper<Typedef> typedef in model.Typedefs) {
             EntityReferenceWrapper<Enum>? matchingEnum =
                 model.Enums
@@ -42,8 +46,9 @@ public static class TypedefModifiers {
                 continue;
             }
 
+            matchingEnum.Value.UnderlyingType = typedef.Value.Type;
             typedef.Value.Type = matchingEnum.Reference;
-            typedef.Value.SkipEmit = true;
+            typedef.Value.NoEmit = true;
         }
 
         return model;
