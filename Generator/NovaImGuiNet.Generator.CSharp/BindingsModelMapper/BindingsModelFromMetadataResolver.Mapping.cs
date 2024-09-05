@@ -116,9 +116,10 @@ public partial class BindingsModelFromMetadataResolver {
             Name = metadata.Name,
             Type = ResolveEntity(metadata.Type),
             ArrayBounds = metadata.ArrayBounds,
-            DeclarationDefaultValue = metadata.DefaultValue,
+            DefaultValue = metadata.DefaultValue,
             IsVarargs = metadata.IsVarargs,
             IsInstancePointer = metadata.IsInstancePointer,
+            PassType = BindingsModel.FunctionArgumentPassType.Normal
         };
 
     private BindingsModel.Entity ResolvePointer(MetadataModel.Pointer metadata) {
@@ -144,7 +145,7 @@ public partial class BindingsModelFromMetadataResolver {
         new(
             ResolveEntity(metadata.ElementType),
             metadata.ArrayBounds,
-            metadata.ArrayBoundsNumeric
+            metadata.ArrayBoundsNumeric ?? MathUtility.EvaluateExpressionAsLong(metadata.ArrayBounds)
         );
 
     private BindingsModel.Builtin ResolveBuiltinType(MetadataModel.Builtin metadata) {

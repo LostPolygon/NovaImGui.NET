@@ -47,7 +47,12 @@ public static class StructModifiers {
         return model;
     }
 
-    public static BindingsModel GenericizeStructByTypeName(BindingsModel model, string typeName, string newTypeName, string genericArgumentTypeName) {
+    public static BindingsModel GenericizeStructByTypeName(
+        BindingsModel model,
+        string typeName,
+        string newTypeName,
+        string genericArgumentTypeName
+    ) {
         EntityReferenceWrapper<Struct>? structReference =
             model.Structs
                 .FirstOrDefault(x => x.Value.Name == typeName);
@@ -646,7 +651,7 @@ public static class StructModifiers {
         structure = structure with {
             Name = newTypeName,
             GenericArguments = [genericArgumentReference],
-            SkipEmit = true
+            NoEmit = true
         };
 
         structReference.Reference.Value = structure;

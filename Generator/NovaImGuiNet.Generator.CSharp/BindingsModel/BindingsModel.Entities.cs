@@ -22,7 +22,7 @@ public partial class BindingsModel {
         SourceLocation? SourceLocation { get; }
         bool IsInternal { get; set; }
         bool IsDisabled { get; set; }
-        bool SkipEmit { get; set; }
+        bool NoEmit { get; set; }
     }
 
     public interface ITopLevelEntity : IIndependentEntity {
@@ -45,7 +45,7 @@ public partial class BindingsModel {
         public SourceLocation? SourceLocation { get; set; }
         public bool IsInternal { get; set; }
         public bool IsDisabled { get; set; }
-        public bool SkipEmit { get; set; }
+        public bool NoEmit { get; set; }
 
         protected IndependentEntity() {
         }
@@ -113,7 +113,7 @@ public partial class BindingsModel {
 
     public record Pointer(
         IEntityReference ValueType,
-        bool IsNullable
+        bool? IsNullable
     ) : Entity {
         public override IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
             if (visitedNodes.Add(ValueType)) {
@@ -127,7 +127,8 @@ public partial class BindingsModel {
 
     public record Enum : TopLevelEntity {
         public required List<Member> Members { get; set; }
-        public bool IsFlagsEnum { get; set; }
+        public bool IsFlags { get; set; }
+        public IEntityReference? UnderlyingType { get; set; }
 
         public Enum() {
         }
@@ -137,9 +138,9 @@ public partial class BindingsModel {
             IReadOnlyList<Conditional> conditionals,
             SourceLocation? sourceLocation,
             bool isInternal,
-            bool isFlagsEnum
+            bool isFlags
         ) : base(comments, conditionals, sourceLocation, isInternal) {
-            IsFlagsEnum = isFlagsEnum;
+            IsFlags = isFlags;
         }
 
         public override string ToString() {
@@ -282,13 +283,32 @@ public partial class BindingsModel {
     }
 
     public record FunctionArgument {
+        private bool _isDefaultValueValidInDeclaration = true;
+
         public required string Name { get; set; }
         public required IEntityReference Type { get; set; }
         public required string? ArrayBounds { get; set; }
         public required bool IsVarargs { get; set; }
         public required bool IsInstancePointer { get; set; }
-        public required string? DeclarationDefaultValue { get; set; }
-        public string? DefaultValue { get; set; }
+        public required FunctionArgumentPassType PassType { get; set; }
+        public required string? DefaultValue { get; set; }
+
+        public bool IsDefaultValueValidInDeclaration {
+            get {
+                if (DefaultValue == null)
+                    return true;
+
+                return _isDefaultValueValidInDeclaration;
+            }
+            set => _isDefaultValueValidInDeclaration = value;
+        }
+    }
+
+    public enum FunctionArgumentPassType {
+        Normal,
+        Ref,
+        Out,
+        In
     }
 
     public interface IFunctionLike : IIndependentEntity {
@@ -432,7 +452,7 @@ public partial class BindingsModel {
         public SourceLocation? SourceLocation { get; }
         public bool IsInternal { get; set; }
         public bool IsDisabled { get; set; }
-        public bool SkipEmit { get; set; }
+        public bool NoEmit { get; set; }
 
         protected SyntaxEntity(T syntax) {
             Syntax = syntax;
@@ -441,7 +461,7 @@ public partial class BindingsModel {
         protected SyntaxEntity(
             T syntax,
             IIndependentEntity other
-        ) : this(syntax, other.Comments, other.Conditionals, other.SourceLocation, other.IsInternal, other.IsDisabled, other.SkipEmit) {
+        ) : this(syntax, other.Comments, other.Conditionals, other.SourceLocation, other.IsInternal, other.IsDisabled, other.NoEmit) {
         }
 
         protected SyntaxEntity(
@@ -459,7 +479,7 @@ public partial class BindingsModel {
             SourceLocation = sourceLocation;
             IsInternal = isInternal;
             IsDisabled = isDisabled;
-            SkipEmit = skipEmit;
+            NoEmit = skipEmit;
         }
 
         public IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
@@ -496,6 +516,9 @@ public partial class BindingsModel {
 
     public record EntityReferenceWrapper<T>(IEntityReference Reference) where T : Entity {
         public T Value => (T) Reference.Value;
+    }
+
+    public record EntityWrapper<T>(T Entity) where T : Entity {
     }
 
     public interface IEntityReference {

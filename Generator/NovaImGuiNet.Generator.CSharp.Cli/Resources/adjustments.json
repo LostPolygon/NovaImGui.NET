@@ -1,0 +1,41 @@
+{
+  "no_function_permutations": [
+    {
+      "identifier": "cImStristr"
+    },
+    {
+      "identifier": "cImStreolRange"
+    },
+    {
+      "identifier": "cImStrchrRange"
+    },
+    {
+      "identifier": "cImStricmp"
+    },
+    {
+      "identifier": "cImStrnicmp"
+    },
+    {
+      "identifier": "cImStrchrRange"
+    },
+    {
+      "identifier": "cImStrchrRange"
+    }
+  ],
+  "treat_pointer_arguments_as_arrays": [
+    {
+      "struct_name": "ImFontAtlas",
+      "function_name": "AddFontFromFileTTF",
+      "argument_names": [
+        "glyph_ranges"
+      ]
+    },
+    {
+      "struct_name": null,
+      "function_name": "ImGui_Combo",
+      "argument_names": [
+        "itemsSeparatedByZeros"
+      ]
+    }
+  ]
+}

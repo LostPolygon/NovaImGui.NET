@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Runtime.CompilerServices;
 
 namespace NovaImGuiNet;
 
@@ -73,6 +72,8 @@ public readonly unsafe struct ImVector<T> : IList<T> where T : unmanaged {
     public void RemoveAt(int index) {
         throw new NotSupportedException();
     }
+
+    public static implicit operator Span<T>(ImVector<T> vector) => vector.AsSpan();
 
     public struct Enumerator : IEnumerator<T> {
         private readonly ImVector<T> _vector;

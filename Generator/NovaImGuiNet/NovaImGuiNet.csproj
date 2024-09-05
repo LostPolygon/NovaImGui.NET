@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
+        <Nullable>annotations</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         
         <DefineConstants>IMGUI_DISABLE_OBSOLETE_FUNCTIONS; IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN</DefineConstants>

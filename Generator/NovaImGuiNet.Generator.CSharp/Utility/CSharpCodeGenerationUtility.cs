@@ -46,7 +46,7 @@ public static class CSharpCodeGenerationUtility {
                 return result;
             }
             case Typedef userTypedef:
-                bool expand = !options.DontExpandTypedefs;
+                bool expand = options.ExpandTypedefs;
                 if (!expand &&
                     options.DelegatesAsFunctionPointers &&
                     userTypedef.Type.Value is Delegate
@@ -135,6 +135,6 @@ public static class CSharpCodeGenerationUtility {
         public bool FullyQualifiedTypes { get; init; }
         public bool DelegatesAsFunctionPointers { get; init; }
         public bool UsePointerWrapper { get; init; }
-        public bool DontExpandTypedefs { get; init; }
+        public bool ExpandTypedefs { get; init; }
     }
 }

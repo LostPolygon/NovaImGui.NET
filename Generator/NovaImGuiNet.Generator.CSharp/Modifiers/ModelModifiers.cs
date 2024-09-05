@@ -20,7 +20,7 @@ public static class ModelModifiers {
             .OfType<ITopLevelEntity>();
 
         foreach (ITopLevelEntity entity in topLevelEntities) {
-            if (entity.SkipEmit)
+            if (entity.NoEmit)
                 continue;
 
             if (entity.SourceLocation == null)

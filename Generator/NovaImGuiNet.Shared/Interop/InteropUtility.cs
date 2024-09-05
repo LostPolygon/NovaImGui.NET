@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace NovaImGuiNet;
+namespace NovaImGuiNet.Interop;
 
 public static unsafe class InteropUtility {
     public const int StackallocSizeLimit = 2048;

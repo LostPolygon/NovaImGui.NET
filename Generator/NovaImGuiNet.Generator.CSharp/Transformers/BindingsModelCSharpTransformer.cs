@@ -38,11 +38,11 @@ public class BindingsModelCSharpTransformer {
             ["imgui_impl_win32.h"] = "NovaImGuiNet.Backend.Win32",
         };
 
-        using (new TimedLoggedOperation(Log, "Assigning namespaces")) {
+        using (Operation("Assigning namespaces")) {
             Model = ModelModifiers.AssignNamespaces(Context, Model, fileNameToNamespace);
         }
 
-        using (new TimedLoggedOperation(Log, "Genericizing structs")) {
+        using (Operation("Genericizing structs")) {
             Model = GenericizeStructsByFieldType(Model, "ImVector", "Data", true);
             Model = GenericizeStructsByFieldType(Model, "ImSpan", "Data", true);
             Model = GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiTableSettings", "ImChunkStream", "ImGuiTableSettings");
@@ -52,7 +52,7 @@ public class BindingsModelCSharpTransformer {
             Model = GenericizeStructByTypeName(Model, "ImPool_ImGuiTable", "ImPool", "ImGuiTable");
         }
 
-        using (new TimedLoggedOperation(Log, "Renaming anonymous types")) {
+        using (Operation("Renaming anonymous types")) {
             Model = RenameStructFieldType(Model, "ImGuiInputEvent", "__anonymous_type", "ImGuiInputEventData", "EventData");
             Model = RenameStructFieldType(Model, "ImGuiStoragePair", "__anonymous_type", "ImGuiStoragePairValue", "Value");
             Model = RenameStructFieldType(Model, "ImGuiStyleMod", "__anonymous_type", "ImGuiStyleModBackupValue", "BackupValue");
@@ -60,8 +60,8 @@ public class BindingsModelCSharpTransformer {
 
         Transform("Patching broken typedefs", Model.Typedefs, PatchBrokenTypedefs);
 
-        using (new TimedLoggedOperation(Log, "Rewriting typedefs to enums")) {
-            Model = RewriteTypedefsToEnums(Model);
+        using (Operation("Rewriting typedefs to enums")) {
+            Model = UpdateEnumTypedefs(Model);
         }
 
         // Enums
@@ -77,7 +77,7 @@ public class BindingsModelCSharpTransformer {
             x => WrapInSharedConditional(x, x.Children.OfType<IIndependentEntity>().ToArray())
         );
 
-        using (new TimedLoggedOperation(Log, "Patching enum reference in fixed array fields")) {
+        using (Operation("Patching enum reference in fixed array fields")) {
             Model.Structs.ForEach(structure =>
                 structure.Value.Children
                     .UpdateInPlace<IEntity, Field>(field =>
@@ -121,18 +121,18 @@ public class BindingsModelCSharpTransformer {
             AddUnmanagedFunctionPointerFieldRawPtrAccessor
         );
 
-        using (new TimedLoggedOperation(Log, "Prettifying delegate names")) {
+        using (Operation("Prettifying delegate names")) {
             Model.Typedefs
-                .Where(x => x.Reference.ExpandWrappers<Delegate>() != null)
+                .Where(x => x.Reference.ExpandTypedefsAndPointers<Delegate>() != null)
                 .ForEach(bindingsTypedef => {
                     EntityReferenceWrapper<Delegate> bindingsDelegateReference =
-                        new(bindingsTypedef.Reference.ExpandWrappers<Delegate>()!);
+                        new(bindingsTypedef.Reference.ExpandTypedefsAndPointers<Delegate>()!);
                     bindingsDelegateReference.Reference.Value = PrettifyDelegateName(bindingsDelegateReference.Value);
                     bindingsTypedef.Value.Name = bindingsDelegateReference.Value.Name;
                 });
         }
 
-        using (new TimedLoggedOperation(Log, "Generating delegates for inline function definitions in function arguments")) {
+        using (Operation("Generating delegates for inline function definitions in function arguments")) {
             Model = ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Context, Model);
         }
 
@@ -162,44 +162,44 @@ public class BindingsModelCSharpTransformer {
             });
         }
 
-        using (new TimedLoggedOperation(Log, "Patching function default values")) {
+        using (Operation("Patching function default values")) {
             allFunctionsAnDelegates.ForEach(x => PatchArgumentDefaultValues(Model, x));
         }
 
-        using (new TimedLoggedOperation(Log, "Fixing invalid argument names")) {
+        using (Operation("Fixing invalid argument names")) {
             UpdateFunctionArguments((_, arg, argIndex) => {
                 arg.Name = FixInvalidArgumentNames(arg.Name, argIndex);
                 return arg;
             });
         }
 
-        using (new TimedLoggedOperation(Log, "Prettifying argument names")) {
+        using (Operation("Prettifying argument names")) {
             UpdateFunctionArguments((function, arg, _) =>
                 PrettifyArgumentName(function, arg)
             );
         }
 
-        using (new TimedLoggedOperation(Log, "Converting C-style fixed-size array arguments to pointers to fixed-size struct")) {
+        using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size struct")) {
             UpdateFunctionArguments((_, arg, _) =>
                 ConvertFixedSizeArrayArgumentToFixedSizeStruct(Context, arg)
             );
         }
 
-        using (new TimedLoggedOperation(Log, "Convert C-style unbound array arguments to pointers")) {
+        using (Operation("Convert C-style unbound array arguments to pointers")) {
             UpdateFunctionArguments((_, arg, _) =>
                 PatchArrayArgumentsToUseByReference(arg)
             );
         }
 
-        using (new TimedLoggedOperation(Log, "Remove variadic functions and delegates")) {
+        using (Operation("Remove variadic functions and delegates")) {
             allFunctionsAnDelegates.ForEach(DisableVarArgsFunctionsAndDelegates);
         }
 
-        using (new TimedLoggedOperation(Log, "Remove broken conditional defines around some functions")) {
+        using (Operation("Remove broken conditional defines around some functions")) {
             allFunctionsAnDelegates.ForEach(RemoveBrokenConditionalDefines);
         }
 
-        using (new TimedLoggedOperation(Log, "FIXME: Disabling broken functions")) {
+        using (Operation("FIXME: Disabling broken functions")) {
             // ImGuiListClipperRange can't be used as a return value,
             // since it contains a bool field and that's broken when
             // runtime marshaling is not disabled
@@ -218,7 +218,7 @@ public class BindingsModelCSharpTransformer {
                 );
         }
 
-        using (new TimedLoggedOperation(Log, "Generating ImGuiConstants class")) {
+        using (Operation("Generating ImGuiConstants class")) {
             Model.Children.AddRange(
                 new ImGuiConstantsGenerator(Context, MetadataDto)
                     .Generate(fileNameToNamespace)
@@ -226,23 +226,21 @@ public class BindingsModelCSharpTransformer {
             );
         }
 
-        using (new TimedLoggedOperation(Log, "FUN: convert const char* arguments to string")) {
-            UpdateFunctionArguments((function, arg, _) =>
-                ReplaceConstCharPointerWithString(arg)
-            );
+        using (Operation("Generating managed methods")) {
+            Model = ManagedMethodGenerator.Generate(Model);
         }
 
-        using (new TimedLoggedOperation(Log, "Generating managed methods")) {
-            //Model = StructFunctionGenerator.Generate(Context, Model);
-        }
-
-        using (new TimedLoggedOperation(Log, "Disable ImVec")) {
+        using (Operation("Disable ImVec")) {
             Model.Structs
                 .Where(x => x.Value.Name is "ImVec2" or "ImVec4")
-                .ForEach(x => x.Value.SkipEmit = true);
+                .ForEach(x => x.Value.NoEmit = true);
         }
 
         return Model;
+    }
+
+    private static TimedLoggedOperation Operation(string operationName) {
+        return new TimedLoggedOperation(Log, operationName);
     }
 
     private static void Transform<TEntity>(
