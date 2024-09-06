@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 using static SyntaxFactory;
+using static SyntaxFactoryCached;
 
 public class PointerRefArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument)
     : ArgumentMarshaller(methodSignature, argument) {
@@ -28,7 +29,7 @@ public class PointerRefArgumentMarshaller(MethodSignature methodSignature, Manag
                         )
                     ])
                 ),
-                ParseStatement($"{InvocationVariableName} = {InvocationVariableName}_tmp;")
+                ParseStatementWithLeadingLineFeed($"{InvocationVariableName} = {InvocationVariableName}_tmp;")
             )
         ];
     }

@@ -8,6 +8,7 @@ namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 using static BindingsModel;
 using static CSharpCodeGenerationUtility;
 using static SyntaxFactory;
+using static SyntaxFactoryCached;
 
 public static class ManagedMethodGenerator {
     private static readonly ILogger Log = Logging.Create(nameof(ManagedMethodGenerator));
@@ -226,8 +227,8 @@ public static class ManagedMethodGenerator {
 
         void Append(ManagedMethodArgumentMarshallerStatement newStatement) {
             newStatement.Switch(
-                statementText => statements.Add(ParseStatement(statementText).AddLeadingTriviaToEnd(LineFeed)),
-                statementSyntax => statements.Add(statementSyntax.AddLeadingTriviaToEnd(LineFeed)),
+                statementText => statements.Add(ParseStatementWithLeadingLineFeed(statementText)),
+                statementSyntax => statements.Add(statementSyntax),
                 syntaxTrivia => {
                     if (statements.Count != 0) {
                         statements[^1] = statements[^1].AddTrailingTriviaToEnd(syntaxTrivia);

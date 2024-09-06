@@ -8,7 +8,7 @@ namespace NovaImGuiNet.Generator.CSharp;
 
 using static BindingsModel;
 using static CSharpCodeGenerationUtility;
-using static SyntaxFactory;
+using static SyntaxFactoryCached;
 
 public static class FunctionModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(FunctionModifiers));

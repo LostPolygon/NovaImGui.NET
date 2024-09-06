@@ -6,8 +6,8 @@ using NovaImGuiNet.Generator.Metadata;
 namespace NovaImGuiNet.Generator.CSharp;
 
 using static BindingsModel;
-using static SyntaxFactory;
 using static CSharpCodeGenerationUtility;
+using static SyntaxFactoryCached;
 
 public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDto dto) {
     public IEnumerable<Struct> Generate(IReadOnlyDictionary<string, string> fileNameToNamespace) {

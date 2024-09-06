@@ -8,9 +8,10 @@ using OneOf;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
-using static SyntaxFactory;
 using static CSharpCodeGenerationUtility;
 using static BindingsModel;
+using static SyntaxFactory;
+using static SyntaxFactoryCached;
 
 public class BindingsModelCodeGenerator {
     public BindingsModel BindingsModel { get; }

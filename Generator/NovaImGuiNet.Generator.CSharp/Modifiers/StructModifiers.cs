@@ -9,9 +9,10 @@ using NovaImGuiNet.Generator.Metadata;
 namespace NovaImGuiNet.Generator.CSharp;
 
 using static BindingsModel;
-using static SyntaxFactory;
 using static CSharpCodeGenerationUtility;
 using static MathUtility;
+using static SyntaxFactory;
+using static SyntaxFactoryCached;
 
 public static class StructModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(StructModifiers));

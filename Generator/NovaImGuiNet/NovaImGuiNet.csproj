@@ -94,8 +94,4 @@
       <ProjectReference Include="..\NovaImGuiNet.Shared\NovaImGuiNet.Shared.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Generated\NovaImGuiNet.Backend.Sdl2Renderer\Structs\" />
-    </ItemGroup>
-
 </Project>
