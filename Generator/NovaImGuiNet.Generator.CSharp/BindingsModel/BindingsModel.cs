@@ -1,6 +1,4 @@
-﻿using NovaImGuiNet.Generator.Metadata;
-
-namespace NovaImGuiNet.Generator.CSharp;
+﻿namespace NovaImGuiNet.Generator.CSharp;
 
 public partial class BindingsModel {
     public List<IEntityReference> Children { get; } = [];

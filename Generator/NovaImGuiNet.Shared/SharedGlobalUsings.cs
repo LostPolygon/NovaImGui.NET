@@ -1,15 +1,18 @@
 ﻿global using System.Runtime.InteropServices;
 global using System.Runtime.CompilerServices;
+global using NovaImGuiNet.Interop;
 global using size_t = nint;
 global using int32_t = System.Int32;
 global using int64_t = System.Int64;
 
 //global using signed_byte = System.Byte;
-//global using HWND = nint;
-//global using UINT = nint;
-//global using WPARAM = nint;
-//global using LPARAM = nint;
-//global using LRESULT = nint;
+
+// Win32 backend
+global using HWND = nint;
+global using UINT = nint;
+global using WPARAM = nint;
+global using LPARAM = nint;
+global using LRESULT = nint;
 
 #if !USE_UNITY_VECTORS
 global using ImVec2 = System.Numerics.Vector2;

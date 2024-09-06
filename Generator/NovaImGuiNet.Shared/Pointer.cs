@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace NovaImGuiNet;
 
@@ -13,15 +13,20 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Pointer(T* ptr) => Ptr = ptr;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Pointer(IntPtr ptr) => Ptr = (T*) ptr;
+
+    [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+    public IntPtr IntPtr => (IntPtr) Ptr;
+
+    [DebuggerBrowsable(DebuggerBrowsableState.Collapsed)]
     public ref T Value {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ref *Ptr;
     }
 
-    public IntPtr ToIntPtr() => (IntPtr) Ptr;
-
     public override string ToString() {
-        return ToIntPtr().ToString();
+        return IntPtr != IntPtr.Zero ? IntPtr.ToString("x8") : "null";
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -30,7 +35,7 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     public override bool Equals(object? obj) => obj is Pointer<T> other && Equals(other);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override int GetHashCode() => ((IntPtr) Ptr).GetHashCode();
+    public override int GetHashCode() => IntPtr.GetHashCode();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(Pointer<T> left, Pointer<T> right) => left.Equals(right);
@@ -39,11 +44,14 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     public static bool operator !=(Pointer<T> left, Pointer<T> right) => !left.Equals(right);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static explicit operator IntPtr(Pointer<T> ptr) => (IntPtr) ptr.Ptr;
+    public static implicit operator IntPtr(Pointer<T> ptr) => ptr.IntPtr;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator T*(Pointer<T> ptr) => ptr.Ptr;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator Pointer<T>(T* ptr) => new(ptr);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static explicit operator Pointer<T>(IntPtr ptr) => new(ptr);
 }

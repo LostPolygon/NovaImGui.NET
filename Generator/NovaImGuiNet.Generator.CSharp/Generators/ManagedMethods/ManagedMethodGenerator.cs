@@ -1,11 +1,9 @@
-using System.Diagnostics;
 using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
-using NovaImGuiNet.Generator.Metadata;
 
-namespace NovaImGuiNet.Generator.CSharp;
+namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 using static BindingsModel;
 using static CSharpCodeGenerationUtility;
@@ -132,8 +130,17 @@ public static class ManagedMethodGenerator {
 
         List<MethodSignature> methodSignatures =
             rawMethodOverloads
-                .Select(raw => new MethodSignature(nativeFunction, ResolveManagedMethodArguments(raw.Arguments).ToEqualityList()))
+                .Select(raw =>
+                    new MethodSignature(
+                        nativeFunction,
+                        ResolveManagedMethodArguments(raw.Arguments).ToEqualityList()
+                    )
+                )
                 .ToList();
+
+        if (methodSignatures.Count == 0) {
+            methodSignatures.Add(new MethodSignature(nativeFunction, []));
+        }
 
         Range? defaultValueInvalidArgumentsRange =
             GetInvalidForSignatureDefaultValuesArgumentIndexRange(methodSignatures);
@@ -148,7 +155,7 @@ public static class ManagedMethodGenerator {
                             defaultValueInvalidArgumentsRange.Value.End.Value
                         )
                     )
-                    .DistinctBy(x => x.CreateDiscriminator())
+                    .DistinctBy(MethodSignatureArgumentsDiscriminator.Create)
                     .ToList();
         }
 
@@ -163,7 +170,7 @@ public static class ManagedMethodGenerator {
 
         List<Function> managedMethods = [];
         foreach (MethodSignature methodSignature in methodSignatures) {
-            managedMethods.Add(GenerateManagedMethodForNativeFunction(structure, nativeFunction, methodName, methodSignature));
+            managedMethods.Add(GenerateManagedMethodForNativeFunction(structure, methodName, methodSignature));
         }
 
         return managedMethods;
@@ -195,79 +202,79 @@ public static class ManagedMethodGenerator {
 
     private static Function GenerateManagedMethodForNativeFunction(
         Struct structure,
-        Function nativeFunction,
         string methodName,
         MethodSignature methodSignature
     ) {
-        bool isInstanceMethod = nativeFunction.OwnerStruct != null;
-
-        string thisPointerVar = InternalVariableName("thisPtr");
-        string retValVar = InternalVariableName("retVal");
-
-        List<ManagedMethodArgument> nativeInvocationArguments =
-            methodSignature.Arguments
-                .Skip(isInstanceMethod ? 1 : 0)
-                .ToList();
-
-        List<string> nativeInvocationValues =
-            nativeInvocationArguments
-                .Select(arg => InternalVariableName(arg.MarshaledArgument.Name))
-                .ToList();
-
-        if (isInstanceMethod) {
-            nativeInvocationValues.Insert(0, thisPointerVar);
-        }
+        bool isInstanceMethod = methodSignature.NativeFunction.OwnerStruct != null;
 
         bool hasReturnValue =
-            nativeFunction.ReturnType.ExpandTypedef()?.Value is not Builtin builtin ||
+            methodSignature.NativeFunction.ReturnType.ExpandTypedef()?.Value is not Builtin builtin ||
             builtin.ManagedType != typeof(void);
+
+        string retValVar = InternalVariableName("retVal");
+
+        IArgumentMarshaller[] argumentMarshallers =
+            methodSignature.Arguments
+                .Select(arg => ArgumentMarshallerFactory.Create(methodSignature, arg))
+                .ToArray();
 
         List<StatementSyntax> statements = [];
 
-        void Append(string text) {
-            statements.Add(ParseStatement(text).AddLeadingTriviaToEnd(LineFeed));
-        }
-
-        Append("throw new Exception();");
-
-        /*FormatTypeOptions varTypeFormatOptions = new() {
+        FormatTypeOptions varTypeFormatOptions = new() {
             ExpandTypedefs = false,
         };
 
-        if (isInstanceMethod) {
-            Append($"{structure.Name}* {thisPointerVar} = ({structure.Name}*) Unsafe.AsPointer(ref this);");
+        void Append(ManagedMethodArgumentMarshallerStatement newStatement) {
+            newStatement.Switch(
+                statementText => statements.Add(ParseStatement(statementText).AddLeadingTriviaToEnd(LineFeed)),
+                statementSyntax => statements.Add(statementSyntax.AddLeadingTriviaToEnd(LineFeed)),
+                syntaxTrivia => {
+                    if (statements.Count != 0) {
+                        statements[^1] = statements[^1].AddTrailingTriviaToEnd(syntaxTrivia);
+                    }
+                });
         }
 
-        foreach (FunctionArgument arg in invocationArguments) {
-            Append($"{FormatType(arg.Type.Value, varTypeFormatOptions)} {InternalVariableName(arg.Name)} = {arg.Name};");
+        void AppendRange(IReadOnlyList<ManagedMethodArgumentMarshallerStatement> newStatements) {
+            foreach (ManagedMethodArgumentMarshallerStatement newStatement in newStatements) {
+                Append(newStatement);
+            }
+        }
+
+        foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
+            AppendRange(argumentMarshaller.CreateMarshalStatements());
         }
 
         if (hasReturnValue) {
-            Append($"{FormatType(nativeFunction.ReturnType.Value, varTypeFormatOptions)} {retValVar};");
+            Append($"{FormatType(methodSignature.NativeFunction.ReturnType.Value, varTypeFormatOptions)} {retValVar};");
         }
 
         string retValAssignment = hasReturnValue ? $"{retValVar} = " : "";
-        string invocationValuesFormatted = String.Join(", ", invocationValues);
-        Append($"{retValAssignment}ImGuiNative.{nativeFunction.Name}({invocationValuesFormatted});");
+        string invocationValuesFormatted = String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
+        Append($"{retValAssignment}ImGuiNative.{methodSignature.NativeFunction.Name}({invocationValuesFormatted});");
+
+        foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
+            AppendRange(argumentMarshaller.CreateUnmarshalStatements());
+        }
 
         if (hasReturnValue) {
             Append($"return {retValVar};");
-        }*/
+        }
 
         List<FunctionArgument> signatureArguments =
-            nativeInvocationArguments
+            methodSignature.Arguments
                 .Where(x => x.IsPartOfDeclaration)
                 .Select(x => x.MarshaledArgument)
                 .ToList();
 
-        Function copy = nativeFunction with {
+        Function managedMethod = methodSignature.NativeFunction with {
             Name = methodName,
             Body = Block(statements),
-            IsNativeFunction = false,
-            Arguments = signatureArguments
+            Arguments = signatureArguments,
+            IsNativeFunction = false
         };
 
-        return copy;
+        return managedMethod;
 
         static string InternalVariableName(string name) {
             return "__" + name;
@@ -426,6 +433,7 @@ public static class ManagedMethodGenerator {
         List<ManagedMethodArgument> managedArguments = [];
         foreach (NativeFunctionArgumentMarshalingVariant nativeArgumentMarshalingVariant in nativeArgumentMarshalingVariants) {
             FunctionArgument managedArgument = nativeArgumentMarshalingVariant.NativeFunctionArgument with { };
+            managedArgument = FunctionModifiers.PrettifyArgumentName(managedArgument);
 
             switch (nativeArgumentMarshalingVariant.StringMarshalingMode) {
                 case StringMarshalingMode.BytePointer:
@@ -452,13 +460,13 @@ public static class ManagedMethodGenerator {
                     break;
                 case PointerMarshalMode.Ref:
                     managedArgument.PassType = FunctionArgumentPassType.Ref;
-                    managedArgument.Type = managedArgument.Type.ExpandTypedefsAndPointers()!;
+                    managedArgument.Type = managedArgument.Type.ExpandPointer();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
                 case PointerMarshalMode.Out:
                     managedArgument.PassType = FunctionArgumentPassType.Out;
-                    managedArgument.Type = managedArgument.Type.ExpandTypedefsAndPointers();
+                    managedArgument.Type = managedArgument.Type.ExpandPointer();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
@@ -488,7 +496,7 @@ public static class ManagedMethodGenerator {
                     nativeArgumentMarshalingVariant.NativeFunctionArgument,
                     managedArgument,
                     nativeArgumentMarshalingVariant,
-                    true
+                    !nativeArgumentMarshalingVariant.NativeFunctionArgument.IsInstancePointer
                 )
             );
         }
@@ -529,108 +537,10 @@ public static class ManagedMethodGenerator {
         return $"{nativeFunctionName} [variant {index + 1}]: ({String.Join(", ", argumentDescriptions)})";
     }
 
-    public record MethodOverloadRaw(IReadOnlyList<NativeFunctionArgumentMarshalingVariant> Arguments);
+    private record MethodOverloadRaw(IReadOnlyList<NativeFunctionArgumentMarshalingVariant> Arguments);
 
-    public record MethodSignature(Function NativeFunction, IReadOnlyList<ManagedMethodArgument> Arguments) {
-        public override string ToString() {
-            List<string> argumentDescriptions = [];
-            for (int argumentIndex = 0; argumentIndex < Arguments.Count; argumentIndex++) {
-                ManagedMethodArgument argument = Arguments[argumentIndex];
-
-                string argumentDescription = $"[{argumentIndex + 1}] ";
-
-                if (!argument.IsPartOfDeclaration) {
-                    argumentDescription += " (def-only)";
-                } else {
-                    argumentDescription += $" ({argument.MarshalingVariant})";
-                }
-
-                argumentDescriptions.Add(argumentDescription);
-            }
-
-            return $"{NativeFunction.Name} ({String.Join(", ", argumentDescriptions)}";
-        }
-
-        public MethodSignatureArgumentDiscriminator CreateDiscriminator() {
-            EqualityList<ArgumentDiscriminator> list = [];
-            foreach (ManagedMethodArgument argument in Arguments) {
-                if (argument.IsPartOfDeclaration) {
-                    list.Add(
-                        new ArgumentDiscriminator(
-                            true,
-                            argument.MarshalingVariant.StringMarshalingMode,
-                            argument.MarshalingVariant.PointerMarshalMode
-                        )
-                    );
-                } else {
-                    list.Add(new ArgumentDiscriminator(false, StringMarshalingMode.Undefined, PointerMarshalMode.Undefined));
-                    list.Add(new ArgumentDiscriminator(false, StringMarshalingMode.Undefined, PointerMarshalMode.Undefined));
-                }
-            }
-
-            return new MethodSignatureArgumentDiscriminator(list);
-        }
-
-        public record MethodSignatureArgumentDiscriminator(EqualityList<ArgumentDiscriminator> Arguments);
-
-        public record ArgumentDiscriminator(
-            bool IsPartOfDeclaration,
-            StringMarshalingMode StringMarshalingMode,
-            PointerMarshalMode PointerMarshalMode
-        );
-    }
-
-    public readonly record struct ManagedMethodArgument(
-        FunctionArgument NativeArgument,
-        FunctionArgument MarshaledArgument,
-        NativeFunctionArgumentMarshalingVariant MarshalingVariant,
-        bool IsPartOfDeclaration
-    );
-
-    public readonly record struct NativeFunctionArgumentMarshalingVariant(
-        FunctionArgument NativeFunctionArgument,
-        int NativeFunctionArgumentIndex,
-        StringMarshalingMode StringMarshalingMode,
-        PointerMarshalMode PointerMarshalMode
-    ) {
-        public override string ToString() {
-            List<string> elements = [];
-
-            if (StringMarshalingMode != StringMarshalingMode.Undefined) {
-                elements.Add($"String = {StringMarshalingMode}");
-            }
-
-            if (PointerMarshalMode != PointerMarshalMode.Undefined) {
-                elements.Add($"Pointer = {PointerMarshalMode}");
-            }
-
-            return $"{NativeFunctionArgument.Name} ({String.Join(", ", elements)})";
-        }
-    }
-
-    public readonly record struct NativeFunctionArgumentDescription(FunctionArgument Argument, int ArgumentIndex) {
+    private readonly record struct NativeFunctionArgumentDescription(FunctionArgument Argument, int ArgumentIndex) {
         public bool IsString { get; init; }
         public bool IsPointer { get; init; }
-    }
-
-    public enum StringMarshalingMode {
-        Undefined,
-
-        BytePointer,
-        ReadOnlyByteSpan,
-        ReadOnlyCharSpan,
-        String,
-    }
-
-    public enum PointerMarshalMode {
-        Undefined,
-
-        Pointer,
-        Ref,
-        Out,
-
-        IntPtr,
-        IntPtrRef,
-        IntPtrOut,
     }
 }

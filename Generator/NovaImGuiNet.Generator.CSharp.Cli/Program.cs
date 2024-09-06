@@ -2,17 +2,21 @@
 using NovaImGuiNet.Generator;
 using NovaImGuiNet.Generator.CSharp;
 
-Logging.SetLoggerFactory(
+ILoggerFactory loggerFactory =
     LoggerFactory.Create(builder =>
         builder
             .SetMinimumLevel(LogLevel.Trace)
             .AddSimpleConsole(options => {
                 options.IncludeScopes = true;
                 options.SingleLine = true;
+
                 //options.TimestampFormat = "HH:mm:ss ";
             })
-        )
-);
+    );
+
+Logging.SetLoggerFactory(loggerFactory);
+
+ILogger log = Logging.Create(nameof(Program));
 
 if (args.Length < 1 || String.IsNullOrWhiteSpace(args[0]))
     throw new ArgumentException("Empty path");
@@ -21,7 +25,7 @@ string outputPath = args[0];
 
 CodeFormatMode codeFormatMode = CodeFormatMode.Fancy;
 #if true || DEBUG
-    codeFormatMode = CodeFormatMode.Basic;
+codeFormatMode = CodeFormatMode.Basic;
 #endif
 
 BindingsContext bindingsContext = new(
@@ -33,5 +37,15 @@ BindingsContext bindingsContext = new(
     }
 );
 
-Generator generator = new(bindingsContext);
-generator.Execute();
+try {
+    Generator generator = new(bindingsContext);
+    generator.Execute();
+    loggerFactory.Dispose();
+} catch (Exception e) {
+    log.LogCritical("Error while running generator");
+    loggerFactory.Dispose();
+    await Task.Delay(TimeSpan.FromSeconds(0.1));
+
+    Console.WriteLine(e.ToString());
+    Environment.Exit(1);
+}

@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>annotations</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -9,6 +8,8 @@
         <DefineConstants>IMGUI_DISABLE_OBSOLETE_FUNCTIONS; IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN</DefineConstants>
         
         <LangVersion>12</LangVersion>
+        
+        <TargetFramework>net8.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
@@ -91,6 +92,10 @@
 
     <ItemGroup>
       <ProjectReference Include="..\NovaImGuiNet.Shared\NovaImGuiNet.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Generated\NovaImGuiNet.Backend.Sdl2Renderer\Structs\" />
     </ItemGroup>
 
 </Project>

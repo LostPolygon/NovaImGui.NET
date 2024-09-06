@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -377,7 +376,7 @@ public class BindingsModelCodeGenerator {
         FunctionArgument argument,
         bool delegatesAsFunctionPointers
     ) {
-        bool isDelegate = argument.Type.ExpandTypedefsAndPointers<Delegate>() != null;
+        bool isDelegate = argument.Type.ExpandAllTypedefsAndPointers<Delegate>() != null;
 
         ParameterSyntax parameter =
             Parameter(Identifier(argument.Name))
@@ -555,7 +554,7 @@ public class BindingsModelCodeGenerator {
                 }
                 case Field field: {
                     FieldDeclarationSyntax fieldSyntax = GenerateField(entity, field, true);
-                    IEntityReference? fieldTypeDelegate = field.Type.ExpandTypedefsAndPointers<Delegate>();
+                    IEntityReference? fieldTypeDelegate = field.Type.ExpandAllTypedefsAndPointers<Delegate>();
                     if (fieldTypeDelegate != null) {
                         FieldDeclarationSyntax legacyFieldSyntax = GenerateField(entity, field, false);
                         WrapInSelfExclusiveConditionals(

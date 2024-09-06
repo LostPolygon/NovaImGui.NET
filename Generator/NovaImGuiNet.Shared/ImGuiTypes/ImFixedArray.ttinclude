@@ -19,14 +19,12 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
 
     public T this[int index] {
         get {
-            // Following trick can reduce the range check by one
             if ((uint) index >= <#= tupleSize - 1 #>)
                 throw new ArgumentOutOfRangeException(nameof(index), "<#= typeName #> index must be between 0 and <#= tupleSize - 1 #>.");
             
             return Unsafe.Add(ref Value1, index);
         }
         set {
-            // Following trick can reduce the range check by one
             if ((uint) index >= <#= tupleSize - 1 #>)
                 throw new ArgumentOutOfRangeException(nameof(index), "<#= typeName #> index must be between 0 and <#= tupleSize - 1 #>.");
             

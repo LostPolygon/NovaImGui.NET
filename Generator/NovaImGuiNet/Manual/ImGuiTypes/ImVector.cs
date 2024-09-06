@@ -25,7 +25,16 @@ public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> wh
         Data = data;
     }
 
-    public IntPtr AddressAt(int index) => (IntPtr) (&Data[index]);
+    public IntPtr AddressAt(int index) {
+        if ((uint) index >= Size) {
+            throw new ArgumentOutOfRangeException(
+                nameof(index),
+                $"Index must be smaller than {nameof(ImVector<T>)}.{nameof(Size)}"
+            );
+        }
+
+        return (IntPtr) (&Data[index]);
+    }
 
     public override int GetHashCode() => EqualityComparer<ImVector<T>>.Default.GetHashCode(this);
     public override bool Equals(object? obj) => obj is ImVector<T> other && Equals(other);

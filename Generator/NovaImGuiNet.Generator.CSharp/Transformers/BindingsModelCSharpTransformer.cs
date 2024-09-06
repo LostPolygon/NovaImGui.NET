@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using MoreLinq.Extensions;
+using NovaImGuiNet.Generator.CSharp.ManagedMethods;
 using NovaImGuiNet.Generator.Metadata;
 
 namespace NovaImGuiNet.Generator.CSharp;
@@ -123,10 +124,10 @@ public class BindingsModelCSharpTransformer {
 
         using (Operation("Prettifying delegate names")) {
             Model.Typedefs
-                .Where(x => x.Reference.ExpandTypedefsAndPointers<Delegate>() != null)
+                .Where(x => x.Reference.ExpandAllTypedefsAndPointers<Delegate>() != null)
                 .ForEach(bindingsTypedef => {
                     EntityReferenceWrapper<Delegate> bindingsDelegateReference =
-                        new(bindingsTypedef.Reference.ExpandTypedefsAndPointers<Delegate>()!);
+                        new(bindingsTypedef.Reference.ExpandAllTypedefsAndPointers<Delegate>()!);
                     bindingsDelegateReference.Reference.Value = PrettifyDelegateName(bindingsDelegateReference.Value);
                     bindingsTypedef.Value.Name = bindingsDelegateReference.Value.Name;
                 });
@@ -173,11 +174,6 @@ public class BindingsModelCSharpTransformer {
             });
         }
 
-        using (Operation("Prettifying argument names")) {
-            UpdateFunctionArguments((function, arg, _) =>
-                PrettifyArgumentName(function, arg)
-            );
-        }
 
         using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size struct")) {
             UpdateFunctionArguments((_, arg, _) =>

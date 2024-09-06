@@ -3,10 +3,10 @@
 using static BindingsModel;
 
 public static class BindingsModelExtensions {
-    public static Pointer AsPointer(this Builtin builtin, bool? isNullable = null) => 
+    public static Pointer AsPointer(this Builtin builtin, bool? isNullable = null) =>
         new(builtin.AsEntityReference(), isNullable);
 
-    public static IEntityReference? ExpandTypedefsAndPointers<T>(this IEntityReference? entityReference) where T : Entity {
+    public static IEntityReference? ExpandAllTypedefsAndPointers<T>(this IEntityReference? entityReference) where T : Entity {
         if (entityReference == null)
             return null;
 
@@ -15,15 +15,15 @@ public static class BindingsModelExtensions {
 
         switch (entityReference.Value) {
             case Pointer pointer:
-                return ExpandTypedefsAndPointers<T>(pointer.ValueType);
+                return ExpandAllTypedefsAndPointers<T>(pointer.ValueType);
             case Typedef typedef:
-                return ExpandTypedefsAndPointers<T>(typedef.Type);
+                return ExpandAllTypedefsAndPointers<T>(typedef.Type);
         }
 
         return null;
     }
 
-    public static IEntityReference? ExpandTypedefsAndPointers(this IEntityReference? entityReference)  {
+    public static IEntityReference? ExpandAllTypedefsAndPointers(this IEntityReference? entityReference)  {
         if (entityReference == null)
             return null;
 
@@ -33,9 +33,25 @@ public static class BindingsModelExtensions {
                     return entityReference;
                 }
 
-                return ExpandTypedefsAndPointers(pointer.ValueType);
+                return ExpandAllTypedefsAndPointers(pointer.ValueType);
             case Typedef typedef:
-                return ExpandTypedefsAndPointers(typedef.Type);
+                return ExpandAllTypedefsAndPointers(typedef.Type);
+        }
+
+        return entityReference;
+    }
+
+    public static IEntityReference? ExpandPointer(this IEntityReference? entityReference)  {
+        if (entityReference == null)
+            return null;
+
+        switch (entityReference.Value) {
+            case Pointer pointer:
+                if (pointer.ValueType.Value is Builtin { BuiltinName: "void" }) {
+                    return entityReference;
+                }
+
+                return pointer.ValueType;
         }
 
         return entityReference;

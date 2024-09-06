@@ -57,6 +57,7 @@ public class Generator {
                 //LoadDearBindingsDto("Resources/cimgui/cimgui_impl_sdl2.json"),
                 //LoadDearBindingsDto("Resources/cimgui/cimgui_impl_sdlrenderer2.json"),
                 //LoadDearBindingsDto("Resources/cimgui/cimgui_impl_win32.json"),
+
                 LoadDearBindingsDto("Resources/cimgui/cimgui_imconfig.json"),
                 LoadDearBindingsDto("Resources/cimgui/cimgui.json"),
                 LoadDearBindingsDto("Resources/cimgui/cimgui_internal.json"),

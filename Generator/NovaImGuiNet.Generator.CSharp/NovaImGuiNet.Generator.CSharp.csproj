@@ -16,6 +16,7 @@
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.7.0" />
       <PackageReference Include="morelinq" Version="4.3.0" />
       <PackageReference Include="OneOf" Version="3.0.271" />
+      <PackageReference Include="OneOf.SourceGenerator" Version="3.0.271" />
       <PackageReference Include="org.matheval" Version="1.0.0.3" />
     </ItemGroup>
 

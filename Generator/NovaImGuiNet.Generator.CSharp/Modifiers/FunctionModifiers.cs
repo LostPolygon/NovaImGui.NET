@@ -45,7 +45,7 @@ public static class FunctionModifiers {
         return argumentName;
     }
 
-    public static FunctionArgument PrettifyArgumentName(IFunctionLike functionLike, FunctionArgument argument) {
+    public static FunctionArgument PrettifyArgumentName(FunctionArgument argument) {
         if (!argument.Name.StartsWith("__")) {
             argument.Name = argument.Name.SnakeCaseToCamelCase();
         }
@@ -184,6 +184,7 @@ public static class FunctionModifiers {
         isDefaultValueValidInDeclaration = true;
         string initialDefaultValue = argument.DefaultValue;
 
+        // FIXME: make it an argument
         argument.DefaultValue = initialDefaultValue switch {
             "NULL" => "default",
             "ImVec2(0, 0)" => "default",
@@ -203,7 +204,7 @@ public static class FunctionModifiers {
         if (argument.DefaultValue != initialDefaultValue)
             return;
 
-        Enum? argumentTypeEnum = (Enum?) argument.Type.ExpandTypedefsAndPointers<Enum>()?.Value;
+        Enum? argumentTypeEnum = (Enum?) argument.Type.ExpandAllTypedefsAndPointers<Enum>()?.Value;
         if (argumentTypeEnum != null) {
             // Find an enum member with matching string representation
             Enum.Member? matchingEnumMember =
@@ -222,6 +223,19 @@ public static class FunctionModifiers {
 
         if (argument.DefaultValue != initialDefaultValue)
             return;
+
+        // FIXME: make it a list of options
+        switch (argument.DefaultValue) {
+            case "ImVec2(1, 0)":
+            case "ImVec2(1, 1)":
+            case "ImVec2(0, 1)":
+            case "ImVec2(0.0f, 0.0f)":
+            case "ImVec4(1, 1, 1, 1)":
+            case "ImVec2(-FLT_MIN, 0)":
+                argument.DefaultValue = "new " + argument.DefaultValue;
+                isDefaultValueValidInDeclaration = false;
+                return;
+        }
 
         ExpressionSyntax expressionSyntax = ParseExpression(argument.DefaultValue);
         switch (expressionSyntax) {
