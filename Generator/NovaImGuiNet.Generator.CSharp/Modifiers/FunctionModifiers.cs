@@ -187,6 +187,7 @@ public static class FunctionModifiers {
         // FIXME: make it an argument
         argument.DefaultValue = initialDefaultValue switch {
             "NULL" => "default",
+            "nullptr" => "default",
             "ImVec2(0, 0)" => "default",
             "ImVec4(0, 0, 0, 0)" => "default",
             "IM_COL32(255, 0, 0, 255)" => "IM_COL32_RED",

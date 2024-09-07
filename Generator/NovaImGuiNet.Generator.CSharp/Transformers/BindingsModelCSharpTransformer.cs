@@ -37,6 +37,7 @@ public class BindingsModelCSharpTransformer {
             ["imgui_impl_sdl2.h"] = "NovaImGuiNet.Backend.Sdl2",
             ["imgui_impl_sdlrenderer2.h"] = "NovaImGuiNet.Backend.Sdl2Renderer",
             ["imgui_impl_win32.h"] = "NovaImGuiNet.Backend.Win32",
+            ["implot.h"] = "NovaImGuiNet.ImPlot",
         };
 
         using (Operation("Assigning namespaces")) {

@@ -62,6 +62,7 @@ public class Generator {
                 LoadDearBindingsDto("Resources/cimgui/cimgui.json"),
                 LoadDearBindingsDto("Resources/cimgui/cimgui_internal.json"),
                 LoadDearBindingsDto("Resources/cimgui/cimgui_internal_imstb_textedit_minimal.json"),
+                //LoadDearBindingsDto("Resources/cimgui/cimplot.json"),
             ]);
 
             // HACK: add definition for FILE
