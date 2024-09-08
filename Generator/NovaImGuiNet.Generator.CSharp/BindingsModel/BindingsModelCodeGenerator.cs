@@ -57,6 +57,28 @@ public class BindingsModelCodeGenerator {
         }
 
         AddTask(() => {
+            IEnumerable<CompilationUnitWithNamespace> functionsCompilationUnits = GenerateNativeFunctionBindings();
+            foreach (CompilationUnitWithNamespace functionsCompilationUnit in functionsCompilationUnits) {
+                AddCompilationUnit(
+                    new CompilationUnitFileInformation("ImGuiNative", functionsCompilationUnit.Namespace),
+                    functionsCompilationUnit.CompilationUnitSyntax
+                );
+            }
+        });
+
+        AddItemWrapperTask(
+            BindingsModel.Structs,
+            structure => {
+                CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
+                    structure.Namespace,
+                    GenerateBinding(structure)
+                );
+
+                AddCompilationUnit(structure, compilationUnitSyntax, "Structs");
+            }
+        );
+
+        AddTask(() => {
             (
                 IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> globalUsingsCompilationUnits,
                 IReadOnlyList<(CompilationUnitSyntax compilationUnit, string ns)> delegatesCompilationUnits
@@ -94,28 +116,6 @@ public class BindingsModelCodeGenerator {
                 AddCompilationUnit(enumeration, compilationUnitSyntax, "Enums");
             }
         );
-
-        AddItemWrapperTask(
-            BindingsModel.Structs,
-            structure => {
-                CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                    structure.Namespace,
-                    GenerateBinding(structure)
-                );
-
-                AddCompilationUnit(structure, compilationUnitSyntax, "Structs");
-            }
-        );
-
-        AddTask(() => {
-            IEnumerable<CompilationUnitWithNamespace> functionsCompilationUnits = GenerateNativeFunctionBindings();
-            foreach (CompilationUnitWithNamespace functionsCompilationUnit in functionsCompilationUnits) {
-                AddCompilationUnit(
-                    new CompilationUnitFileInformation("ImGuiNative", functionsCompilationUnit.Namespace),
-                    functionsCompilationUnit.CompilationUnitSyntax
-                );
-            }
-        });
 
         Parallel.ForEach(
             Partitioner.Create(generationActions.ToArray(), true),

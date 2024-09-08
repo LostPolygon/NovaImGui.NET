@@ -69,7 +69,7 @@ public partial class BindingsModel {
 
     public abstract record TopLevelEntity : IndependentEntity, ITopLevelEntity {
         public required string Name { get; set; }
-        public string Namespace { get; set; }
+        public string? Namespace { get; set; }
 
         protected TopLevelEntity() {
         }

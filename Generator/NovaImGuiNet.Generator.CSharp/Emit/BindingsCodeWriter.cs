@@ -5,11 +5,14 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Formatting;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
+using Microsoft.Extensions.Logging;
 using MoreLinq;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
 public class BindingsCodeWriter {
+    private static readonly ILogger Log = Logging.Create<BindingsCodeWriter>();
+
     public IReadOnlyList<BindingsCompilationUnit> CompilationUnits { get; }
     public BindingsContext BindingsContext { get; }
 
