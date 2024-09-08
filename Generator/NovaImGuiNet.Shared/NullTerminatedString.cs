@@ -13,7 +13,7 @@ public readonly unsafe struct NullTerminatedString(byte* data) {
             return default;
 
         int nullByteIndex = new ReadOnlySpan<byte>(Data, Int32.MaxValue).IndexOf((byte) 0);
-        return new ReadOnlySpan<byte>(Data, nullByteIndex);
+        return new ReadOnlySpan<byte>(Data, nullByteIndex + 1);
 #else
         return MemoryMarshal.CreateReadOnlySpanFromNullTerminated(Data);
 #endif
@@ -28,7 +28,7 @@ public readonly unsafe struct NullTerminatedString(byte* data) {
 
         ReadOnlySpan<byte> utf8ByteSpan = AsReadOnlyUtf8ByteSpan();
         fixed (byte* ptr = &utf8ByteSpan.GetPinnableReference()) {
-            return Encoding.UTF8.GetString(ptr, utf8ByteSpan.Length);
+            return Encoding.UTF8.GetString(ptr, utf8ByteSpan.Length - 1);
         }
 #endif
     }
