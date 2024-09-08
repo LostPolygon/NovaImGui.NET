@@ -53,17 +53,25 @@ public class Generator {
 
         MetadataDto metadataDto;
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
-            metadataDto = MergeDearBindingsDtos([
-                //LoadDearBindingsDto("Resources/cimgui/cimgui_impl_sdl2.json"),
-                //LoadDearBindingsDto("Resources/cimgui/cimgui_impl_sdlrenderer2.json"),
-                //LoadDearBindingsDto("Resources/cimgui/cimgui_impl_win32.json"),
+            string[] loadedFiles = [
+                //"Resources/cimgui/cimgui_impl_sdl2.json",
+                //"Resources/cimgui/cimgui_impl_sdlrenderer2.json",
+                //"Resources/cimgui/cimgui_impl_win32.json",
+                "Resources/cimgui/cimgui_imconfig.json",
+                "Resources/cimgui/cimgui.json",
+                "Resources/cimgui/cimgui_internal.json",
+                "Resources/cimgui/cimgui_internal_imstb_textedit_minimal.json",
+                //"Resources/cimgui/cimplot.json",
+            ];
 
-                LoadDearBindingsDto("Resources/cimgui/cimgui_imconfig.json"),
-                LoadDearBindingsDto("Resources/cimgui/cimgui.json"),
-                LoadDearBindingsDto("Resources/cimgui/cimgui_internal.json"),
-                LoadDearBindingsDto("Resources/cimgui/cimgui_internal_imstb_textedit_minimal.json"),
-                //LoadDearBindingsDto("Resources/cimgui/cimplot.json"),
-            ]);
+            Task<MetadataDto>[] tasks =
+                loadedFiles
+                    .Select(x => Task.Run(() => LoadDearBindingsDto(x)))
+                    .ToArray();
+
+            Task.WhenAll(tasks).Wait();
+
+            metadataDto = MergeDearBindingsDtos(tasks.Select(x => x.Result));
 
             // HACK: add definition for FILE
             metadataDto.Typedefs.Add(new MetadataDto.Typedef {
@@ -100,7 +108,7 @@ public class Generator {
         }
 
         IReadOnlyList<BindingsCompilationUnit> compilationUnits;
-        using (new TimedLoggedOperation(Log, "Generating C# code")) {
+        using (new TimedLoggedOperation(Log, "Creating C# entities")) {
             BindingsModelCodeGenerator codeGenerator = new(bindingsModel, BindingsContext);
             compilationUnits = codeGenerator.Generate();
         }
@@ -112,7 +120,7 @@ public class Generator {
             new DirectoryInfo(BindingsContext.RootOutputPath).Empty(file => file.Name.StartsWith('.'));
         }
 
-        using (new TimedLoggedOperation(Log, "Writing files")) {
+        using (new TimedLoggedOperation(Log, "Generating C# files")) {
             BindingsCodeWriter bindingsWriter = new(compilationUnits, BindingsContext);
             bindingsWriter.SaveToDirectory();
         }
