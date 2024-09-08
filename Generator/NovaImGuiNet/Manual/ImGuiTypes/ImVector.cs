@@ -36,6 +36,16 @@ public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> wh
         return (IntPtr) (&Data[index]);
     }
 
+    public static ImVector<T> NativeConstruct() {
+        ImVector<T> result = default;
+        ImGuiNative.ImVector_Construct(&result);
+        return result;
+    }
+
+    public static void NativeDestroy(ref ImVector<T> vector) {
+        ImGuiNative.ImVector_Destruct(Unsafe.AsPointer(ref vector));
+    }
+
     public override int GetHashCode() => EqualityComparer<ImVector<T>>.Default.GetHashCode(this);
     public override bool Equals(object? obj) => obj is ImVector<T> other && Equals(other);
 
