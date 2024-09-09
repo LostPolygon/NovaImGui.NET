@@ -28,6 +28,7 @@ public partial class BindingsModel {
     public interface ITopLevelEntity : IIndependentEntity {
         string Name { get; set; }
         string? Namespace { get; set; }
+        bool IsSpecialTopLevel { get; set; }
     }
 
     public abstract record Entity : IConvertibleToEntityReference, IEntity {
@@ -70,6 +71,8 @@ public partial class BindingsModel {
     public abstract record TopLevelEntity : IndependentEntity, ITopLevelEntity {
         public required string Name { get; set; }
         public string? Namespace { get; set; }
+
+        public bool IsSpecialTopLevel { get; set; }
 
         protected TopLevelEntity() {
         }
@@ -319,6 +322,7 @@ public partial class BindingsModel {
     public abstract record FunctionLike : IndependentEntity, IFunctionLike, ITopLevelEntity {
         public required string Name { get; set; }
         public string? Namespace { get; set; }
+        public bool IsSpecialTopLevel { get; set; }
         public required List<FunctionArgument> Arguments { get; set; }
         public required IEntityReference ReturnType { get; set; }
 

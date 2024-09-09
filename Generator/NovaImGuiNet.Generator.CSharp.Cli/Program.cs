@@ -28,19 +28,20 @@ CodeFormatMode codeFormatMode = CodeFormatMode.Fancy;
 codeFormatMode = CodeFormatMode.Basic;
 #endif
 
-BindingsContext bindingsContext = new(
-    "NovaImGuiNet",
-    outputPath,
-    new BindingsGenerationOptions() {
-        CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes = true,
-        CodeFormatMode = codeFormatMode
-    }
-);
+BindingsGenerationOptions bindingsGenerationOptions = new() {
+    CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes = true,
+    CodeFormatMode = codeFormatMode
+};
 
+#if !DEBUG
 try {
-    Generator generator = new(bindingsContext);
+#else
+{
+#endif
+    Generator generator = new(outputPath, bindingsGenerationOptions);
     generator.Execute();
     loggerFactory.Dispose();
+#if !DEBUG
 } catch (Exception e) {
     log.LogCritical("Error while running generator");
     loggerFactory.Dispose();
@@ -49,3 +50,6 @@ try {
     Console.WriteLine(e.ToString());
     Environment.Exit(1);
 }
+#else
+}
+#endif

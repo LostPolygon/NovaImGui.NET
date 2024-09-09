@@ -10,10 +10,10 @@ using static CSharpCodeGenerationUtility;
 using static SyntaxFactory;
 using static SyntaxFactoryCached;
 
-public static class ManagedMethodGenerator {
+public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsModel model) {
     private static readonly ILogger Log = Logging.Create(nameof(ManagedMethodGenerator));
 
-    public static BindingsModel Generate(BindingsModel model) {
+    public BindingsModel Generate() {
         IGrouping<EntityReferenceWrapper<Struct>?, EntityReferenceWrapper<Function>>[] allFunctionsByStruct =
             model.GetAllFunctions()
                 .GroupBy(x => x.Value.OwnerStruct)
@@ -24,10 +24,17 @@ public static class ManagedMethodGenerator {
             EntityReferenceWrapper<Function>[] structFunctions = functionsByStruct.ToArray();
             if (ownerStruct == null) {
                 IGrouping<string?, EntityReferenceWrapper<Function>>[] allFreeFunctionsByNamespaces =
-                    structFunctions.GroupBy(x => x.Value.Namespace).ToArray();
+                    structFunctions
+                        .GroupBy(x => x.Value.Namespace)
+                        .ToArray();
 
                 foreach (var freeFunctionsByNamespace in allFreeFunctionsByNamespaces) {
-                    Struct imGuiMethodsStruct = CreateImGuiManagedMethodsStruct(freeFunctionsByNamespace.Key);
+                    Struct imGuiMethodsStruct = CreateImGuiManagedMethodsStruct(
+                        freeFunctionsByNamespace.Key,
+                        bindingsContext.Customizations
+                            .RequireCustomizationByNamespace(freeFunctionsByNamespace.Key)
+                            .NativeFunctionsManagedWrapperClassName
+                    );
                     IEntityReference imGuiMethodsStructReference = imGuiMethodsStruct.AsEntityReference();
                     model.Children.Add(imGuiMethodsStructReference);
 
@@ -42,18 +49,7 @@ public static class ManagedMethodGenerator {
         return model;
     }
 
-    private static Struct CreateImGuiManagedMethodsStruct(string ns) {
-        Struct structure = new() {
-            Kind = Struct.StructKind.StaticClass,
-            Name = "ImGui",
-            Namespace = ns,
-            Comments = new Comments(["Dear ImGui functions"], [], [])
-        };
-
-        return structure;
-    }
-
-    private static void GenerateManagedMethodsForStruct(
+    private void GenerateManagedMethodsForStruct(
         EntityReferenceWrapper<Struct> structureReference,
         EntityReferenceWrapper<Function>[] structFunctionReferences
     ) {
@@ -82,7 +78,7 @@ public static class ManagedMethodGenerator {
         }
     }
 
-    private static List<Function> GenerateManagedMethodsForNativeFunction(
+    private List<Function> GenerateManagedMethodsForNativeFunction(
         Struct structure,
         Function nativeFunction,
         string nativeFunctionBaseName
@@ -90,20 +86,28 @@ public static class ManagedMethodGenerator {
         if (nativeFunction.IsDisabled)
             return [];
 
+        BindingsFileCustomizations bindingsFileCustomizations =
+            bindingsContext.Customizations
+                .RequireCustomization(nativeFunction.SourceLocation);
+
         bool isInstanceMethod = nativeFunction.OwnerStruct != null;
 
         string methodName = nativeFunctionBaseName;
         if (isInstanceMethod) {
             methodName = methodName
-                .RemoveFromStart(structure.Name + "_")
+                .RemovePrefix(structure.Name + "_")
                 .FirstCharToUpperCase();
         } else {
             bool isFreeFunction = nativeFunctionBaseName.StartsWith("cIm", StringComparison.Ordinal);
             if (!isFreeFunction) {
                 methodName = methodName
-                    .RemoveFromStart("ImGui_")
+                    .RemovePrefix("ImGui_")
                     .FirstCharToUpperCase();
             }
+        }
+
+        foreach (string removedPrefix in bindingsFileCustomizations.PrefixesRemovedFromManagedMethods) {
+            methodName = methodName.RemovePrefix(removedPrefix);
         }
 
         List<NativeFunctionArgumentDescription> nativeArgumentDescriptions = [];
@@ -119,7 +123,10 @@ public static class ManagedMethodGenerator {
             );
         }
 
-        const bool isFunctionBanned = false;
+        bool isFunctionBanned =
+            bindingsFileCustomizations
+                .FunctionsNoPermutations
+                .Contains(nativeFunctionBaseName);
 
         NativeFunctionArgumentMarshalingVariant[][] nativeArgumentMarshalingVariants =
             nativeArgumentDescriptions
@@ -169,12 +176,33 @@ public static class ManagedMethodGenerator {
         }
 #endif
 
+        string nativeFunctionsClassName = bindingsFileCustomizations.NativeFunctionsClassName;
+
         List<Function> managedMethods = [];
         foreach (MethodSignature methodSignature in methodSignatures) {
-            managedMethods.Add(GenerateManagedMethodForNativeFunction(structure, methodName, methodSignature));
+            managedMethods.Add(
+                GenerateManagedMethodForNativeFunction(
+                    structure,
+                    methodName,
+                    methodSignature,
+                    nativeFunctionsClassName
+                )
+            );
         }
 
         return managedMethods;
+    }
+
+    private static Struct CreateImGuiManagedMethodsStruct(string targetNamespace, string structName) {
+        Struct structure = new() {
+            Kind = Struct.StructKind.StaticClass,
+            Name = structName,
+            Namespace = targetNamespace,
+            Comments = new Comments(["Dear ImGui managed methods"], [], []),
+            IsSpecialTopLevel = true
+        };
+
+        return structure;
     }
 
     private static Range? GetInvalidForSignatureDefaultValuesArgumentIndexRange(List<MethodSignature> methodSignatures) {
@@ -204,7 +232,8 @@ public static class ManagedMethodGenerator {
     private static Function GenerateManagedMethodForNativeFunction(
         Struct structure,
         string methodName,
-        MethodSignature methodSignature
+        MethodSignature methodSignature,
+        string nativeFunctionsClassName
     ) {
         bool isInstanceMethod = methodSignature.NativeFunction.OwnerStruct != null;
 
@@ -252,7 +281,7 @@ public static class ManagedMethodGenerator {
 
         string retValAssignment = hasReturnValue ? $"{retValVar} = " : "";
         string invocationValuesFormatted = String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
-        Append($"{retValAssignment}ImGuiNative.{methodSignature.NativeFunction.Name}({invocationValuesFormatted});");
+        Append($"{retValAssignment}{nativeFunctionsClassName}.{methodSignature.NativeFunction.Name}({invocationValuesFormatted});");
 
         foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
             AppendRange(argumentMarshaller.CreateUnmarshalStatements());

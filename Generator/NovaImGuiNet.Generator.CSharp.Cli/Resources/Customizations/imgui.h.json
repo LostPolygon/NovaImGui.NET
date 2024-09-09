@@ -1,0 +1,21 @@
+{
+  "original_header_file_name": "imgui.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet",
+  "native_functions_class_name": "ImGuiNative",
+  "native_functions_managed_wrapper_class_name": "ImGui",
+  "treat_pointer_arguments_as_arrays": [
+    {
+      "function": "ImFontAtlas_AddFontFromFileTTF",
+      "arguments": [
+        "glyph_ranges"
+      ]
+    },
+    {
+      "function": "ImGui_Combo",
+      "arguments": [
+        "itemsSeparatedByZeros"
+      ]
+    }
+  ]
+}

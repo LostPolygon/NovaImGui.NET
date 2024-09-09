@@ -1,0 +1,10 @@
+{
+  "original_header_file_name": "imgui_impl_sdl2.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.Sdl2",
+  "native_functions_class_name": "ImGuiSdl2Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiSdl2",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplSDL2_"
+  ]
+}

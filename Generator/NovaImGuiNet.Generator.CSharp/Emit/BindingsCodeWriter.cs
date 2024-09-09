@@ -64,7 +64,7 @@ public class BindingsCodeWriter {
                 switch (entity) {
                     case BindingsModel.Enum:
                     case BindingsModel.Struct:
-                        if (entity.Name == "ImGui") {
+                        if (entity.IsSpecialTopLevel) {
                             categorySeparator = "/";
                         }
 
@@ -74,8 +74,13 @@ public class BindingsCodeWriter {
 
                 return name;
             },
-            fileInfo => $"{fileInfo.Namespace}{categorySeparator}{fileInfo.Name}"
-        );
+            fileInfo => {
+                if (fileInfo.ForceTopLevel) {
+                    categorySeparator = "/";
+                }
+
+                return $"{fileInfo.Namespace}{categorySeparator}{fileInfo.Name}";
+            });
 
 #if DEBUG
         fileName = $"{fileName}.cs";

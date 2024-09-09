@@ -30,18 +30,8 @@ public class BindingsModelCSharpTransformer {
     private BindingsContext Context { get; }
 
     public BindingsModel Transform() {
-        Dictionary<string, string> fileNameToNamespace = new() {
-            ["imgui.h"] = "NovaImGuiNet",
-            ["imgui_internal.h"] = "NovaImGuiNet.Internal",
-            ["imstb_textedit_minimal.h"] = "NovaImGuiNet.Internal",
-            ["imgui_impl_sdl2.h"] = "NovaImGuiNet.Backend.Sdl2",
-            ["imgui_impl_sdlrenderer2.h"] = "NovaImGuiNet.Backend.Sdl2Renderer",
-            ["imgui_impl_win32.h"] = "NovaImGuiNet.Backend.Win32",
-            ["implot.h"] = "NovaImGuiNet.ImPlot",
-        };
-
         using (Operation("Assigning namespaces")) {
-            Model = ModelModifiers.AssignNamespaces(Context, Model, fileNameToNamespace);
+            Model = ModelModifiers.AssignNamespaces(Context, Model);
         }
 
         using (Operation("Genericizing structs")) {
@@ -70,7 +60,11 @@ public class BindingsModelCSharpTransformer {
         Transform("Adding public members to internal enums", Model.Enums, x => AddPublicMembersToPrivateEnum(Model, x));
         Transform("Cleaning up enum identifiers", Model.Enums, CleanupIdentifiers);
         Transform("Patching enum values referencing other enums", Model.Enums, PatchEnumsReferencingOtherEnums);
-        Transform("Wrapping enums in shared conditionals", Model.Enums, x => WrapInSharedConditional(x, x.Members));
+        Transform(
+            "Wrapping enums in shared conditionals",
+            Model.Enums,
+            x => WrapInSharedConditional(x, x.Members)
+        );
 
         // Struct fields
         Transform(
@@ -164,7 +158,7 @@ public class BindingsModelCSharpTransformer {
             });
         }
 
-        using (Operation("Patching function default values")) {
+        using (Operation("Patching function argument default values")) {
             allFunctionsAnDelegates.ForEach(x => PatchArgumentDefaultValues(Model, x));
         }
 
@@ -174,7 +168,6 @@ public class BindingsModelCSharpTransformer {
                 return arg;
             });
         }
-
 
         using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size struct")) {
             UpdateFunctionArguments((_, arg, _) =>
@@ -218,13 +211,13 @@ public class BindingsModelCSharpTransformer {
         using (Operation("Generating ImGuiConstants class")) {
             Model.Children.AddRange(
                 new ImGuiConstantsGenerator(Context, MetadataDto)
-                    .Generate(fileNameToNamespace)
+                    .Generate()
                     .Select(x => x.AsEntityReference())
             );
         }
 
         using (Operation("Generating managed methods")) {
-            Model = ManagedMethodGenerator.Generate(Model);
+            Model = new ManagedMethodGenerator(Context, Model).Generate();
         }
 
         using (Operation("Disable ImVec")) {

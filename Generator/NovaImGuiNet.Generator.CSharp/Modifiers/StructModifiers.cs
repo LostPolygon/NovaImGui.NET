@@ -376,7 +376,7 @@ public static class StructModifiers {
     }
 
     public static Delegate PrettifyDelegateName(Delegate @delegate) {
-        @delegate.Name = @delegate.Name.RemoveFromEnd("Fn") + "Delegate";
+        @delegate.Name = @delegate.Name.RemoveSuffix("Fn") + "Delegate";
         return @delegate;
     }
 

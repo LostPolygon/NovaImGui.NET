@@ -10,15 +10,15 @@ using static CSharpCodeGenerationUtility;
 using static SyntaxFactoryCached;
 
 public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDto dto) {
-    public IEnumerable<Struct> Generate(IReadOnlyDictionary<string, string> fileNameToNamespace) {
+    public IEnumerable<Struct> Generate() {
         IEnumerable<IGrouping<string, MetadataDto.Define>> definesByFileNames =
             dto.Defines
                 .GroupBy(x => x.SourceLocation.Filename);
 
         foreach (IGrouping<string,MetadataDto.Define> definesByFileName in definesByFileNames) {
-            fileNameToNamespace.TryGetValue(definesByFileName.Key, out string? ns);
-            Debug.Assert(ns != null);
-            yield return GenerateForNamespace(ns, definesByFileName.ToArray());
+            string targetNamespace =
+                bindingsContext.Customizations.RequireCustomization(definesByFileName.Key).Namespace;
+            yield return GenerateForNamespace(targetNamespace, definesByFileName.ToArray());
         }
     }
 

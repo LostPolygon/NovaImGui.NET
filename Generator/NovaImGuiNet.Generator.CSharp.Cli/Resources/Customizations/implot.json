@@ -1,0 +1,7 @@
+{
+  "original_header_file_name": "implot.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.ImPlot",
+  "native_functions_class_name": "ImPlotNative",
+  "native_functions_managed_wrapper_class_name": "ImPlot"
+}

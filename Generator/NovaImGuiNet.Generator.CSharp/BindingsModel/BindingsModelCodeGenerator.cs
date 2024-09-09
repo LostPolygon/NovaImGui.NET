@@ -57,10 +57,10 @@ public class BindingsModelCodeGenerator {
         }
 
         AddTask(() => {
-            IEnumerable<CompilationUnitWithNamespace> functionsCompilationUnits = GenerateNativeFunctionBindings();
-            foreach (CompilationUnitWithNamespace functionsCompilationUnit in functionsCompilationUnits) {
+            IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits = GenerateNativeFunctionBindingsClass();
+            foreach (CompilationUnitWithFileInformation functionsCompilationUnit in functionsCompilationUnits) {
                 AddCompilationUnit(
-                    new CompilationUnitFileInformation("ImGuiNative", functionsCompilationUnit.Namespace),
+                    functionsCompilationUnit.File,
                     functionsCompilationUnit.CompilationUnitSyntax
                 );
             }
@@ -125,7 +125,7 @@ public class BindingsModelCodeGenerator {
         return compilationUnits.ToArray();
     }
 
-    private IEnumerable<CompilationUnitWithNamespace> GenerateNativeFunctionBindings() {
+    private IEnumerable<CompilationUnitWithFileInformation> GenerateNativeFunctionBindingsClass() {
         IGrouping<string?, EntityReferenceWrapper<Function>>[] allNativeFunctionsByNamespace =
             BindingsModel
                 .GetAllFunctions()
@@ -134,7 +134,7 @@ public class BindingsModelCodeGenerator {
                 .ToArray();
 
         foreach (IGrouping<string, EntityReferenceWrapper<Function>> entityReferenceWrappers in allNativeFunctionsByNamespace) {
-            string ns = entityReferenceWrappers.Key;
+            string targetNamespace = entityReferenceWrappers.Key;
             EntityReferenceWrapper<Function>[] allNativeFunctions = entityReferenceWrappers.ToArray();
 
             List<MemberDeclarationSyntax> methodSyntaxes = [];
@@ -143,8 +143,13 @@ public class BindingsModelCodeGenerator {
                 methodSyntaxes.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
             }
 
+            string targetClassName =
+                BindingsContext.Customizations
+                    .RequireCustomizationByNamespace(targetNamespace)
+                    .NativeFunctionsClassName;
+
             ClassDeclarationSyntax classDeclaration =
-                ClassDeclaration(Identifier("ImGuiNative"))
+                ClassDeclaration(Identifier(targetClassName))
                     .AddModifiers(
                         Token(SyntaxKind.PublicKeyword),
                         Token(SyntaxKind.StaticKeyword),
@@ -158,11 +163,15 @@ public class BindingsModelCodeGenerator {
                     .AddMembers(methodSyntaxes.ToArray());
 
             CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                ns,
+                targetNamespace,
                 classDeclaration
             );
 
-            yield return new CompilationUnitWithNamespace(compilationUnitSyntax, ns);
+            yield return
+                new CompilationUnitWithFileInformation(
+                    compilationUnitSyntax,
+                    new CompilationUnitFileInformation(targetClassName, targetNamespace, true)
+                );
         }
     }
 

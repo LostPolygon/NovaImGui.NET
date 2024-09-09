@@ -10,8 +10,7 @@ public static class ModelModifiers {
 
     public static BindingsModel AssignNamespaces(
         BindingsContext context,
-        BindingsModel model,
-        IReadOnlyDictionary<string, string> fileNameToNamespace
+        BindingsModel model
     ) {
         IEnumerable<ITopLevelEntity> topLevelEntities =
             model
@@ -26,9 +25,7 @@ public static class ModelModifiers {
             if (entity.SourceLocation == null)
                 throw new InvalidOperationException($"Entity '{entity} has no source location information'");
 
-            if (!fileNameToNamespace.TryGetValue(entity.SourceLocation.Filename, out string? targetNamespace))
-                throw new InvalidOperationException($"File name '{entity.SourceLocation.Filename}' has no target namespace");
-
+            string targetNamespace = context.Customizations.RequireCustomization(entity.SourceLocation).Namespace;
             entity.Namespace = targetNamespace;
         }
 
@@ -45,7 +42,7 @@ public static class ModelModifiers {
 
                 string newDelegateName =
                     "ImGui" +
-                    function.Name.RemoveFromStart("ImGui_") +
+                    function.Name.RemovePrefix("ImGui_") +
                     argument.Name.SnakeCaseToCamelCase().ToPascalCase();
 
                 Delegate newDelegate = argumentTypeDelegate with {

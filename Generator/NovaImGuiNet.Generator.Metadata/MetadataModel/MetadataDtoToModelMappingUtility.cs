@@ -36,8 +36,8 @@ public static class MetadataDtoToModelMappingUtility {
 
         static string TransformLine(string line) =>
             line
-                .RemoveFromStart("// ")
-                .RemoveFromStart("//")
+                .RemovePrefix("// ")
+                .RemovePrefix("//")
                 .Trim();
     }
 

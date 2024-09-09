@@ -40,7 +40,7 @@ public static class EnumModifiers {
         if (!cleanedName.EndsWith("Private", StringComparison.Ordinal))
             return enumeration;
 
-        string publicEnumNameGuess = cleanedName.RemoveFromEnd("Private");
+        string publicEnumNameGuess = cleanedName.RemoveSuffix("Private");
         Enum? publicEnum = model.Enums
             .FirstOrDefault(x => CleanupEnumIdentifier(x.Value.Name, null) == publicEnumNameGuess)
             ?.Value;
@@ -72,7 +72,7 @@ public static class EnumModifiers {
         if (typeName != null) {
             typeName = RemoveTrailingUnderscoresFromExpression(typeName);
             if (typeName.EndsWith("Private")) {
-                string nonPrivateTypeName = typeName.RemoveFromEnd("Private");
+                string nonPrivateTypeName = typeName.RemoveSuffix("Private");
                 if (false && isValue) {
                     //text = RemoveTypeName(text, typeName);
                     //text = text.Replace(nonPrivateTypeName + "_", nonPrivateTypeName + ".");

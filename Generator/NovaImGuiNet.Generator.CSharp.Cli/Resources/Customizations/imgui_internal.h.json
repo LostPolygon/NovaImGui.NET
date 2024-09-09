@@ -1,0 +1,35 @@
+{
+  "original_header_file_name": "imgui_internal.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Internal",
+  "native_functions_class_name": "ImGuiInternalNative",
+  "native_functions_managed_wrapper_class_name": "ImGuiInternal",
+  "functions_no_permutations": [
+    "cImStristr",
+    "cImStreolRange",
+    "cImStrchrRange",
+    "cImStricmp",
+    "cImStrnicmp",
+    "cImStrchrRange",
+    "cImStrchrRange",
+    "cImTextCountLines",
+    "cImTextFindPreviousUtf8Codepoint",
+    "cImTextCountUtf8BytesFromStr",
+    "cImTextCountUtf8BytesFromChar",
+    "cImTextCountCharsFromUtf8",
+    "cImTextStrFromUtf8",
+    "cImTextCharFromUtf8",
+    "cImTextStrToUtf8",
+    "cImParseFormatSanitizeForScanning",
+    "cImParseFormatSanitizeForPrinting",
+    "cImFormatStringToTempBufferUnformatted",
+    "cImFormatStringUnformatted",
+    "cImStrbolW",
+    "cImStrdupcpy",
+    "cImStrncpy",
+    "cImGuiTestEngineHook_ItemInfo",
+    "cImGuiTestEngineHook_ItemAdd"
+  ],
+  "treat_pointer_arguments_as_arrays": [
+  ]
+}
