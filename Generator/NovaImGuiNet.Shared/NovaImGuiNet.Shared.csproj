@@ -9,75 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <None Update="ImGuiTypes\ImFixedArray.ttinclude">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>test.cs</LastGenOutput>
-      </None>
-      <None Update="ImGuiTypes\ImFixedArray4.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>ImFixedArray4.cs</LastGenOutput>
-      </None>
-      <None Update="ImGuiTypes\ImFixedArray20.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>ImFixedArray20.cs</LastGenOutput>
-      </None>
-      <None Update="ImGuiTypes\ImFixedArray5.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>ImFixedArray5.cs</LastGenOutput>
-      </None>
-      <None Update="ImGuiTypes\ImFixedArray2.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>ImFixedArray2.cs</LastGenOutput>
-      </None>
-      <None Update="ImGuiTypes\ImFixedArray3.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>ImFixedArray3.cs</LastGenOutput>
-      </None>
-      <None Update="ImGuiTypes\ImFixedArray256.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>ImFixedArray256.cs</LastGenOutput>
-      </None>
-    </ItemGroup>
-
-    <ItemGroup>
       <PackageReference Include="Polyfill" Version="6.4.1">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
       <PackageReference Include="System.Memory" Version="4.5.5" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Update="ImGuiTypes\ImFixedArray3.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImFixedArray3.tt</DependentUpon>
-      </Compile>
-      <Compile Update="ImGuiTypes\ImFixedArray4.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImFixedArray4.tt</DependentUpon>
-      </Compile>
-      <Compile Update="ImGuiTypes\ImFixedArray5.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImFixedArray5.tt</DependentUpon>
-      </Compile>
-      <Compile Update="ImGuiTypes\ImFixedArray20.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImFixedArray20.tt</DependentUpon>
-      </Compile>
-      <Compile Update="ImGuiTypes\ImFixedArray256.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImFixedArray256.tt</DependentUpon>
-      </Compile>
-      <Compile Update="ImGuiTypes\ImFixedArray2.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImFixedArray2.tt</DependentUpon>
-      </Compile>
     </ItemGroup>
 
 </Project>

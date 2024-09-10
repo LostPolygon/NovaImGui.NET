@@ -597,49 +597,10 @@ public class BindingsModelCodeGenerator {
                     ))
                 );
 
-            // GetHashCode()
-            structMembers.Add(
-                MethodDeclaration(ParseTypeName("int"), Identifier("GetHashCode"))
-                    .WithModifiers(TokenList(
-                        Token(SyntaxKind.PublicKeyword),
-                        Token(SyntaxKind.OverrideKeyword)
-                    ))
-                    .WithExpressionBody(
-                        ArrowExpressionClause(
-                            ParseExpression($"EqualityComparer<{entity.Name}>.Default.GetHashCode(this)")
-                        )
-                    )
-                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                    .WithLeadingTrivia(CarriageReturnLineFeed)
-                    .WithTrailingTrivia(LineFeed)
-            );
-
-            // Equals(object? obj)
-            structMembers.Add(
-                MethodDeclaration(ParseTypeName("bool"), Identifier("Equals"))
-                    .WithModifiers(TokenList(
-                        Token(SyntaxKind.PublicKeyword),
-                        Token(SyntaxKind.OverrideKeyword)
-                    ))
-                    .WithParameterList(
-                        ParameterList(
-                            SeparatedList([
-                                Parameter(Identifier("obj"))
-                                    .WithType(ParseTypeName("object?"))
-                            ])
-                        )
-                    )
-                    .WithExpressionBody(
-                        ArrowExpressionClause(
-                            ParseExpression($"obj is {entity.Name} other && Equals(other)")
-                        )
-                    )
-                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                    .WithLeadingTrivia(CarriageReturnLineFeed)
-                    .WithTrailingTrivia(LineFeed)
-            );
-
             // Equals(T other)
+
+            // FIXME: this is terrible for perf, we need to actually generate
+            // Equals(T other) and GetHashCode() manually someday
             structMembers.Add(
                 MethodDeclaration(ParseTypeName("bool"), Identifier("Equals"))
                     .WithModifiers(TokenList(
@@ -655,7 +616,7 @@ public class BindingsModelCodeGenerator {
                     )
                     .WithExpressionBody(
                         ArrowExpressionClause(
-                            ParseExpression($"EqualityComparer<{entity.Name}>.Default.Equals(this, other)")
+                            ParseExpression("base.Equals(other)")
                         )
                     )
                     .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))

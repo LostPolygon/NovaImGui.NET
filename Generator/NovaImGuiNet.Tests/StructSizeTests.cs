@@ -21,6 +21,19 @@ public unsafe class StructSizeTests {
         //Assert.That(sizeof(ImGuiDockNode), Is.EqualTo(208));
     }
 
+    [Test]
+    public void Equals() {
+        ImGuiKeyData foo1 = default;
+        ImGuiKeyData foo2 = new();
+
+        ImGuiKeyData foo3 = new() {
+            DownDuration = 1.0f
+        };
+
+        Assert.That(foo1, Is.EqualTo(foo2));
+        Assert.That(foo2, Is.Not.EqualTo(foo3));
+    }
+
     public unsafe partial struct ImGuiStackLevelInfo
     {
         public uint ID;

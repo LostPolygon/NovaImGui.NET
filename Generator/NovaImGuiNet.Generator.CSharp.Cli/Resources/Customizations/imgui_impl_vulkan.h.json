@@ -6,7 +6,8 @@
   "native_functions_class_name": "ImGuiVulkanNative",
   "native_functions_managed_wrapper_class_name": "ImGuiVulkan",
   "prefixes_removed_from_managed_methods": [
-    "ImGui_ImplVulkan_"
+    "cImGui_ImplVulkan_",
+    "cImGui_ImplVulkanH_"
   ],
   "no_emit_managed_methods_for_native_functions": [
     "cImGui_ImplVulkan_RenderDrawData"

@@ -1,4 +1,4 @@
-﻿<#@ template language="C#" #>
+﻿<#@ output extension=".cs" #>
 using System.Collections;
 
 <#@ parameter type="System.Int32" name="tupleSize" #>
@@ -94,7 +94,7 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
     }
 
     public void CopyTo(T[] array, int arrayIndex) {
-        throw new NotSupportedException();
+        AsSpan().CopyTo(new Span<T>(array, arrayIndex, array.Length - arrayIndex));
     }
 
     public bool Remove(T item) {
@@ -107,5 +107,21 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
 
     #endregion
 
+<#
+   if (tupleSize <= 16) {
+#>
+    public void Deconstruct(<#= String.Join(", ", Enumerable.Range(1, tupleSize).Select(index => $"out T value{index}")) #>) {
+<#
+   for (int index = 1; index <= tupleSize; index++) {
+#>
+        value<#= index #> = Value<#= index #>;
+<#
+   }
+#>
+    }
+
+<#
+   }
+#>
     public static implicit operator Span<T>(<#= typeName #><T> array) => array.AsSpan();
 }
