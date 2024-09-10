@@ -24,9 +24,23 @@ public class Generator {
         MetadataDto metadataDto;
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
             string[] loadedFiles = [
+                // NOTE: SDL2 and SDL3 need to be processed separately because of identical type names
                 "Resources/cimgui/cimgui_impl_sdl2.json",
                 "Resources/cimgui/cimgui_impl_sdlrenderer2.json",
+
+                //"Resources/cimgui/cimgui_impl_sdl3.json",
+                //"Resources/cimgui/cimgui_impl_sdlrenderer3.json",
+
+                "Resources/cimgui/cimgui_impl_dx9.json",
+                "Resources/cimgui/cimgui_impl_dx10.json",
+                "Resources/cimgui/cimgui_impl_dx11.json",
+                "Resources/cimgui/cimgui_impl_dx12.json",
                 "Resources/cimgui/cimgui_impl_win32.json",
+                "Resources/cimgui/cimgui_impl_glut.json",
+                "Resources/cimgui/cimgui_impl_glfw.json",
+                "Resources/cimgui/cimgui_impl_opengl2.json",
+                "Resources/cimgui/cimgui_impl_opengl3.json",
+                "Resources/cimgui/cimgui_impl_vulkan.json",
                 "Resources/cimgui/cimgui_imconfig.json",
                 "Resources/cimgui/cimgui.json",
                 "Resources/cimgui/cimgui_internal.json",
@@ -59,16 +73,6 @@ public class Generator {
             });
         }
 
-        MetadataModel metadataModel;
-        using (new TimedLoggedOperation(Log, "Resolving metadata model")) {
-            metadataModel = new MetadataModelResolver(metadataDto).Map();
-        }
-
-        BindingsModel bindingsModel;
-        using (new TimedLoggedOperation(Log, "Resolving bindings model")) {
-            bindingsModel = ResolveBindingsModel(metadataModel);
-        }
-
         using (new TimedLoggedOperation(Log, "Parsing bindings customizations")) {
             BindingsCustomizationsContext bindingsCustomizationsContext = LoadBindingsCustomizationsContext();
             BindingsContext = new BindingsContext(
@@ -77,6 +81,16 @@ public class Generator {
                 bindingsCustomizationsContext,
                 _bindingsGenerationOptions
             );
+        }
+
+        MetadataModel metadataModel;
+        using (new TimedLoggedOperation(Log, "Resolving metadata model")) {
+            metadataModel = new MetadataModelResolver(metadataDto).Map();
+        }
+
+        BindingsModel bindingsModel;
+        using (new TimedLoggedOperation(Log, "Resolving bindings model")) {
+            bindingsModel = ResolveBindingsModel(metadataModel);
         }
 
         using (new TimedLoggedOperation(Log, "Applying transformations")) {
@@ -116,21 +130,40 @@ public class Generator {
             BindingsContext
         );
 
+        List<MetadataModel.Entity> unresolvedEntities = [];
         bindingsModelResolver.UnresolvedTypeDetected += entity => {
             switch (entity) {
                 case MetadataModel.Builtin builtin:
                     if (KnownBindingsEntitiesInfo.ExpectedTypesDefinedElsewhere.Contains(builtin.Type))
                         return;
 
+                    // FIXME: this doesn't check for SourceLocation, but it probably should
+                    bool isExternalType =
+                        BindingsContext.Customizations.BindingsFileCustomizations
+                        .Any(x => x.ExternalTypes.Contains(builtin.Type));
+
+                    if (isExternalType)
+                        return;
+
                     break;
             }
 
-            throw new KeyNotFoundException(
-                $"Unresolved entity type, make sure you've included all necessary metadata: {entity}"
-            );
+            unresolvedEntities.Add(entity);
         };
 
-        return bindingsModelResolver.Resolve();
+        BindingsModel bindingsModel = bindingsModelResolver.Resolve();
+
+        if (unresolvedEntities.Count != 0) {
+            foreach (MetadataModel.Entity unresolvedEntity in unresolvedEntities) {
+                Log.LogCritical($"Unresolved entity type: {unresolvedEntity}");
+            }
+
+            throw new InvalidOperationException(
+                "Detected unresolved entity types, make sure you've included all necessary metadata"
+            );
+        }
+
+        return bindingsModel;
     }
 
     private static BindingsFileCustomizations LoadBindingsFileCustomizations(string filePath) {

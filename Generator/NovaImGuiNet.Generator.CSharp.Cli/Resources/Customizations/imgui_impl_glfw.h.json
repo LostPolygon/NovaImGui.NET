@@ -1,0 +1,19 @@
+{
+  "original_header_file_name": "imgui_impl_glfw.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.Glfw",
+  "constants_class_name": "ImGuiGlfwConstants",
+  "native_functions_class_name": "ImGuiGlfwNative",
+  "native_functions_managed_wrapper_class_name": "ImGuiGlfw",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplGlfw_"
+  ],
+  "no_emit_structs": [
+    "GLFWwindow",
+    "GLFWmonitor"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "GLFWwindow",
+    "GLFWmonitor"
+  ]
+}

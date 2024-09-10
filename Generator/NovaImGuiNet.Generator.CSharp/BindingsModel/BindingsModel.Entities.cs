@@ -295,6 +295,7 @@ public partial class BindingsModel {
         public required bool IsInstancePointer { get; set; }
         public required FunctionArgumentPassType PassType { get; set; }
         public required string? DefaultValue { get; set; }
+        public EqualityList<AttributeSyntax> Attributes { get; set; } = [];
 
         public bool IsDefaultValueValidInDeclaration {
             get {

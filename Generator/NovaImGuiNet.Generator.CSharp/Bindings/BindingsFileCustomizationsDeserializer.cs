@@ -9,7 +9,9 @@ public static class BindingsFileCustomizationsDeserializer {
     static BindingsFileCustomizationsDeserializer() {
         JsonSerializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.General) {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip
         };
         JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
     }

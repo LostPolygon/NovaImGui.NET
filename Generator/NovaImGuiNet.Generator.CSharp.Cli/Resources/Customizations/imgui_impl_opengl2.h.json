@@ -1,0 +1,17 @@
+{
+  "original_header_file_name": "imgui_impl_opengl2.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.OpenGL2",
+  "constants_class_name": "ImGuiOpenGL2Constants",
+  "native_functions_class_name": "ImGuiOpenGL2Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiOpenGL2",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplOpenGL2_"
+  ],
+  "no_emit_structs": [
+
+  ],
+  "make_pointers_to_structs_opaque": [
+
+  ]
+}

@@ -129,7 +129,7 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (Operation("Generating delegates for inline function definitions in function arguments")) {
-            Model = ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Context, Model);
+            Model = ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Model);
         }
 
         Transform(
@@ -169,7 +169,7 @@ public class BindingsModelCSharpTransformer {
             });
         }
 
-        using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size struct")) {
+        using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size structs")) {
             UpdateFunctionArguments((_, arg, _) =>
                 ConvertFixedSizeArrayArgumentToFixedSizeStruct(Context, arg)
             );
@@ -194,7 +194,7 @@ public class BindingsModelCSharpTransformer {
             // since it contains a bool field and that's broken when
             // runtime marshaling is not disabled
             // https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib1050-1069
-            allFunctionsAnDelegates
+            /*allFunctionsAnDelegates
                 .OfType<Function>()
                 .ForEach(function =>
                     WrapFunctionsInConditional(
@@ -205,7 +205,11 @@ public class BindingsModelCSharpTransformer {
                         new Conditional("false"),
                         function
                     )
-                );
+                );*/
+        }
+
+        using (Operation("Making pointers to chosen structs opaque")) {
+            Model = ModelModifiers.MakePointersToStructsOpaque(Context, Model);
         }
 
         using (Operation("Generating ImGuiConstants class")) {
@@ -220,9 +224,15 @@ public class BindingsModelCSharpTransformer {
             Model = new ManagedMethodGenerator(Context, Model).Generate();
         }
 
-        using (Operation("Disable ImVec")) {
+        using (Operation("Disabling NoEmit structs")) {
             Model.Structs
-                .Where(x => x.Value.Name is "ImVec2" or "ImVec4")
+                .Where(structure => structure.Value.SourceLocation != null)
+                .Where(structure =>
+                    Context.Customizations
+                        .RequireCustomization(structure.Value.SourceLocation)
+                        .NoEmitStructs
+                        .Contains(structure.Value.Name)
+                )
                 .ForEach(x => x.Value.NoEmit = true);
         }
 

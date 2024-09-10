@@ -1,0 +1,28 @@
+{
+  "original_header_file_name": "imgui_impl_dx12.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.DirectX12",
+  "constants_class_name": "ImGuiDirectX12Constants",
+  "native_functions_class_name": "ImGuiDirectX12Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiDirectX12",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplDX12_"
+  ],
+  "no_emit_structs": [
+    "ID3D12Device",
+    "ID3D12DeviceContext",
+    "D3D12_CPU_DESCRIPTOR_HANDLE",
+    "D3D12_GPU_DESCRIPTOR_HANDLE",
+    "ID3D12DescriptorHeap",
+    "ID3D12GraphicsCommandList"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "ID3D12Device",
+    "ID3D12DeviceContext",
+    "ID3D12DescriptorHeap",
+    "ID3D12GraphicsCommandList"
+  ],
+  "external_types": [
+    "DXGI_FORMAT"
+  ]
+}

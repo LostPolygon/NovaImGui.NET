@@ -2,9 +2,17 @@
   "original_header_file_name": "imgui_impl_win32.h",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.Win32",
+  "constants_class_name": "ImGuiWin32Constants",
   "native_functions_class_name": "ImGuiWin32Native",
   "native_functions_managed_wrapper_class_name": "ImGuiWin32",
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplWin32_"
+  ],
+  "external_types": [
+    "HWND",
+    "UINT",
+    "WPARAM",
+    "LPARAM",
+    "LRESULT"
   ]
 }

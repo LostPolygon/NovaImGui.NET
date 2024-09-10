@@ -1,0 +1,19 @@
+{
+  "original_header_file_name": "imgui_impl_dx11.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.DirectX11",
+  "constants_class_name": "ImGuiDirectX11Constants",
+  "native_functions_class_name": "ImGuiDirectX11Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiDirectX11",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplDX11_"
+  ],
+  "no_emit_structs": [
+    "ID3D11Device",
+    "ID3D11DeviceContext"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "ID3D11Device",
+    "ID3D11DeviceContext"
+  ]
+}

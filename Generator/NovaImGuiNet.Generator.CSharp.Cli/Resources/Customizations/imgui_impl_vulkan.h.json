@@ -1,0 +1,62 @@
+{
+  "original_header_file_name": "imgui_impl_vulkan.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.Vulkan",
+  "constants_class_name": "ImGuiVulkanConstants",
+  "native_functions_class_name": "ImGuiVulkanNative",
+  "native_functions_managed_wrapper_class_name": "ImGuiVulkan",
+  "prefixes_removed_from_managed_methods": [
+    "ImGui_ImplVulkan_"
+  ],
+  "no_emit_managed_methods_for_native_functions": [
+    "cImGui_ImplVulkan_RenderDrawData"
+  ],
+  "no_emit_structs": [
+    "VkInstance",
+    "VkCommandBuffer",
+    "VkPhysicalDevice"
+  ],
+  "make_pointers_to_structs_opaque": [
+  ],
+  "external_types": [
+    // VK dispatchable handles
+    "VkInstance",
+    "VkPhysicalDevice",
+    "VkDevice",
+    "VkQueue",
+    "VkCommandPool",
+    "VkCommandBuffer",
+
+    // VK non-dispatchable handles
+    "VkDescriptorPool",
+    "VkRenderPass",
+    "VkPipelineCache",
+    "VkFence",
+    "VkImage",
+    "VkImageView",
+    "VkFramebuffer",
+    "VkSemaphore",
+    "VkSwapchainKHR",
+    "VkSurfaceKHR",
+    "VkPipeline",
+    "VkDescriptorSet",
+    "VkSampler",
+
+    // VK misc
+    "VkFormat",
+    "VkColorSpaceKHR",
+    "VkSampleCountFlagBits",
+    "VkPresentModeKHR",
+    "VkClearValue",
+    "VkImageLayout",
+    "VkResult",
+    "VkDeviceSize",
+
+    // VK structs
+    "VkPipelineRenderingCreateInfoKHR",
+    "VkSurfaceFormatKHR",
+    "VkAllocationCallbacks",
+
+    "PFN_vkVoidFunction"
+  ]
+}

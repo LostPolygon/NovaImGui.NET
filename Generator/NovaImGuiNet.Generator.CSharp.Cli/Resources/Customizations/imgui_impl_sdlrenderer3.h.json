@@ -1,0 +1,17 @@
+{
+  "original_header_file_name": "imgui_impl_sdlrenderer3.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.Sdl3Renderer",
+  "constants_class_name": "ImGuiSdl3RendererConstants",
+  "native_functions_class_name": "ImGuiSdl3RendererNative",
+  "native_functions_managed_wrapper_class_name": "ImGuiSdl3Renderer",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplSDLRenderer3_"
+  ],
+  "no_emit_structs": [
+    "SDL_Renderer"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "SDL_Renderer"
+  ]
+}

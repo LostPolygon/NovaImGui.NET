@@ -1,0 +1,17 @@
+{
+  "original_header_file_name": "imgui_impl_dx9.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.DirectX9",
+  "constants_class_name": "ImGuiDirectX9Constants",
+  "native_functions_class_name": "ImGuiDirectX9Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiDirectX9",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplDX9_"
+  ],
+  "no_emit_structs": [
+    "IDirect3DDevice9"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "IDirect3DDevice9"
+  ]
+}

@@ -437,6 +437,10 @@ public class BindingsModelCodeGenerator {
             }
         }
 
+        if (argument.Attributes.Count != 0) {
+            parameter = parameter.AddAttributeLists(AttributeList(SeparatedList(argument.Attributes)));
+        }
+
         return parameter;
     }
 
@@ -445,7 +449,7 @@ public class BindingsModelCodeGenerator {
             EnumDeclaration(Identifier(entity.Name))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword));
 
-        if (entity.UnderlyingType != null) {
+        if (entity.UnderlyingType is { Value: not Builtin { BuiltinName: "int" } }) {
             enumDeclaration =
                 enumDeclaration
                     .AddBaseListTypes(SimpleBaseType(ParseTypeName(

@@ -2,9 +2,25 @@
   "original_header_file_name": "imgui_impl_sdl2.h",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.Sdl2",
+  "constants_class_name": "ImGuiSdl2Constants",
   "native_functions_class_name": "ImGuiSdl2Native",
   "native_functions_managed_wrapper_class_name": "ImGuiSdl2",
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplSDL2_"
+  ],
+  "no_emit_managed_methods_for_native_functions": [
+    "cImGui_ImplSDL2_SetGamepadMode"
+  ],
+  "no_emit_structs": [
+    "_SDL_GameController",
+    "SDL_Event",
+    "SDL_Window",
+    "SDL_Renderer"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "_SDL_GameController",
+    "SDL_Event",
+    "SDL_Window",
+    "SDL_Renderer"
   ]
 }

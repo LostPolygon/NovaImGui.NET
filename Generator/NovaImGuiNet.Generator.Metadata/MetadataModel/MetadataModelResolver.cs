@@ -385,13 +385,30 @@ public partial class MetadataModelResolver {
         return modelDelegate;
     }
 
-    private MetadataModel.Typedef MapTypedef(MetadataDto.Typedef dto) =>
-        new(
-            dto.Name,
+    private MetadataModel.Typedef MapTypedef(MetadataDto.Typedef dto) {
+        MetadataModel.IEntityReference typedefType;
+
+        string name = dto.Name;
+        EqualityList<MetadataModel.Conditional> conditionals =
+            MetadataDtoToModelMappingUtility.Map(dto.Conditionals).ToEqualityList();
+        if (name == dto.Type.Declaration) {
+            // HACK: for self-referential typedefs like SDL_Event in cimgui_impl_sdl3
+            typedefType =
+                new MetadataModel.Builtin(name, MetadataModel.StorageClass.NotSpecified)
+                    .AsEntityReference();
+
+            conditionals.Add(new MetadataModel.Conditional("if", "false"));
+        } else {
+            typedefType = ResolveTypeValue(dto.Type);
+        }
+
+        return new MetadataModel.Typedef(
+            name,
             MetadataDtoToModelMappingUtility.Map(dto.Comments),
-            MetadataDtoToModelMappingUtility.Map(dto.Conditionals).ToEqualityList(),
+            conditionals,
             MetadataDtoToModelMappingUtility.Map(dto.SourceLocation),
             dto.IsInternal,
-            ResolveTypeValue(dto.Type)
+            typedefType
         );
+    }
 }

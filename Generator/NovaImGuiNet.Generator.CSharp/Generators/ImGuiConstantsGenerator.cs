@@ -15,14 +15,31 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
             dto.Defines
                 .GroupBy(x => x.SourceLocation.Filename);
 
-        foreach (IGrouping<string,MetadataDto.Define> definesByFileName in definesByFileNames) {
-            string targetNamespace =
-                bindingsContext.Customizations.RequireCustomization(definesByFileName.Key).Namespace;
-            yield return GenerateForNamespace(targetNamespace, definesByFileName.ToArray());
+        foreach (IGrouping<string, MetadataDto.Define> definesByFileName in definesByFileNames) {
+            BindingsFileCustomizations fileCustomizations =
+                bindingsContext.Customizations.RequireCustomization(definesByFileName.Key);
+
+            Struct? constantsClass = GenerateForNamespace(
+                fileCustomizations.Namespace,
+                fileCustomizations.ConstantsClassName,
+                definesByFileName.ToArray()
+            );
+
+            if (constantsClass != null) {
+                yield return constantsClass;
+            }
         }
     }
 
-    private Struct GenerateForNamespace(string ns, IReadOnlyList<MetadataDto.Define> defineDtos) {
+    /// <summary>
+    ///
+    /// </summary>
+    /// <param name="targetNamespace"></param>
+    /// <param name="className"></param>
+    /// <param name="defineDtos"></param>
+    /// <returns>null if the class has no members</returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    private Struct? GenerateForNamespace(string targetNamespace, string className, IReadOnlyList<MetadataDto.Define> defineDtos) {
         List<Field> constants = [];
 
         // TODO: implement generating 'public static readonly IReadOnlyList<string> CompilerDefines = [];'
@@ -70,11 +87,15 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
             constants.Add(field);
         }
 
+        if (constants.Count == 0 /*&& compilerDefines.Count == 0*/)
+            return null;
+
         Struct structure = new() {
             Kind = Struct.StructKind.StaticClass,
-            Name = "ImGuiConstants",
-            Namespace = ns,
-            Comments = new Comments(["Dear ImGui compilation constants"], [], [])
+            Name = className,
+            Namespace = targetNamespace,
+            Comments = new Comments(["Dear ImGui compilation constants"], [], []),
+            IsSpecialTopLevel = true
         };
 
         structure.Children.AddRange(constants);

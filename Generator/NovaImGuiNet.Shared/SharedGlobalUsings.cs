@@ -3,16 +3,10 @@ global using System.Runtime.CompilerServices;
 global using NovaImGuiNet.Interop;
 global using size_t = nint;
 global using int32_t = System.Int32;
+global using uint32_t = System.UInt32;
 global using int64_t = System.Int64;
-
-//global using signed_byte = System.Byte;
-
-// Win32 backend
-global using HWND = nint;
-global using UINT = nint;
-global using WPARAM = nint;
-global using LPARAM = nint;
-global using LRESULT = nint;
+global using uint64_t = System.UInt64;
+global using signed_byte = System.Byte;
 
 #if !USE_UNITY_VECTORS
 global using ImVec2 = System.Numerics.Vector2;
@@ -24,3 +18,5 @@ global using ImVec3 = System.Numerics.Vector3; // Doesn't exist in Dear ImGui, b
 #if !NOVA_IMGUI_NET_MAIN
 global using unsafe ImPoolIdx = System.Int32;
 #endif
+
+

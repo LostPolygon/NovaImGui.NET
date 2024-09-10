@@ -1,0 +1,20 @@
+{
+  "original_header_file_name": "imgui_impl_opengl3.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.OpenGL3",
+  "constants_class_name": "ImGuiOpenGL3Constants",
+  "native_functions_class_name": "ImGuiOpenGL3Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiOpenGL3",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplOpenGL3_"
+  ],
+  "no_emit_managed_methods_for_native_functions": [
+    "cImGui_ImplOpenGL3_Init"
+  ],
+  "no_emit_structs": [
+
+  ],
+  "make_pointers_to_structs_opaque": [
+
+  ]
+}

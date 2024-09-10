@@ -188,6 +188,7 @@ public static class FunctionModifiers {
         argument.DefaultValue = initialDefaultValue switch {
             "NULL" => "default",
             "nullptr" => "default",
+            "VK_NULL_HANDLE" => "default",
             "ImVec2(0, 0)" => "default",
             "ImVec4(0, 0, 0, 0)" => "default",
             "IM_COL32(255, 0, 0, 255)" => "IM_COL32_RED",

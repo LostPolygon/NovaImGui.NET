@@ -2,6 +2,7 @@
   "original_header_file_name": "imgui.h",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet",
+  "constants_class_name": "ImGuiConstants",
   "native_functions_class_name": "ImGuiNative",
   "native_functions_managed_wrapper_class_name": "ImGui",
   "treat_pointer_arguments_as_arrays": [
@@ -17,5 +18,9 @@
         "itemsSeparatedByZeros"
       ]
     }
+  ],
+  "no_emit_structs": [
+    "ImVec2",
+    "ImVec4"
   ]
 }

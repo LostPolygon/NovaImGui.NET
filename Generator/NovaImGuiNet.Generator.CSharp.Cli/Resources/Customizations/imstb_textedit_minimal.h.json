@@ -2,6 +2,7 @@
   "original_header_file_name": "imstb_textedit_minimal.h",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Internal",
+  "constants_class_name": "ImGuiInternalConstants",
   "native_functions_class_name": "ImGuiInternalNative",
   "native_functions_managed_wrapper_class_name": "ImGuiInternal"
 }

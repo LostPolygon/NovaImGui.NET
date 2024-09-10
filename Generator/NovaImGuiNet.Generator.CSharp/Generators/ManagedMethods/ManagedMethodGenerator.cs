@@ -90,6 +90,9 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             bindingsContext.Customizations
                 .RequireCustomization(nativeFunction.SourceLocation);
 
+        if (bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions.Contains(nativeFunction.Name))
+            return [];
+
         bool isInstanceMethod = nativeFunction.OwnerStruct != null;
 
         string methodName = nativeFunctionBaseName;

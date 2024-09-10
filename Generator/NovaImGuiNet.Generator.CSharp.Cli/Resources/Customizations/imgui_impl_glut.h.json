@@ -1,0 +1,15 @@
+{
+  "original_header_file_name": "imgui_impl_glut.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.Glut",
+  "constants_class_name": "ImGuiGlutConstants",
+  "native_functions_class_name": "ImGuiGlutNative",
+  "native_functions_managed_wrapper_class_name": "ImGuiGlut",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplGLUT_"
+  ],
+  "no_emit_structs": [
+  ],
+  "make_pointers_to_structs_opaque": [
+  ]
+}

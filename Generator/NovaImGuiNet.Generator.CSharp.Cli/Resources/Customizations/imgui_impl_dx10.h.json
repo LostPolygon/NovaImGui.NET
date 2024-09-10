@@ -1,0 +1,17 @@
+{
+  "original_header_file_name": "imgui_impl_dx10.h",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.Backends.DirectX10",
+  "constants_class_name": "ImGuiDirectX10Constants",
+  "native_functions_class_name": "ImGuiDirectX10Native",
+  "native_functions_managed_wrapper_class_name": "ImGuiDirectX10",
+  "prefixes_removed_from_managed_methods": [
+    "cImGui_ImplDX10_"
+  ],
+  "no_emit_structs": [
+    "ID3D10Device"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "ID3D10Device"
+  ]
+}
