@@ -44,7 +44,6 @@ public class Generator {
                 "Resources/cimgui/cimgui_imconfig.json",
                 "Resources/cimgui/cimgui.json",
                 "Resources/cimgui/cimgui_internal.json",
-                "Resources/cimgui/cimgui_internal_imstb_textedit_minimal.json",
 
                 //"Resources/cimgui/cimplot.json",
             ];

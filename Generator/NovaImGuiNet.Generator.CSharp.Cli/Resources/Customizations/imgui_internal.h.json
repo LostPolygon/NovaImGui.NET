@@ -5,6 +5,9 @@
   "constants_class_name": "ImGuiInternalConstants",
   "native_functions_class_name": "ImGuiInternalNative",
   "native_functions_managed_wrapper_class_name": "ImGuiInternal",
+  "no_emit_structs": [
+    "ImStb_STB_TexteditState"
+  ],
   "functions_no_permutations": [
     "cImStristr",
     "cImStreolRange",

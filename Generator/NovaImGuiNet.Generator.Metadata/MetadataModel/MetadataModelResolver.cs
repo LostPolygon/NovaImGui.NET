@@ -233,7 +233,7 @@ public partial class MetadataModelResolver {
                         fieldDto.IsAnonymous,
                         false,
                         fieldDto.Width,
-                        null,
+                        fieldDto.DefaultValue,
                         fieldType
                     );
                 }

@@ -157,7 +157,7 @@ public record MetadataModel(
         bool IsAnonymous,
         bool IsConstant,
         int? Width,
-        string? Value,
+        string? DefaultValue,
         IEntityReference Type
     ) : IndependentEntity<Field>(Comments, Conditionals, SourceLocation, IsInternal);
 

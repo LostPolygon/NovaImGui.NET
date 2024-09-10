@@ -693,7 +693,10 @@ public class BindingsModelCodeGenerator {
         }
 
         VariableDeclaratorSyntax fieldVariable = VariableDeclarator(fieldName);
-        if (field.Value != null) {
+
+        // FIXME: disabled for non-static classes as it would need a separate public constructor for a struct,
+        // which is not supported in all C# versions
+        if (field.IsConstant && field.Value != null) {
             fieldVariable = fieldVariable.WithInitializer(
                 EqualsValueClause(ParseExpression(field.Value))
             );

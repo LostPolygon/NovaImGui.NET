@@ -259,10 +259,10 @@ public partial class BindingsModel {
 
     public record Field : IndependentEntity {
         public required string Name { get; set; }
-        public required string? Value { get; set; }
         public required IEntityReference Type { get; set; }
         public bool IsConstant { get; set; }
         public int? BitWidth { get; set; }
+        public required string? Value { get; set; }
 
         public Field() {
         }

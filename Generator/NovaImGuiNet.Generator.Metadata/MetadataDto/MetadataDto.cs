@@ -76,6 +76,7 @@ public record MetadataDto(
         public bool IsArray { get; init; }
         public string ArrayBounds { get; init; }
         public int? Width { get; init; }
+        public string? DefaultValue { get; init; }
 
         public bool IsAnonymous { get; init; }
     }
