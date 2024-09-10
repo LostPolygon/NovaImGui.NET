@@ -93,6 +93,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         if (bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions.Contains(nativeFunction.Name))
             return [];
 
+        if (nativeFunctionBaseName.Contains("SetTexID")) {
+            Console.Write((5));
+        }
+
         bool isInstanceMethod = nativeFunction.OwnerStruct != null;
 
         string methodName = nativeFunctionBaseName;
@@ -419,8 +423,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.Pointer);
 
             bool isOutPointer = description.Argument.Name.Contains("out", StringComparison.OrdinalIgnoreCase);
-            bool isVoidPointer = description.Argument.Type.Value is Pointer { ValueType.Value: Builtin { BuiltinName: "void" } };
-            bool isVoidPointerPointer = description.Argument.Type.Value is Pointer { ValueType.Value: Pointer { ValueType.Value: Builtin { BuiltinName: "void" } } };
+            bool isVoidPointer = description.Argument.Type.Value.IsVoidPointer();
+            bool isVoidPointerPointer =
+                description.Argument.Type.Value is Pointer pointer &&
+                pointer.ValueType.Value.IsVoidPointer();
 
             if (isVoidPointerPointer) {
                 AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.IntPtr);

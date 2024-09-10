@@ -25,7 +25,7 @@ public class Generator {
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
             string[] loadedFiles = [
                 // NOTE: SDL2 and SDL3 need to be processed separately because of identical type names
-                "Resources/cimgui/cimgui_impl_sdl2.json",
+                //"Resources/cimgui/cimgui_impl_sdl2.json",
                 "Resources/cimgui/cimgui_impl_sdlrenderer2.json",
 
                 //"Resources/cimgui/cimgui_impl_sdl3.json",
@@ -139,7 +139,9 @@ public class Generator {
                     // FIXME: this doesn't check for SourceLocation, but it probably should
                     bool isExternalType =
                         BindingsContext.Customizations.BindingsFileCustomizations
-                        .Any(x => x.ExternalTypes.Contains(builtin.Type));
+                            .Any(x => x.ExternalTypes.Contains(builtin.Type)) ||
+                        BindingsContext.Customizations.BindingsFileCustomizations
+                            .Any(x => x.GenerateHandleTypes.Any(handle => handle.Name == builtin.Type));
 
                     if (isExternalType)
                         return;
@@ -154,7 +156,10 @@ public class Generator {
 
         if (unresolvedEntities.Count != 0) {
             foreach (MetadataModel.Entity unresolvedEntity in unresolvedEntities) {
-                Log.LogCritical($"Unresolved entity type: {unresolvedEntity}");
+                Log.LogCritical(
+                    $"Unresolved entity type: {unresolvedEntity} (source location: " +
+                    $"{(unresolvedEntity as MetadataModel.ITopLevelEntity)?.SourceLocation?.ToString() ?? "n/a"})"
+                );
             }
 
             throw new InvalidOperationException(
@@ -182,8 +187,8 @@ public class Generator {
 
         BindingsFileCustomizations[] fileCustomizations =
             jsonFiles
-            .Select(LoadBindingsFileCustomizations)
-            .ToArray();
+                .Select(LoadBindingsFileCustomizations)
+                .ToArray();
 
         return new BindingsCustomizationsContext(fileCustomizations);
     }

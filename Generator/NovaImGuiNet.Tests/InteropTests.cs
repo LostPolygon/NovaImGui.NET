@@ -1,4 +1,3 @@
-using System.Text;
 using NovaImGuiNet.Interop;
 
 namespace NovaImGuiNet.Tests;

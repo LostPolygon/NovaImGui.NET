@@ -29,7 +29,7 @@ public static class BindingsModelExtensions {
 
         switch (entityReference.Value) {
             case Pointer pointer:
-                if (pointer.ValueType.Value is Builtin { BuiltinName: "void" }) {
+                if (pointer.IsVoidPointer()) {
                     return entityReference;
                 }
 
@@ -47,7 +47,7 @@ public static class BindingsModelExtensions {
 
         switch (entityReference.Value) {
             case Pointer pointer:
-                if (pointer.ValueType.Value is Builtin { BuiltinName: "void" }) {
+                if (pointer.IsVoidPointer()) {
                     return entityReference;
                 }
 

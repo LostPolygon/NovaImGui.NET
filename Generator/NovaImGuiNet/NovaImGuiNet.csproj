@@ -94,4 +94,8 @@
       <ProjectReference Include="..\NovaImGuiNet.Shared\NovaImGuiNet.Shared.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Templates\" />
+    </ItemGroup>
+
 </Project>

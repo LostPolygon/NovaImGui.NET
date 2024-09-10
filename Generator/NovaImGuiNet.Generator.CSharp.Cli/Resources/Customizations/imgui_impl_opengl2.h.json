@@ -7,11 +7,5 @@
   "native_functions_managed_wrapper_class_name": "ImGuiOpenGL2",
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplOpenGL2_"
-  ],
-  "no_emit_structs": [
-
-  ],
-  "make_pointers_to_structs_opaque": [
-
   ]
 }

@@ -1,7 +1,9 @@
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace NovaImGuiNet.Generator.CSharp;
 
-public record CompilationUnitFileInformation(string Name, string Namespace, bool ForceTopLevel = false);
-
-public record CompilationUnitWithFileInformation(CompilationUnitSyntax CompilationUnitSyntax, CompilationUnitFileInformation File);
+public record CompilationUnitFileInformation(
+    string Name,
+    string Namespace,
+    string? Category = null,
+    bool IsPreformatted = false,
+    bool ForceTopLevel = false
+);

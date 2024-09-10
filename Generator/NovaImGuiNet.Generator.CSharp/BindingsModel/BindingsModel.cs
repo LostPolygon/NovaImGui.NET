@@ -8,6 +8,8 @@ public partial class BindingsModel {
     public IReadOnlyList<EntityReferenceWrapper<Typedef>> Typedefs => GetChildren<Typedef>();
     public IReadOnlyList<EntityReferenceWrapper<Function>> FreeFunctions => GetChildren<Function>();
 
+    public List<CompilationUnitWithFileInformation> ExtraCompilationUnits { get; } = [];
+
     public BindingsModel() {
     }
 

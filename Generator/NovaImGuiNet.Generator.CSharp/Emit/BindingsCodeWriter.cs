@@ -85,7 +85,7 @@ public class BindingsCodeWriter {
 #if DEBUG
         fileName = $"{fileName}.cs";
 #else
-        fileName = $"{fileName}.gen.cs";
+        fileName = $"{fileName}.g.cs";
 #endif
 
         return fileName;

@@ -1,6 +1,8 @@
 using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
+using NovaImGuiNet.Generator.CSharp.Templates;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
@@ -11,6 +13,49 @@ using static SyntaxFactoryCached;
 
 public static class ModelModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(ModelModifiers));
+
+    public static BindingsModel GenerateHandleTypes(BindingsContext context, BindingsModel model) {
+        // Generate handles
+        foreach (BindingsFileCustomizations fileCustomizations in context.Customizations.BindingsFileCustomizations) {
+            foreach (BindingsFileCustomizations.TreatTypeAsHandle handle in fileCustomizations.GenerateHandleTypes) {
+                CompilationUnitWithFileInformation generatedHandle =
+                    handle.ValueType == null ?
+                        GeneratePointerHandle(fileCustomizations.Namespace, handle.Name) :
+                        GenerateValueHandle(fileCustomizations.Namespace, handle.Name, handle.ValueType);
+
+                model.ExtraCompilationUnits.Add(generatedHandle);
+            }
+        }
+
+        // Check if there were any matching typedefs and if so, rewrite
+        foreach (EntityReferenceWrapper<Typedef> typedef in model.Typedefs) {
+            if (typedef.Value.SourceLocation == null)
+                continue;
+
+            BindingsFileCustomizations fileCustomizations =
+                context.Customizations
+                    .RequireCustomization(typedef.Value.SourceLocation);
+            BindingsFileCustomizations.TreatTypeAsHandle? treatTypeAsHandle =
+                fileCustomizations
+                    .GenerateHandleTypes
+                    .FirstOrDefault(x => x.Name == typedef.Value.Name);
+
+            if (treatTypeAsHandle == null)
+                continue;
+
+            if (treatTypeAsHandle.ValueType == null) {
+                typedef.Value.Type = KnownEntities.IntPtr.AsEntityReference();
+            } else {
+                typedef.Value.Type =
+                    new Builtin(treatTypeAsHandle.ValueType, null, StorageClass.NotSpecified)
+                        .AsEntityReference();
+            }
+
+            typedef.Value.NoEmit = true;
+        }
+
+        return model;
+    }
 
     public static BindingsModel AssignNamespaces(BindingsContext context, BindingsModel model) {
         IEnumerable<ITopLevelEntity> topLevelEntities =
@@ -143,5 +188,59 @@ public static class ModelModifiers {
         }
 
         return model;
+    }
+
+    private static CompilationUnitWithFileInformation GeneratePointerHandle(
+        string targetNamespace,
+        string typeName
+    ) {
+        PointerHandleTemplate template = new() {
+            Session = new Dictionary<string, object> {
+                [nameof(PointerHandleTemplate.TypeNamespace)] = targetNamespace,
+                [nameof(PointerHandleTemplate.TypeName)] = typeName,
+            }
+        };
+
+        template.Initialize();
+        string transformText = template.TransformText();
+
+        CompilationUnitSyntax compilationUnitSyntax = ParseCompilationUnit(transformText);
+        return
+            new CompilationUnitWithFileInformation(
+                compilationUnitSyntax,
+                new CompilationUnitFileInformation(
+                    typeName,
+                    targetNamespace,
+                    "Structs"
+                )
+            );
+    }
+
+    private static CompilationUnitWithFileInformation GenerateValueHandle(
+        string targetNamespace,
+        string typeName,
+        string valueType
+    ) {
+        ValueHandleTemplate template = new() {
+            Session = new Dictionary<string, object> {
+                [nameof(ValueHandleTemplate.TypeNamespace)] = targetNamespace,
+                [nameof(ValueHandleTemplate.TypeName)] = typeName,
+                [nameof(ValueHandleTemplate.ValueType)] = valueType,
+            }
+        };
+
+        template.Initialize();
+        string transformText = template.TransformText();
+
+        CompilationUnitSyntax compilationUnitSyntax = ParseCompilationUnit(transformText);
+        return
+            new CompilationUnitWithFileInformation(
+                compilationUnitSyntax,
+                new CompilationUnitFileInformation(
+                    typeName,
+                    targetNamespace,
+                    "Structs"
+                )
+            );
     }
 }

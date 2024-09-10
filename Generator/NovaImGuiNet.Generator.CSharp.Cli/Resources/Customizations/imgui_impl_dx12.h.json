@@ -8,21 +8,31 @@
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplDX12_"
   ],
+  "generate_handle_types": [
+    {
+      "name": "D3D12_CPU_DESCRIPTOR_HANDLE"
+    },
+    {
+      "name": "D3D12_GPU_DESCRIPTOR_HANDLE",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "DXGI_FORMAT",
+      "value_type": "int"
+    }
+  ],
   "no_emit_structs": [
     "ID3D12Device",
     "ID3D12DeviceContext",
-    "D3D12_CPU_DESCRIPTOR_HANDLE",
-    "D3D12_GPU_DESCRIPTOR_HANDLE",
     "ID3D12DescriptorHeap",
-    "ID3D12GraphicsCommandList"
+    "ID3D12GraphicsCommandList",
+    "D3D12_CPU_DESCRIPTOR_HANDLE",
+    "D3D12_GPU_DESCRIPTOR_HANDLE"
   ],
   "make_pointers_to_structs_opaque": [
     "ID3D12Device",
     "ID3D12DeviceContext",
     "ID3D12DescriptorHeap",
     "ID3D12GraphicsCommandList"
-  ],
-  "external_types": [
-    "DXGI_FORMAT"
   ]
 }

@@ -22,5 +22,10 @@
   "no_emit_structs": [
     "ImVec2",
     "ImVec4"
+  ],
+  "generate_handle_types": [
+    {
+      "name": "ImTextureID"
+    }
   ]
 }

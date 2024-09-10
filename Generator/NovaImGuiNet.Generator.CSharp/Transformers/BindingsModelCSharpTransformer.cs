@@ -50,7 +50,9 @@ public class BindingsModelCSharpTransformer {
             Model = RenameStructFieldType(Model, "ImGuiStyleMod", "__anonymous_type", "ImGuiStyleModBackupValue", "BackupValue");
         }
 
-        Transform("Patching broken typedefs", Model.Typedefs, PatchBrokenTypedefs);
+        using (Operation("Generating handle types")) {
+            Model = ModelModifiers.GenerateHandleTypes(Context, Model);
+        }
 
         using (Operation("Rewriting typedefs to enums")) {
             Model = UpdateEnumTypedefs(Model);

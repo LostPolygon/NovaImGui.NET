@@ -1,0 +1,27 @@
+<#@ output extension=".g.cs" #>
+<#@ parameter type="System.String" name="TypeName" #>
+<#@ parameter type="System.String" name="TypeNamespace" #>
+<#@ parameter type="System.String" name="ValueType" #>
+namespace <#= TypeNamespace #>;
+
+public unsafe struct <#= TypeName #> : IEquatable<<#= TypeName #>> {
+    public <#= ValueType #> Handle;
+
+    public <#= TypeName #>(<#= ValueType #> existingHandle) => Handle = existingHandle;
+
+    public bool Equals(<#= TypeName #> other) => Handle == other.Handle;
+
+    public override bool Equals(object? obj) => obj is <#= TypeName #> other && Equals(other);
+
+    public override int GetHashCode() => Handle.GetHashCode();
+
+    public override string ToString() => Handle.ToString();
+
+    public static bool operator ==(<#= TypeName #> left, <#= TypeName #> right) => left.Equals(right);
+
+    public static bool operator !=(<#= TypeName #> left, <#= TypeName #> right) => !left.Equals(right);
+
+    public static implicit operator <#= ValueType #>(<#= TypeName #> handle) => handle.Handle;
+
+    public static explicit operator <#= TypeName #>(<#= ValueType #> existingHandle) => new(existingHandle);
+}

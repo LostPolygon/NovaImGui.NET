@@ -12,47 +12,111 @@
   "no_emit_managed_methods_for_native_functions": [
     "cImGui_ImplVulkan_RenderDrawData"
   ],
-  "no_emit_structs": [
-    "VkInstance",
-    "VkCommandBuffer",
-    "VkPhysicalDevice"
-  ],
-  "make_pointers_to_structs_opaque": [
+  "generate_handle_types": [
+    {
+      "name": "VkInstance"
+    },
+    {
+      "name": "VkPhysicalDevice"
+    },
+    {
+      "name": "VkDevice"
+    },
+    {
+      "name": "VkQueue"
+    },
+    {
+      "name": "VkCommandPool"
+    },
+    {
+      "name": "VkCommandBuffer"
+    },
+    {
+      "name": "VkDescriptorPool",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkRenderPass",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkPipelineCache",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkFence",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkImage",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkImageView",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkFramebuffer",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkSemaphore",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkSwapchainKHR",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkSurfaceKHR",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkPipeline",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkDescriptorSet",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkSampler",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkDeviceSize",
+      "value_type": "System.UInt64"
+    },
+    {
+      "name": "VkFormat",
+      "value_type": "int"
+    },
+    {
+      "name": "VkColorSpaceKHR",
+      "value_type": "int"
+    },
+    {
+      "name": "VkSampleCountFlagBits",
+      "value_type": "int"
+    },
+    {
+      "name": "VkPresentModeKHR",
+      "value_type": "int"
+    },
+    {
+      "name": "VkClearValue",
+      "value_type": "int"
+    },
+    {
+      "name": "VkImageLayout",
+      "value_type": "int"
+    },
+    {
+      "name": "VkResult",
+      "value_type": "int"
+    }
   ],
   "external_types": [
-    // VK dispatchable handles
-    "VkInstance",
-    "VkPhysicalDevice",
-    "VkDevice",
-    "VkQueue",
-    "VkCommandPool",
-    "VkCommandBuffer",
-
-    // VK non-dispatchable handles
-    "VkDescriptorPool",
-    "VkRenderPass",
-    "VkPipelineCache",
-    "VkFence",
-    "VkImage",
-    "VkImageView",
-    "VkFramebuffer",
-    "VkSemaphore",
-    "VkSwapchainKHR",
-    "VkSurfaceKHR",
-    "VkPipeline",
-    "VkDescriptorSet",
-    "VkSampler",
-
-    // VK misc
-    "VkFormat",
-    "VkColorSpaceKHR",
-    "VkSampleCountFlagBits",
-    "VkPresentModeKHR",
-    "VkClearValue",
-    "VkImageLayout",
-    "VkResult",
-    "VkDeviceSize",
-
     // VK structs
     "VkPipelineRenderingCreateInfoKHR",
     "VkSurfaceFormatKHR",

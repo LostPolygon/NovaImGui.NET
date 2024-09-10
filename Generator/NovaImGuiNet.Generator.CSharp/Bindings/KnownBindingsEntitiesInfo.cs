@@ -11,10 +11,6 @@ public static class KnownBindingsEntitiesInfo {
         "varargs",
         "va_list",
 
-        // SDL2 Backend
-        "SDL_Event",
-        "SDL_Renderer",
-
         // ImPlot
         //"IMPLOT_API",
         //"T",

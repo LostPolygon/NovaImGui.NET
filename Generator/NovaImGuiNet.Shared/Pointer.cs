@@ -8,6 +8,7 @@ namespace NovaImGuiNet;
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
+    [DebuggerBrowsable(DebuggerBrowsableState.Collapsed)]
     public T* Ptr;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -19,7 +20,6 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public IntPtr IntPtr => (IntPtr) Ptr;
 
-    [DebuggerBrowsable(DebuggerBrowsableState.Collapsed)]
     public ref T Value {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ref *Ptr;

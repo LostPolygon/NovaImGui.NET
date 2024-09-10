@@ -14,10 +14,40 @@
     <ItemGroup>
       <PackageReference Include="CaseConverter" Version="2.0.1" />
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.7.0" />
+      <PackageReference Include="Mono.TextTemplating" Version="3.0.0" />
       <PackageReference Include="morelinq" Version="4.3.0" />
+      <PackageReference Include="Nerdbank.GitVersioning" Version="3.7.77-alpha">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
       <PackageReference Include="OneOf" Version="3.0.271" />
       <PackageReference Include="OneOf.SourceGenerator" Version="3.0.271" />
       <PackageReference Include="org.matheval" Version="1.0.0.3" />
+      <PackageReference Include="ThisAssembly" Version="1.5.1-alpha">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
     </ItemGroup>
+
+    <!-- T4 templates generation -->
+    <ItemGroup>
+        <TextTemplate Include="**\*.tt"/>
+        <Generated Include="**\*.g.cs"/>
+    </ItemGroup>
+    
+    <Target Name="TextTemplateTransform"
+            BeforeTargets="BeforeBuild"
+            Inputs="@(TextTemplate)"
+            Outputs="@(TextTemplate->'%(RecursiveDir)%(Filename)Template.g.cs')">
+        <Exec
+            WorkingDirectory="$(ProjectDir)"
+            Command="dotnet t4 %(TextTemplate.Identity) -o %(RecursiveDir)%(TextTemplate.Filename)Template.g.cs --class=NovaImGuiNet.Generator.CSharp.Templates.%(TextTemplate.Filename)Template"
+        />
+
+        <!-- https://github.com/dotnet/msbuild/issues/5570 -->
+        <ItemGroup>
+            <Compile Include="@(TextTemplate->'%(RecursiveDir)%(Filename)Template.g.cs')" Exclude="@(Compile)"/>
+        </ItemGroup>
+    </Target>
 
 </Project>

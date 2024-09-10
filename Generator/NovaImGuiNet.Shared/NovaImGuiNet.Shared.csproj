@@ -16,4 +16,25 @@
       <PackageReference Include="System.Memory" Version="4.5.5" />
     </ItemGroup>
 
+    <!-- T4 templates generation -->
+    <ItemGroup>
+        <TextTemplate Include="**\*.tt"/>
+        <Generated Include="**\*.g.cs"/>
+    </ItemGroup>
+
+    <Target Name="TextTemplateTransform"
+            BeforeTargets="BeforeBuild"
+            Inputs="@(TextTemplate)"
+            Outputs="@(TextTemplate->'%(RecursiveDir)%(Filename).g.cs')">
+        <Exec
+            WorkingDirectory="$(ProjectDir)"
+            Command="dotnet t4 %(TextTemplate.Identity) -o %(RecursiveDir)%(TextTemplate.Filename).cs"
+        />
+
+        <!-- https://github.com/dotnet/msbuild/issues/5570 -->
+        <ItemGroup>
+            <Compile Include="@(TextTemplate->'%(RecursiveDir)%(Filename).g.cs')" Exclude="@(Compile)"/>
+        </ItemGroup>
+    </Target>
+
 </Project>

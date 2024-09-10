@@ -16,6 +16,8 @@ public record BindingsFileCustomizations {
     public IReadOnlyList<string> NoEmitManagedMethodsForNativeFunctions { get; init; } = [];
     public IReadOnlyList<string> NoEmitNativeFunctions { get; init; } = [];
     public IReadOnlyList<string> NoEmitStructs { get; init; } = [];
+    public IReadOnlyList<string> NoEmitTypedefs { get; init; } = [];
+    public IReadOnlyList<TreatTypeAsHandle> GenerateHandleTypes { get; init; } = [];
     public IReadOnlyList<string> ExternalTypes { get; init; } = [];
 
     public record NativeFunctionIdentifier {
@@ -25,5 +27,10 @@ public record BindingsFileCustomizations {
 
     public record NativeFunctionArgumentsIdentifier : NativeFunctionIdentifier {
         public IReadOnlyList<string> Arguments { get; init; } = [];
+    }
+
+    public record TreatTypeAsHandle {
+        public string Name { get; init; }
+        public string? ValueType { get; init; }
     }
 }

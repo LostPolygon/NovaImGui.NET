@@ -10,11 +10,5 @@
   ],
   "no_emit_managed_methods_for_native_functions": [
     "cImGui_ImplOpenGL3_Init"
-  ],
-  "no_emit_structs": [
-
-  ],
-  "make_pointers_to_structs_opaque": [
-
   ]
 }
