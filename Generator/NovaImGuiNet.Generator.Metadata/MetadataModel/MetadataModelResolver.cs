@@ -298,6 +298,7 @@ public partial class MetadataModelResolver {
                     dto.HasImstrHelper,
                     dto.IsManualHelper,
                     dto.IsUnformattedHelper,
+                    dto.IsStatic,
                     arguments.ToEqualityList(),
                     returnType,
                     MetadataDtoToModelMappingUtility.Map(dto.Comments),

@@ -97,6 +97,7 @@ public record MetadataDto(
         public bool HasImstrHelper { get; init; }
         public bool IsManualHelper { get; init; }
         public bool IsUnformattedHelper { get; init; }
+        public bool IsStatic { get; init; }
     }
 
     public record Comments(

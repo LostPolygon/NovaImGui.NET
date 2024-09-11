@@ -91,7 +91,8 @@ public partial class BindingsModelFromMetadataResolver {
             metadata.IsImstrHelper,
             metadata.HasImstrHelper,
             metadata.IsManualHelper,
-            metadata.IsUnformattedHelper
+            metadata.IsUnformattedHelper,
+            metadata.IsStatic
         ) {
             Name = metadata.Name,
             Arguments = metadata.Arguments.Select(ResolveFunctionArgument).ToList(),

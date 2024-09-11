@@ -10,24 +10,25 @@ public partial struct ImColor {
 
     public ImColor(byte r, byte g, byte b, byte a = 255)
         : this(
-            new ImVec4(
-                r * (1f / Byte.MaxValue),
-                g * (1f / Byte.MaxValue),
-                b * (1f / Byte.MaxValue),
-                a * (1f / Byte.MaxValue)
-            )
+            r * (1f / Byte.MaxValue),
+            g * (1f / Byte.MaxValue),
+            b * (1f / Byte.MaxValue),
+            a * (1f / Byte.MaxValue)
         ) {
     }
 
     public ImColor(ImU32 rgba) : this(
-        rgba >> IM_COL32_R_SHIFT & 0xFF,
-        rgba >> IM_COL32_G_SHIFT & 0xFF,
-        rgba >> IM_COL32_B_SHIFT & 0xFF,
-        rgba >> IM_COL32_A_SHIFT & 0xFF
+        (byte) (rgba >> IM_COL32_R_SHIFT & 0xFF),
+        (byte) (rgba >> IM_COL32_G_SHIFT & 0xFF),
+        (byte) (rgba >> IM_COL32_B_SHIFT & 0xFF),
+        (byte) (rgba >> IM_COL32_A_SHIFT & 0xFF)
     ) {
     }
 
     public uint ToUInt32() => ImGui.ColorConvertFloat4ToU32(Value);
+
+    public override string ToString() =>
+        $"R: {Value.X:0.000}, G: {Value.Y:0.000}, B: {Value.Z:0.000}, A: {Value.W:0.000}";
 
     public static implicit operator ImColor(ImVec4 value) => new(value);
 

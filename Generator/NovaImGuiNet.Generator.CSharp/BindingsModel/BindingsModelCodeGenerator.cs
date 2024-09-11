@@ -299,7 +299,7 @@ public class BindingsModelCodeGenerator {
             MethodDeclarationSyntax methodSyntax =
                 GenerateFunctionBindingMethodSyntax(
                         function,
-                        false,
+                        true,
                         true,
                         delegatesAsFunctionPointers,
                         null
@@ -346,14 +346,14 @@ public class BindingsModelCodeGenerator {
 
     private static MethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
         Function function,
-        bool isInstanceMethod,
+        bool isStaticMethod,
         bool isNativeMethod,
         bool delegatesAsFunctionPointers,
         BlockSyntax? bodyBlockSyntax
     ) {
         List<SyntaxKind> modifiers = [SyntaxKind.PublicKeyword];
 
-        if (!isInstanceMethod) {
+        if (isStaticMethod) {
             modifiers.Add(SyntaxKind.StaticKeyword);
         }
 
@@ -567,7 +567,7 @@ public class BindingsModelCodeGenerator {
                     MethodDeclarationSyntax methodSyntax =
                         GenerateFunctionBindingMethodSyntax(
                             functionModel,
-                            functionModel.OwnerStruct != null,
+                            functionModel.OwnerStruct == null || functionModel.IsStatic,
                             false,
                             false,
                             functionModel.Body

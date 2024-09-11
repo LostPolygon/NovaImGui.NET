@@ -215,6 +215,7 @@ public record MetadataModel(
         bool HasImstrHelper,
         bool IsManualHelper,
         bool IsUnformattedHelper,
+        bool IsStatic,
         IReadOnlyList<FunctionArgument> Arguments,
         IEntityReference ReturnType,
         Comments Comments,
