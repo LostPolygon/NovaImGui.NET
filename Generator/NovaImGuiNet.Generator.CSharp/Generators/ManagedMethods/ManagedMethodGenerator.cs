@@ -24,9 +24,9 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             EntityReferenceWrapper<Struct>? ownerStruct = functionsByStruct.Key;
             EntityReferenceWrapper<Function>[] structFunctions = functionsByStruct.ToArray();
             if (ownerStruct == null) {
-                IGrouping<string?, EntityReferenceWrapper<Function>>[] allFreeFunctionsByNamespaces =
+                IGrouping<string, EntityReferenceWrapper<Function>>[] allFreeFunctionsByNamespaces =
                     structFunctions
-                        .GroupBy(x => x.Value.Namespace)
+                        .GroupBy(x => x.Value.Namespace!)
                         .ToArray();
 
                 foreach (var freeFunctionsByNamespace in allFreeFunctionsByNamespaces) {
@@ -62,7 +62,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         IEnumerable<IGrouping<string?, EntityReferenceWrapper<Function>>> functionsByOriginalNames =
             structFunctionReferences.GroupBy(x => x.Value.OriginalFullyQualifiedName);
 
-        foreach (IGrouping<string, EntityReferenceWrapper<Function>> functionsByOriginalName in functionsByOriginalNames) {
+        foreach (IGrouping<string?, EntityReferenceWrapper<Function>> functionsByOriginalName in functionsByOriginalNames) {
             EntityReferenceWrapper<Function>[] functions = functionsByOriginalName.ToArray();
             if (functions.Length == 0)
                 continue;

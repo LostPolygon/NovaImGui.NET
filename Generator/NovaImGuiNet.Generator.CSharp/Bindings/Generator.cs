@@ -11,7 +11,7 @@ public class Generator {
     private readonly string _rootOutputPath;
     private readonly BindingsGenerationOptions _bindingsGenerationOptions;
 
-    private BindingsContext BindingsContext { get; set; }
+    private BindingsContext BindingsContext { get; set; } = null!;
 
     public Generator(string rootOutputPath, BindingsGenerationOptions bindingsGenerationOptions) {
         _rootOutputPath = rootOutputPath;
@@ -124,10 +124,7 @@ public class Generator {
     }
 
     private BindingsModel ResolveBindingsModel(MetadataModel metadataModel) {
-        BindingsModelFromMetadataResolver bindingsModelResolver = new(
-            metadataModel,
-            BindingsContext
-        );
+        BindingsModelFromMetadataResolver bindingsModelResolver = new(metadataModel);
 
         List<MetadataModel.Entity> unresolvedEntities = [];
         bindingsModelResolver.UnresolvedTypeDetected += entity => {

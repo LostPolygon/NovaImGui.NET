@@ -19,12 +19,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="System.Text.Json" Version="8.0.4" />
       <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
-      <PackageReference Include="Nerdbank.GitVersioning" Version="3.7.77-alpha">
-          <PrivateAssets>all</PrivateAssets>
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      </PackageReference>
     </ItemGroup>
 
 </Project>

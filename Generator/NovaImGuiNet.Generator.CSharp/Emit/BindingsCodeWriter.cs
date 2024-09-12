@@ -38,6 +38,7 @@ public class BindingsCodeWriter {
                 .Select(CreateFileName)
                 .Select(Path.GetDirectoryName)
                 .Where(x => !String.IsNullOrWhiteSpace(x))
+                .Cast<string>()
                 .Distinct()
                 .ToArray();
 

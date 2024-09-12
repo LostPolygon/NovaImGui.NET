@@ -37,11 +37,14 @@ public static class SyntaxFactoryCached {
     public static TypeSyntax ParseTypeName(string text) =>
         GetOrAdd(text, ParsedTypeNames, t => SyntaxFactory.ParseTypeName(t));
 
-    private static T GetOrAdd<T>(string text, Dictionary<string, T> dictionary, Func<string, T> factory) {
+    private static T GetOrAdd<T>(string text, Dictionary<string, T> dictionary, Func<string, T?> factory) where T : notnull {
 #if !DISABLE_CACHE
         lock (dictionary) {
             if (!dictionary.TryGetValue(text, out T? syntax)) {
                 syntax = factory(text);
+                if (syntax == null)
+                    throw new InvalidOperationException($"Failed parse expression '{text}'");
+
                 dictionary[text] = syntax;
             }
 

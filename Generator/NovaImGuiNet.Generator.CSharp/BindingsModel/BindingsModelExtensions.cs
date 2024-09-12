@@ -1,4 +1,6 @@
-﻿namespace NovaImGuiNet.Generator.CSharp;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace NovaImGuiNet.Generator.CSharp;
 
 using static BindingsModel;
 
@@ -23,6 +25,7 @@ public static class BindingsModelExtensions {
         return null;
     }
 
+    [return: NotNullIfNotNull(nameof(entityReference))]
     public static IEntityReference? ExpandAllTypedefsAndPointers(this IEntityReference? entityReference)  {
         if (entityReference == null)
             return null;
@@ -41,6 +44,7 @@ public static class BindingsModelExtensions {
         return entityReference;
     }
 
+    [return: NotNullIfNotNull(nameof(entityReference))]
     public static IEntityReference? ExpandPointer(this IEntityReference? entityReference)  {
         if (entityReference == null)
             return null;
@@ -57,6 +61,7 @@ public static class BindingsModelExtensions {
         return entityReference;
     }
 
+    [return: NotNullIfNotNull(nameof(entityReference))]
     public static IEntityReference? ExpandTypedef(this IEntityReference? entityReference) {
         if (entityReference == null)
             return null;

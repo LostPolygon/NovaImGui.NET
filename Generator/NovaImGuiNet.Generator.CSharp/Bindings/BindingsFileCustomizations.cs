@@ -1,13 +1,13 @@
 namespace NovaImGuiNet.Generator.CSharp;
 
 public record BindingsFileCustomizations {
-    public string OriginalHeaderFileName { get; init; }
+    public string OriginalHeaderFileName { get; init; } = null!;
 
-    public string RootNamespace { get; init; }
-    public string Namespace { get; init; }
-    public string ConstantsClassName { get; init; }
-    public string NativeFunctionsClassName { get; init; }
-    public string NativeFunctionsManagedWrapperClassName { get; init; }
+    public string RootNamespace { get; init; } = null!;
+    public string Namespace { get; init; } = null!;
+    public string ConstantsClassName { get; init; } = null!;
+    public string NativeFunctionsClassName { get; init; } = null!;
+    public string NativeFunctionsManagedWrapperClassName { get; init; } = null!;
 
     public IReadOnlyList<string> FunctionsNoPermutations { get; init; } = [];
     public IReadOnlyList<NativeFunctionArgumentsIdentifier> TreatPointerArgumentsAsArrays { get; init; } = [];
@@ -22,7 +22,7 @@ public record BindingsFileCustomizations {
 
     public record NativeFunctionIdentifier {
         public string? Struct { get; init; }
-        public string Function { get; init; }
+        public string Function { get; init; } = null!;
     }
 
     public record NativeFunctionArgumentsIdentifier : NativeFunctionIdentifier {
@@ -30,7 +30,7 @@ public record BindingsFileCustomizations {
     }
 
     public record TreatTypeAsHandle {
-        public string Name { get; init; }
+        public string Name { get; init; } = null!;
         public string? ValueType { get; init; }
     }
 }

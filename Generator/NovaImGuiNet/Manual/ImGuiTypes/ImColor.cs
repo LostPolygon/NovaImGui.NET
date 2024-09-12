@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace NovaImGuiNet;
 
 public partial struct ImColor {

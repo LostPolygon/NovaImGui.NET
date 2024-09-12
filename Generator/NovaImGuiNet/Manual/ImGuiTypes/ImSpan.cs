@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿#nullable enable
+
+using System.Collections;
 
 namespace NovaImGuiNet;
 

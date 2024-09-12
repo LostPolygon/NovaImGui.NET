@@ -72,7 +72,7 @@ public class BindingsModelCodeGenerator {
             BindingsModel.Structs,
             structure => {
                 CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                    structure.Namespace,
+                    structure.Namespace!,
                     GenerateBinding(structure)
                 );
 
@@ -111,7 +111,7 @@ public class BindingsModelCodeGenerator {
             BindingsModel.Enums,
             enumeration => {
                 CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                    enumeration.Namespace,
+                    enumeration.Namespace!,
                     GenerateBinding(enumeration)
                 );
 
@@ -143,8 +143,10 @@ public class BindingsModelCodeGenerator {
                 .GroupBy(x => x.Value.Namespace)
                 .ToArray();
 
-        foreach (IGrouping<string, EntityReferenceWrapper<Function>> entityReferenceWrappers in allNativeFunctionsByNamespace) {
-            string targetNamespace = entityReferenceWrappers.Key;
+        foreach (IGrouping<string?, EntityReferenceWrapper<Function>> entityReferenceWrappers in allNativeFunctionsByNamespace) {
+            string? targetNamespace = entityReferenceWrappers.Key;
+            Debug.Assert(targetNamespace != null);
+
             EntityReferenceWrapper<Function>[] allNativeFunctions = entityReferenceWrappers.ToArray();
 
             List<MemberDeclarationSyntax> methodSyntaxes = [];
@@ -813,7 +815,7 @@ public class BindingsModelCodeGenerator {
     }
 
     private static CompilationUnitSyntax WrapRootLevelDefinition(
-        string @namespace,
+        string targetNamespace,
         params MemberDeclarationSyntax[] items
     ) {
         IReadOnlyCollection<string> headerLines = [
@@ -845,7 +847,7 @@ public class BindingsModelCodeGenerator {
         }*/
 
         FileScopedNamespaceDeclarationSyntax namespaceSyntax =
-            CreateNamespaceDeclarationSyntax(@namespace)
+            CreateNamespaceDeclarationSyntax(targetNamespace)
                 .AddLeadingTriviaToStart(headerTrivia);
 
         CompilationUnitSyntax compilationUnit =

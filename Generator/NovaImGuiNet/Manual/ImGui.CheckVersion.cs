@@ -1,8 +1,12 @@
+#nullable enable
 namespace NovaImGuiNet;
 
 public static unsafe partial class ImGui {
+    /// <summary>
+    /// Check that version and structures layouts are matching between native Dear ImGui code and the .NET assembly.
+    /// </summary>
     public static void CheckVersion() {
-        bool isAbiValid = ImGui.DebugCheckVersionAndDataLayout(
+        bool isAbiValid = DebugCheckVersionAndDataLayout(
             IMGUI_VERSION.AsSpan(),
             sizeof(ImGuiIO),
             sizeof(ImGuiStyle),
@@ -22,8 +26,8 @@ public static unsafe partial class ImGui {
 
                  Operating System: {Environment.OSVersion}
                  NovaImGuiNet version: {ThisAssembly.AssemblyInformationalVersion}
-                 Dear ImGui version: {new NullTerminatedString(ImGui.GetVersion())}
                  Expected Dear ImGui version: {IMGUI_VERSION}
+                 Actual Dear ImGui version: {new NullTerminatedString(GetVersion())}
 
                  sizeof(IntPtr): {sizeof(IntPtr)}
                  sizeof(ImGuiIO): {sizeof(ImGuiIO)}

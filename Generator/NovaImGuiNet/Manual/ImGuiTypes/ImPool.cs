@@ -1,4 +1,6 @@
-﻿namespace NovaImGuiNet;
+﻿#nullable enable
+
+namespace NovaImGuiNet;
 
 public record struct ImPool<T> where T : unmanaged, IEquatable<T> {
     ///<summary>Contiguous data</summary>

@@ -383,7 +383,7 @@ public static class StructModifiers {
                 }
 
                 // Find first found ImVector type and fudge it a bit
-                Struct childWindowsFieldNewType = model.Structs.FirstOrDefault(x => x.Value.Name == "ImVector").Value;
+                Struct childWindowsFieldNewType = model.Structs.First(x => x.Value.Name == "ImVector").Value;
                 childWindowsFieldNewType = childWindowsFieldNewType with {
                     GenericArguments = [
                         new Builtin(

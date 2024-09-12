@@ -5,8 +5,7 @@ using NovaImGuiNet.Generator.Metadata;
 namespace NovaImGuiNet.Generator.CSharp;
 
 public partial class BindingsModelFromMetadataResolver(
-    MetadataModel metadataModel,
-    BindingsContext bindingsContext
+    MetadataModel metadataModel
 ) {
     private static readonly ILogger Log = Logging.Create<BindingsModelFromMetadataResolver>();
 

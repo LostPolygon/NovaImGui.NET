@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -79,7 +80,7 @@ public static class ModelModifiers {
             model.GetAllFunctions()
                 .ToArray()
                 .Select(x => x.Value)
-                .GroupBy(x => x.SourceLocation.Filename)
+                .GroupBy(x => x.SourceLocation!.Filename)
                 .ToArray();
 
         foreach (IGrouping<string, Function> functionsBySourceLocation in functionsBySourceLocations) {
@@ -97,12 +98,12 @@ public static class ModelModifiers {
                     bool updated = UpdateType(customizations, pointer.ValueType, out IEntityReference? newPointerValueType);
                     if (updated) {
                         originalType = FormatType(pointer);
-                        pointer.ValueType.Value = newPointerValueType.Value;
+                        pointer.ValueType.Value = newPointerValueType!.Value;
                     } else {
                         updated = UpdateType(customizations, argument.Type, out IEntityReference? newArgumentType);
                         if (updated) {
                             originalType = FormatType(argument.Type.Value);
-                            argument.Type = newArgumentType;
+                            argument.Type = newArgumentType!;
                         }
                     }
 
@@ -116,7 +117,7 @@ public static class ModelModifiers {
                                             AttributeArgument(
                                                 LiteralExpression(
                                                     SyntaxKind.StringLiteralExpression,
-                                                    Literal(originalType)
+                                                    Literal(originalType!)
                                                 )
                                             )
                                         ]
@@ -129,7 +130,11 @@ public static class ModelModifiers {
             }
         }
 
-        static bool UpdateType(BindingsFileCustomizations customizations, IEntityReference type, out IEntityReference? newType) {
+        static bool UpdateType(
+            BindingsFileCustomizations customizations,
+            IEntityReference type,
+            [NotNullWhen(true)] out IEntityReference? newType
+        ) {
             newType = null;
             if (type.Value is not Pointer pointer)
                 return false;
