@@ -5,12 +5,12 @@ namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 public class PassthroughArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument)
     : ArgumentMarshaller(methodSignature, argument) {
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() {
-        string value = Argument.MarshaledArgument.Name;
+        string value = Argument.MarshalledArgument.Name;
         if (!Argument.IsPartOfDeclaration) {
-            Debug.Assert(Argument.MarshaledArgument.DefaultValue != null);
-            value = Argument.MarshaledArgument.DefaultValue;
+            Debug.Assert(Argument.MarshalledArgument.DefaultValue != null);
+            value = Argument.MarshalledArgument.DefaultValue;
         }
 
-        return [$"{MarshaledArgumentType} {InvocationVariableName} = {value};"];
+        return [$"{MarshalledArgumentType} {InvocationVariableName} = {value};"];
     }
 }

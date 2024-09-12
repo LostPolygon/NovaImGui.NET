@@ -113,7 +113,6 @@ public class BindingsCodeWriter {
         Debug.Assert(formatMode == CodeFormatMode.Fancy);
 
         AdhocWorkspace workspace = GetAdhocWorkspace();
-
         SyntaxNode formattedNode = Formatter.Format(
             node,
             workspace

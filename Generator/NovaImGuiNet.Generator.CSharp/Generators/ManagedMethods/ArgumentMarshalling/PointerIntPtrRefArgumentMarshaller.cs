@@ -8,7 +8,7 @@ public class PointerIntPtrRefArgumentMarshaller(MethodSignature methodSignature,
         Debug.Assert(Argument.IsPartOfDeclaration);
         return [
             $"{NativeArgumentType} {InvocationVariableName} = " +
-            $"({NativeArgumentType}) Unsafe.AsPointer(ref {Argument.MarshaledArgument.Name});"
+            $"({NativeArgumentType}) Unsafe.AsPointer(ref {Argument.MarshalledArgument.Name});"
         ];
     }
 }

@@ -12,13 +12,13 @@ public abstract class ArgumentMarshaller : IArgumentMarshaller {
     public string InvocationVariableName { get; }
     public string NativeArgumentType { get; }
 
-    protected string MarshaledArgumentType { get; }
+    protected string MarshalledArgumentType { get; }
 
     protected ArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument) {
         MethodSignature = methodSignature;
         Argument = argument;
 
-        MarshaledArgumentType = FormatTypeDefault(Argument.MarshaledArgument.Type.Value);
+        MarshalledArgumentType = FormatTypeDefault(Argument.MarshalledArgument.Type.Value);
         InvocationVariableName = CreateInvocationVariableName();
         NativeArgumentType = FormatTypeDefault(Argument.NativeArgument.Type.Value);
     }

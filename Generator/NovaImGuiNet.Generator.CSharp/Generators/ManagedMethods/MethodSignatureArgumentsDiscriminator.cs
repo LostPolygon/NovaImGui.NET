@@ -8,13 +8,13 @@ public record MethodSignatureArgumentsDiscriminator(EqualityList<MethodSignature
                 list.Add(
                     new ArgumentDiscriminator(
                         true,
-                        argument.MarshalingVariant.StringMarshalingMode,
-                        argument.MarshalingVariant.PointerMarshalMode
+                        argument.MarshallingVariant.StringMarshallingMode,
+                        argument.MarshallingVariant.PointerMarshallingMode
                     )
                 );
             } else {
-                list.Add(new ArgumentDiscriminator(false, StringMarshalingMode.Undefined, PointerMarshalMode.Undefined));
-                list.Add(new ArgumentDiscriminator(false, StringMarshalingMode.Undefined, PointerMarshalMode.Undefined));
+                list.Add(new ArgumentDiscriminator(false, StringMarshallingMode.Undefined, PointerMarshallingMode.Undefined));
+                list.Add(new ArgumentDiscriminator(false, StringMarshallingMode.Undefined, PointerMarshallingMode.Undefined));
             }
         }
 
@@ -23,7 +23,7 @@ public record MethodSignatureArgumentsDiscriminator(EqualityList<MethodSignature
 
     public record struct ArgumentDiscriminator(
         bool IsPartOfDeclaration,
-        StringMarshalingMode StringMarshalingMode,
-        PointerMarshalMode PointerMarshalMode
+        StringMarshallingMode StringMarshallingMode,
+        PointerMarshallingMode PointerMarshallingMode
     );
 }

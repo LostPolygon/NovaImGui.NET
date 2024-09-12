@@ -243,7 +243,7 @@ public class BindingsModelCSharpTransformer {
         using (Operation("FIXME: Disabling broken functions")) {
             // ImGuiListClipperRange can't be used as a return value,
             // since it contains a bool field and that's broken when
-            // runtime marshaling is not disabled
+            // runtime marshalling is not disabled
             // https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib1050-1069
             /*allFunctionsAnDelegates
                 .OfType<Function>()

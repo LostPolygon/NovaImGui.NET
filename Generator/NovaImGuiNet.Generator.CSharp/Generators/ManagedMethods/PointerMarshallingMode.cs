@@ -1,6 +1,6 @@
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
-public enum PointerMarshalMode {
+public enum PointerMarshallingMode {
     Undefined,
 
     Pointer,

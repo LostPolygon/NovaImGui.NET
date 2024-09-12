@@ -8,7 +8,7 @@ public class PointerIntPtrArgumentMarshaller(MethodSignature methodSignature, Ma
         Debug.Assert(Argument.IsPartOfDeclaration);
         return [
             $"{NativeArgumentType} {InvocationVariableName} = " +
-            $"({NativeArgumentType}) {Argument.MarshaledArgument.Name};"
+            $"({NativeArgumentType}) {Argument.MarshalledArgument.Name};"
         ];
     }
 }

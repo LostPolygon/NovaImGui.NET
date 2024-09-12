@@ -1,4 +1,4 @@
-#define USE_UNSAFE_AS_POINTER
+//#define USE_UNSAFE_AS_POINTER
 
 #if !USE_UNSAFE_AS_POINTER
 using Microsoft.CodeAnalysis.CSharp;
@@ -15,22 +15,22 @@ public class PointerRefArgumentMarshaller(MethodSignature methodSignature, Manag
     : ArgumentMarshaller(methodSignature, argument) {
 #if USE_UNSAFE_AS_POINTER
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() => [
-        $"{NativeArgumentType}* {InvocationVariableName} = " +
-        $"({NativeArgumentType}*) Unsafe.AsPointer(ref {Argument.MarshaledArgument.Name});"
+        $"{MarshalledArgumentType}* {InvocationVariableName} = " +
+        $"({MarshalledArgumentType}*) Unsafe.AsPointer(ref {Argument.MarshalledArgument.Name});"
     ];
 #endif
 
 #if !USE_UNSAFE_AS_POINTER
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() => [
-        $"{MarshaledArgumentType}* {InvocationVariableName};",
+        $"{MarshalledArgumentType}* {InvocationVariableName};",
         FixedStatement(
             VariableDeclaration(
-                ParseTypeName($"{MarshaledArgumentType}*"),
+                ParseTypeName($"{MarshalledArgumentType}*"),
                 SeparatedList([
                     VariableDeclarator(
                         Identifier($"{InvocationVariableName}_tmp"),
                         null,
-                        EqualsValueClause(ParseExpression($"&{Argument.MarshaledArgument.Name}"))
+                        EqualsValueClause(ParseExpression($"&{Argument.MarshalledArgument.Name}"))
                     )
                 ])
             ),

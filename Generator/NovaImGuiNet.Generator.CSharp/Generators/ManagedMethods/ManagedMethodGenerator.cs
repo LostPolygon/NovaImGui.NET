@@ -99,6 +99,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         bool isInstanceMethod = nativeFunction.OwnerStruct != null;
 
+        // Figure out the managed method name
         string methodName = nativeFunctionBaseName;
         if (isInstanceMethod) {
             methodName = methodName
@@ -117,6 +118,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             methodName = methodName.RemovePrefix(removedPrefix);
         }
 
+        // Collect metadata about function argument and return types
         List<NativeFunctionArgumentDescription> nativeArgumentDescriptions = [];
         for (int index = 0; index < nativeFunction.Arguments.Count; index++) {
             FunctionArgument nativeFunctionArgument = nativeFunction.Arguments[index];
@@ -130,31 +132,43 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             );
         }
 
+        NativeFunctionReturnTypeDescription nativeFunctionReturnTypeDescription =
+            new(nativeFunction.ReturnType.Value) {
+                IsString = nativeFunction.ReturnType.Value.IsConstCharPointer(),
+                IsVoid = nativeFunction.ReturnType.Value is Builtin builtin && builtin.ManagedType == typeof(void)
+            };
+
+        // Generate marshalling variant of return types and of every argument
+
         bool isFunctionBanned =
             bindingsFileCustomizations
                 .FunctionsNoPermutations
                 .Contains(nativeFunctionBaseName);
 
-        NativeFunctionArgumentMarshalingVariant[][] nativeArgumentMarshalingVariants =
+        NativeFunctionArgumentMarshallingVariant[][] nativeArgumentMarshallingVariants =
             nativeArgumentDescriptions
-                .Select(arg => ResolveNativeArgumentMarshalingVariants(arg, isFunctionBanned))
+                .Select(arg => ResolveNativeArgumentMarshallingVariants(arg, isFunctionBanned))
                 .ToArray();
 
-        List<MethodOverloadRaw> rawMethodOverloads = [];
-        GenerateArgumentMarshalingVariantsMethodOverloads(nativeArgumentMarshalingVariants, rawMethodOverloads, null, 0, 0);
+        NativeFunctionReturnTypeMarshallingVariant[] nativeReturnTypeMarshallingVariants =
+            ResolveNativeReturnTypeMarshallingVariants(nativeFunctionReturnTypeDescription);
+
+        List<MethodArgumentOverloadRaw> rawMethodArgumentOverloads = [];
+        GenerateArgumentMarshallingVariantsMethodOverloads(nativeArgumentMarshallingVariants, rawMethodArgumentOverloads, null, 0, 0);
 
         List<MethodSignature> methodSignatures =
-            rawMethodOverloads
+            rawMethodArgumentOverloads
                 .Select(raw =>
                     new MethodSignature(
                         nativeFunction,
-                        ResolveManagedMethodArguments(raw.Arguments).ToEqualityList()
+                        ResolveManagedMethodArguments(raw.Arguments).ToEqualityList(),
+                        ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0]) // FIXME: use array
                     )
                 )
                 .ToList();
 
         if (methodSignatures.Count == 0) {
-            methodSignatures.Add(new MethodSignature(nativeFunction, []));
+            methodSignatures.Add(new MethodSignature(nativeFunction, [], ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0])));
         }
 
         Range? defaultValueInvalidArgumentsRange =
@@ -229,7 +243,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         for (int argIndex = 0; argIndex < argumentsCount; argIndex++) {
             foreach (MethodSignature signature in methodSignatures) {
-                if (!signature.Arguments[argIndex].MarshaledArgument.IsDefaultValueValidInDeclaration) {
+                if (!signature.Arguments[argIndex].MarshalledArgument.IsDefaultValueValidInDeclaration) {
                     firstArgumentInvalidInAnySignature ??= argIndex;
                     lastArgumentInvalidInAnySignature = argIndex;
                 }
@@ -248,24 +262,18 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         MethodSignature methodSignature,
         string nativeFunctionsClassName
     ) {
-        bool isInstanceMethod = methodSignature.NativeFunction.OwnerStruct != null;
-
-        bool hasReturnValue =
-            methodSignature.NativeFunction.ReturnType.ExpandTypedef()?.Value is not Builtin builtin ||
-            builtin.ManagedType != typeof(void);
-
-        string retValVar = InternalVariableName("retVal");
-
         IArgumentMarshaller[] argumentMarshallers =
             methodSignature.Arguments
                 .Select(arg => ArgumentMarshallerFactory.Create(methodSignature, arg))
                 .ToArray();
 
-        List<StatementSyntax> statements = [];
+        string invocationValuesFormatted = String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
+        string nativeFunctionInvocation = $"{nativeFunctionsClassName}.{methodSignature.NativeFunction.Name}({invocationValuesFormatted})";
 
-        FormatTypeOptions varTypeFormatOptions = new() {
-            ExpandTypedefs = false,
-        };
+        IReturnTypeMarshaller returnTypeMarshaller =
+            ReturnTypeMarshallerFactory.Create(methodSignature, nativeFunctionInvocation);
+
+        List<StatementSyntax> statements = [];
 
         void Append(ManagedMethodArgumentMarshallerStatement newStatement) {
             newStatement.Switch(
@@ -288,40 +296,29 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             AppendRange(argumentMarshaller.CreateMarshalStatements());
         }
 
-        if (hasReturnValue) {
-            Append($"{FormatType(methodSignature.NativeFunction.ReturnType.Value, varTypeFormatOptions)} {retValVar};");
-        }
-
-        string retValAssignment = hasReturnValue ? $"{retValVar} = " : "";
-        string invocationValuesFormatted = String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
-        Append($"{retValAssignment}{nativeFunctionsClassName}.{methodSignature.NativeFunction.Name}({invocationValuesFormatted});");
+        AppendRange(returnTypeMarshaller.CreateInvokeStatements());
 
         foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
             AppendRange(argumentMarshaller.CreateUnmarshalStatements());
         }
 
-        if (hasReturnValue) {
-            Append($"return {retValVar};");
-        }
+        AppendRange(returnTypeMarshaller.CreateReturnStatements());
 
         List<FunctionArgument> signatureArguments =
             methodSignature.Arguments
                 .Where(x => x.IsPartOfDeclaration)
-                .Select(x => x.MarshaledArgument)
+                .Select(x => x.MarshalledArgument)
                 .ToList();
 
         Function managedMethod = methodSignature.NativeFunction with {
             Name = methodName,
             Body = Block(statements),
             Arguments = signatureArguments,
+            ReturnType = methodSignature.ReturnType.MarshalledReturnType.AsEntityReference(),
             IsNativeFunction = false
         };
 
         return managedMethod;
-
-        static string InternalVariableName(string name) {
-            return "__" + name;
-        }
     }
 
     private static List<MethodSignature> GenerateDefaultValueMethodOverloads(
@@ -358,7 +355,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         static void DisableDefaultValuesInArguments(IList<ManagedMethodArgument> overloadArguments, int lastInvalidArgument) {
             for (int modifiedArgIndex = 0; modifiedArgIndex <= lastInvalidArgument; modifiedArgIndex++) {
                 overloadArguments[modifiedArgIndex] = overloadArguments[modifiedArgIndex] with {
-                    MarshaledArgument = overloadArguments[modifiedArgIndex].MarshaledArgument with {
+                    MarshalledArgument = overloadArguments[modifiedArgIndex].MarshalledArgument with {
                         IsDefaultValueValidInDeclaration = false
                     }
                 };
@@ -374,21 +371,21 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         }
     }
 
-    private static void GenerateArgumentMarshalingVariantsMethodOverloads(
-        IReadOnlyList<IReadOnlyList<NativeFunctionArgumentMarshalingVariant>> argumentsVariants,
-        List<MethodOverloadRaw> outputMethodOverloads,
-        NativeFunctionArgumentMarshalingVariant[]? currentMethodOverload,
+    private static void GenerateArgumentMarshallingVariantsMethodOverloads(
+        IReadOnlyList<IReadOnlyList<NativeFunctionArgumentMarshallingVariant>> argumentsVariants,
+        List<MethodArgumentOverloadRaw> outputMethodOverloads,
+        NativeFunctionArgumentMarshallingVariant[]? currentMethodOverload,
         int argumentIndex,
         int depth
     ) {
         if (argumentIndex == argumentsVariants.Count)
             return;
 
-        currentMethodOverload ??= new NativeFunctionArgumentMarshalingVariant[argumentsVariants.Count];
-        IReadOnlyList<NativeFunctionArgumentMarshalingVariant> argumentVariants = argumentsVariants[argumentIndex];
-        foreach (NativeFunctionArgumentMarshalingVariant argumentVariant in argumentVariants) {
+        currentMethodOverload ??= new NativeFunctionArgumentMarshallingVariant[argumentsVariants.Count];
+        IReadOnlyList<NativeFunctionArgumentMarshallingVariant> argumentVariants = argumentsVariants[argumentIndex];
+        foreach (NativeFunctionArgumentMarshallingVariant argumentVariant in argumentVariants) {
             currentMethodOverload[argumentIndex] = argumentVariant;
-            GenerateArgumentMarshalingVariantsMethodOverloads(
+            GenerateArgumentMarshallingVariantsMethodOverloads(
                 argumentsVariants,
                 outputMethodOverloads,
                 currentMethodOverload,
@@ -398,35 +395,65 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
             if (depth == argumentsVariants.Count - 1) {
                 outputMethodOverloads.Add(
-                    new MethodOverloadRaw(currentMethodOverload.ToArray())
+                    new MethodArgumentOverloadRaw(currentMethodOverload.ToArray())
                 );
             }
         }
     }
 
-    private static NativeFunctionArgumentMarshalingVariant[] ResolveNativeArgumentMarshalingVariants(
+    private static NativeFunctionReturnTypeMarshallingVariant[] ResolveNativeReturnTypeMarshallingVariants(
+        NativeFunctionReturnTypeDescription description
+    ) {
+        NativeFunctionReturnTypeMarshallingVariant voidVariant = new(
+            description.ReturnType,
+            ReturnTypeMarshallingMode.Void
+        );
+
+        if (description.IsVoid)
+            return [voidVariant];
+
+        NativeFunctionReturnTypeMarshallingVariant ntsVariant = new(
+            description.ReturnType,
+            ReturnTypeMarshallingMode.NullTerminatedString
+        );
+
+        if (description.IsString)
+            return [ntsVariant];
+
+        NativeFunctionReturnTypeMarshallingVariant passthroughVariant = new(
+            description.ReturnType,
+            ReturnTypeMarshallingMode.Passthrough
+        );
+
+        return [passthroughVariant];
+
+        //List<NativeFunctionReturnTypeMarshallingVariant> variants = [];
+        //return variants.ToArray();
+    }
+
+    private static NativeFunctionArgumentMarshallingVariant[] ResolveNativeArgumentMarshallingVariants(
         NativeFunctionArgumentDescription description,
         bool forceBaseOnly
     ) {
-        NativeFunctionArgumentMarshalingVariant baseMarshalingVariant = new(
+        NativeFunctionArgumentMarshallingVariant baseMarshallingVariant = new(
             description.Argument,
             description.ArgumentIndex,
-            description.IsString ? StringMarshalingMode.BytePointer : StringMarshalingMode.Undefined,
-            description.IsPointer ? PointerMarshalMode.Pointer : PointerMarshalMode.Undefined
+            description.IsString ? StringMarshallingMode.BytePointer : StringMarshallingMode.Undefined,
+            description.IsPointer ? PointerMarshallingMode.Pointer : PointerMarshallingMode.Undefined
         );
 
         if (description.Argument.IsInstancePointer || forceBaseOnly)
-            return [baseMarshalingVariant];
+            return [baseMarshallingVariant];
 
-        List<NativeFunctionArgumentMarshalingVariant> variants = [];
+        List<NativeFunctionArgumentMarshallingVariant> variants = [];
         if (description.IsString) {
-            AddVariant(StringMarshalingMode.ReadOnlyByteSpan, PointerMarshalMode.Undefined);
-            AddVariant(StringMarshalingMode.ReadOnlyCharSpan, PointerMarshalMode.Undefined);
-            AddVariant(StringMarshalingMode.String, PointerMarshalMode.Undefined);
+            AddVariant(StringMarshallingMode.ReadOnlyByteSpan, PointerMarshallingMode.Undefined);
+            AddVariant(StringMarshallingMode.ReadOnlyCharSpan, PointerMarshallingMode.Undefined);
+            AddVariant(StringMarshallingMode.String, PointerMarshallingMode.Undefined);
 
             // FIXME: handle combination with IsPointer
         } else if (description.IsPointer) {
-            AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.Pointer);
+            AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Pointer);
 
             bool isOutPointer = description.Argument.Name.Contains("out", StringComparison.OrdinalIgnoreCase);
             bool isVoidPointer = description.Argument.Type.Value.IsVoidPointer();
@@ -435,34 +462,34 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 pointer.ValueType.Value.IsVoidPointer();
 
             if (isVoidPointerPointer) {
-                AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.IntPtr);
+                AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtr);
                 if (isOutPointer) {
-                    AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.Out);
-                    AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.IntPtrOut);
+                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Out);
+                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtrOut);
                 } else {
-                    AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.Ref);
-                    AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.IntPtrRef);
+                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Ref);
+                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtrRef);
                 }
             } else if (isVoidPointer) {
-                AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.IntPtr);
+                AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtr);
             } else {
                 if (isOutPointer) {
-                    AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.Out);
+                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Out);
                 } else {
-                    AddVariant(StringMarshalingMode.Undefined, PointerMarshalMode.Ref);
+                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Ref);
                 }
             }
         }
 
         if (variants.Count == 0) {
-            variants.Add(baseMarshalingVariant);
+            variants.Add(baseMarshallingVariant);
         }
 
         return variants.ToArray();
 
-        void AddVariant(StringMarshalingMode stringMarshalKind, PointerMarshalMode pointerMarshalKind) {
+        void AddVariant(StringMarshallingMode stringMarshalKind, PointerMarshallingMode pointerMarshalKind) {
             variants.Add(
-                new NativeFunctionArgumentMarshalingVariant(
+                new NativeFunctionArgumentMarshallingVariant(
                     description.Argument,
                     description.ArgumentIndex,
                     stringMarshalKind,
@@ -472,61 +499,83 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         }
     }
 
+    private static ManagedMethodReturnType ResolveManagedMethodReturnType(
+        NativeFunctionReturnTypeMarshallingVariant returnTypeMarshallingVariant
+    ) {
+        Entity returnType = returnTypeMarshallingVariant.NativeFunctionReturnType with { };
+        switch (returnTypeMarshallingVariant.ReturnTypeMarshallingMode) {
+            case ReturnTypeMarshallingMode.Void:
+            case ReturnTypeMarshallingMode.Passthrough:
+                break;
+            case ReturnTypeMarshallingMode.NullTerminatedString:
+                returnType = new Builtin("NullTerminatedString", null, StorageClass.NotSpecified);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        return new ManagedMethodReturnType(
+            returnTypeMarshallingVariant.NativeFunctionReturnType,
+            returnType,
+            returnTypeMarshallingVariant
+        );
+    }
+
     private static List<ManagedMethodArgument> ResolveManagedMethodArguments(
-        IReadOnlyList<NativeFunctionArgumentMarshalingVariant> nativeArgumentMarshalingVariants
+        IReadOnlyList<NativeFunctionArgumentMarshallingVariant> nativeArgumentMarshallingVariants
     ) {
         List<ManagedMethodArgument> managedArguments = [];
-        foreach (NativeFunctionArgumentMarshalingVariant nativeArgumentMarshalingVariant in nativeArgumentMarshalingVariants) {
-            FunctionArgument managedArgument = nativeArgumentMarshalingVariant.NativeFunctionArgument with { };
+        foreach (NativeFunctionArgumentMarshallingVariant nativeArgumentMarshallingVariant in nativeArgumentMarshallingVariants) {
+            FunctionArgument managedArgument = nativeArgumentMarshallingVariant.NativeFunctionArgument with { };
             managedArgument = FunctionModifiers.PrettifyArgumentName(managedArgument);
 
-            switch (nativeArgumentMarshalingVariant.StringMarshalingMode) {
-                case StringMarshalingMode.BytePointer:
+            switch (nativeArgumentMarshallingVariant.StringMarshallingMode) {
+                case StringMarshallingMode.BytePointer:
                     managedArgument.Type = KnownEntities.Utf8BytePointer.AsEntityReference();
                     break;
-                case StringMarshalingMode.ReadOnlyByteSpan:
+                case StringMarshallingMode.ReadOnlyByteSpan:
                     managedArgument.Type = KnownEntities.ReadOnlySpanByte.AsEntityReference();
                     break;
-                case StringMarshalingMode.ReadOnlyCharSpan:
+                case StringMarshallingMode.ReadOnlyCharSpan:
                     managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
                     break;
-                case StringMarshalingMode.String:
+                case StringMarshallingMode.String:
                     managedArgument.Type = KnownEntities.String.AsEntityReference();
                     break;
-                case StringMarshalingMode.Undefined:
+                case StringMarshallingMode.Undefined:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
 
-            switch (nativeArgumentMarshalingVariant.PointerMarshalMode) {
-                case PointerMarshalMode.Undefined:
-                case PointerMarshalMode.Pointer:
+            switch (nativeArgumentMarshallingVariant.PointerMarshallingMode) {
+                case PointerMarshallingMode.Undefined:
+                case PointerMarshallingMode.Pointer:
                     break;
-                case PointerMarshalMode.Ref:
+                case PointerMarshallingMode.Ref:
                     managedArgument.PassType = FunctionArgumentPassType.Ref;
                     managedArgument.Type = managedArgument.Type.ExpandPointer();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case PointerMarshalMode.Out:
+                case PointerMarshallingMode.Out:
                     managedArgument.PassType = FunctionArgumentPassType.Out;
                     managedArgument.Type = managedArgument.Type.ExpandPointer();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case PointerMarshalMode.IntPtr:
+                case PointerMarshallingMode.IntPtr:
                     managedArgument.PassType = FunctionArgumentPassType.Normal;
                     managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
 
                     break;
-                case PointerMarshalMode.IntPtrRef:
+                case PointerMarshallingMode.IntPtrRef:
                     managedArgument.PassType = FunctionArgumentPassType.Ref;
                     managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case PointerMarshalMode.IntPtrOut:
+                case PointerMarshallingMode.IntPtrOut:
                     managedArgument.PassType = FunctionArgumentPassType.Out;
                     managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
@@ -538,10 +587,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
             managedArguments.Add(
                 new ManagedMethodArgument(
-                    nativeArgumentMarshalingVariant.NativeFunctionArgument,
+                    nativeArgumentMarshallingVariant.NativeFunctionArgument,
                     managedArgument,
-                    nativeArgumentMarshalingVariant,
-                    !nativeArgumentMarshalingVariant.NativeFunctionArgument.IsInstancePointer
+                    nativeArgumentMarshallingVariant,
+                    !nativeArgumentMarshallingVariant.NativeFunctionArgument.IsInstancePointer
                 )
             );
         }
@@ -564,7 +613,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
             string argumentDescription = $"[{argumentIndex + 1}]";
             if (!argumentIsSameInAllOverloads) {
-                argumentDescription += $" {argument.MarshalingVariant}";
+                argumentDescription += $" {argument.MarshallingVariant}";
             }
 
             if (!argument.IsPartOfDeclaration) {
@@ -577,10 +626,17 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         return $"{nativeFunctionName} [variant {index + 1}]: ({String.Join(", ", argumentDescriptions)})";
     }
 
-    private record MethodOverloadRaw(IReadOnlyList<NativeFunctionArgumentMarshalingVariant> Arguments);
+    private record MethodArgumentOverloadRaw(IReadOnlyList<NativeFunctionArgumentMarshallingVariant> Arguments);
 
     private readonly record struct NativeFunctionArgumentDescription(FunctionArgument Argument, int ArgumentIndex) {
         public bool IsString { get; init; }
         public bool IsPointer { get; init; }
+    }
+
+    private readonly record struct NativeFunctionReturnTypeDescription(Entity ReturnType) {
+        public bool IsString { get; init; }
+        public bool IsVoid { get; init; }
+
+        //public bool IsPointer { get; init; }
     }
 }

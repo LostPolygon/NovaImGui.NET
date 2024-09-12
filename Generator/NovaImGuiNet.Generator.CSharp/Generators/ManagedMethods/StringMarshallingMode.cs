@@ -1,6 +1,6 @@
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
-public enum StringMarshalingMode {
+public enum StringMarshallingMode {
     Undefined,
 
     BytePointer,

@@ -5,12 +5,12 @@ namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 public class StringReadOnlyCharSpanArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument)
     : ArgumentMarshaller(methodSignature, argument) {
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() {
-        string value = Argument.MarshaledArgument.Name;
+        string value = Argument.MarshalledArgument.Name;
         if (!Argument.IsPartOfDeclaration) {
-            Debug.Assert(Argument.MarshaledArgument.DefaultValue != null);
-            value = $"(ReadOnlySpan<char>) {Argument.MarshaledArgument.DefaultValue}";
+            Debug.Assert(Argument.MarshalledArgument.DefaultValue != null);
+            value = $"(ReadOnlySpan<char>) {Argument.MarshalledArgument.DefaultValue}";
         } else if (
-            Argument.MarshaledArgument.Type.Value is BindingsModel.Builtin builtin &&
+            Argument.MarshalledArgument.Type.Value is BindingsModel.Builtin builtin &&
             builtin.ManagedType == typeof(string)
         ) {
             value = $"{value}.AsSpan()";

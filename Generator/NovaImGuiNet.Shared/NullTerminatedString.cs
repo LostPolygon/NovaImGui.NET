@@ -4,8 +4,12 @@ using System.Text;
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct NullTerminatedString(byte* data) {
-    public readonly byte* Data = data;
+public readonly unsafe struct NullTerminatedString {
+    public readonly byte* Data;
+
+    public NullTerminatedString(byte* data) {
+        Data = data;
+    }
 
     public ReadOnlySpan<byte> AsReadOnlyUtf8ByteSpan() {
 #if NETSTANDARD2_0_OR_GREATER

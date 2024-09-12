@@ -1,6 +1,10 @@
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
-public record MethodSignature(BindingsModel.Function NativeFunction, IReadOnlyList<ManagedMethodArgument> Arguments) {
+public record MethodSignature(
+    BindingsModel.Function NativeFunction,
+    IReadOnlyList<ManagedMethodArgument> Arguments,
+    ManagedMethodReturnType ReturnType
+) {
     public override string ToString() {
         List<string> argumentDescriptions = [];
         for (int argumentIndex = 0; argumentIndex < Arguments.Count; argumentIndex++) {
@@ -11,7 +15,7 @@ public record MethodSignature(BindingsModel.Function NativeFunction, IReadOnlyLi
             if (!argument.IsPartOfDeclaration) {
                 argumentDescription += " (def-only)";
             } else {
-                argumentDescription += $" ({argument.MarshalingVariant})";
+                argumentDescription += $" ({argument.MarshallingVariant})";
             }
 
             argumentDescriptions.Add(argumentDescription);

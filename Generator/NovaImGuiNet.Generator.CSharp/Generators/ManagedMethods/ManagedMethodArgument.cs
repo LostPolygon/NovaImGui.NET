@@ -2,7 +2,7 @@ namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 public readonly record struct ManagedMethodArgument(
     BindingsModel.FunctionArgument NativeArgument,
-    BindingsModel.FunctionArgument MarshaledArgument,
-    NativeFunctionArgumentMarshalingVariant MarshalingVariant,
+    BindingsModel.FunctionArgument MarshalledArgument,
+    NativeFunctionArgumentMarshallingVariant MarshallingVariant,
     bool IsPartOfDeclaration
 );
