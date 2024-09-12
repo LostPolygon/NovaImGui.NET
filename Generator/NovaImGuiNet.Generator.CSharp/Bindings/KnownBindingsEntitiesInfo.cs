@@ -1,6 +1,11 @@
 namespace NovaImGuiNet.Generator.CSharp;
 
 public static class KnownBindingsEntitiesInfo {
+    public static readonly IReadOnlyList<string> VarArgTypeNames = [
+        "varargs",
+        "va_list"
+    ];
+
     public static readonly IReadOnlyList<string> ExpectedTypesDefinedElsewhere = [
         // Dear ImGui
         "ImStr",

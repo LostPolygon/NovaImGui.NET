@@ -8,10 +8,11 @@ public class StringReadOnlyCharSpanArgumentMarshaller(MethodSignature methodSign
         string value = Argument.MarshaledArgument.Name;
         if (!Argument.IsPartOfDeclaration) {
             Debug.Assert(Argument.MarshaledArgument.DefaultValue != null);
-            value = Argument.MarshaledArgument.DefaultValue;
-            value = $"(ReadOnlySpan<char>) {value}";
-        } else if (Argument.MarshaledArgument.Type.Value is BindingsModel.Builtin builtin &&
-                   builtin.ManagedType == typeof(string)) {
+            value = $"(ReadOnlySpan<char>) {Argument.MarshaledArgument.DefaultValue}";
+        } else if (
+            Argument.MarshaledArgument.Type.Value is BindingsModel.Builtin builtin &&
+            builtin.ManagedType == typeof(string)
+        ) {
             value = $"{value}.AsSpan()";
         }
 

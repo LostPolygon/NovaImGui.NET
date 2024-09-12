@@ -15,7 +15,6 @@ public static class CommonModifiers {
         T entity,
         IReadOnlyList<IIndependentEntity> members
     ) where T : IIndependentEntity {
-
         if (members.Count == 0)
             return entity;
 

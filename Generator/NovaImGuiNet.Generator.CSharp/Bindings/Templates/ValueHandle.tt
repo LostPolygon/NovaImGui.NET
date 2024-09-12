@@ -23,5 +23,5 @@ public unsafe struct <#= TypeName #> : IEquatable<<#= TypeName #>> {
 
     public static implicit operator <#= ValueType #>(<#= TypeName #> handle) => handle.Handle;
 
-    public static explicit operator <#= TypeName #>(<#= ValueType #> existingHandle) => new(existingHandle);
+    public static implicit operator <#= TypeName #>(<#= ValueType #> existingHandle) => new(existingHandle);
 }

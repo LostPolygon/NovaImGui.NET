@@ -2,6 +2,7 @@ using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
+using MoreLinq;
 
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
@@ -71,7 +72,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
             Function[] newFunctions =
                 functions
-                    .SelectMany(function => GenerateManagedMethodsForNativeFunction(structure, function.Value, originalFunction.Value.Name))
+                    .SelectMany(function => {
+                        string functionName = originalFunction.Value.Name;
+                        return GenerateManagedMethodsForNativeFunction(structure, function.Value, functionName);
+                    })
                     .ToArray();
 
             structure.Children.AddRange(newFunctions);
@@ -92,10 +96,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         if (bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions.Contains(nativeFunction.Name))
             return [];
-
-        if (nativeFunctionBaseName.Contains("SetTexID")) {
-            Console.Write((5));
-        }
 
         bool isInstanceMethod = nativeFunction.OwnerStruct != null;
 
@@ -120,7 +120,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         List<NativeFunctionArgumentDescription> nativeArgumentDescriptions = [];
         for (int index = 0; index < nativeFunction.Arguments.Count; index++) {
             FunctionArgument nativeFunctionArgument = nativeFunction.Arguments[index];
-            bool isString = IsTypeConstCharPointer(nativeFunctionArgument.Type);
+            bool isString = nativeFunctionArgument.Type.IsConstCharPointer();
 
             nativeArgumentDescriptions.Add(
                 new NativeFunctionArgumentDescription(nativeFunctionArgument, index) {
@@ -173,6 +173,12 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     .DistinctBy(MethodSignatureArgumentsDiscriminator.Create)
                     .ToList();
         }
+
+        // Fewest arguments first
+        methodSignatures =
+            methodSignatures
+                .OrderBy(x => x.Arguments.Count(arg => arg.IsPartOfDeclaration))
+                .ToList();
 
 #if DEBUG
         if (Log.IsEnabled(LogLevel.Trace) && methodSignatures.Count > 3) {
@@ -414,8 +420,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         List<NativeFunctionArgumentMarshalingVariant> variants = [];
         if (description.IsString) {
-            AddVariant(StringMarshalingMode.ReadOnlyCharSpan, PointerMarshalMode.Undefined);
             AddVariant(StringMarshalingMode.ReadOnlyByteSpan, PointerMarshalMode.Undefined);
+            AddVariant(StringMarshalingMode.ReadOnlyCharSpan, PointerMarshalMode.Undefined);
             AddVariant(StringMarshalingMode.String, PointerMarshalMode.Undefined);
 
             // FIXME: handle combination with IsPointer
@@ -542,11 +548,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         return managedArguments;
     }
-
-    private static bool IsTypeConstCharPointer(IEntityReference type) =>
-        type.ExpandTypedef()!.Value is Pointer {
-            ValueType.Value: Builtin { IsConstCharPointer: true }
-        };
 
     private static string FormatMethodSignatureForOverloadDebug(
         string nativeFunctionName,

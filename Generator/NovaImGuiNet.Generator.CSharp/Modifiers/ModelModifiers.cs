@@ -14,7 +14,7 @@ using static SyntaxFactoryCached;
 public static class ModelModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(ModelModifiers));
 
-    public static BindingsModel GenerateHandleTypes(BindingsContext context, BindingsModel model) {
+    public static void GenerateHandleTypes(BindingsContext context, BindingsModel model) {
         // Generate handles
         foreach (BindingsFileCustomizations fileCustomizations in context.Customizations.BindingsFileCustomizations) {
             foreach (BindingsFileCustomizations.TreatTypeAsHandle handle in fileCustomizations.GenerateHandleTypes) {
@@ -53,11 +53,9 @@ public static class ModelModifiers {
 
             typedef.Value.NoEmit = true;
         }
-
-        return model;
     }
 
-    public static BindingsModel AssignNamespaces(BindingsContext context, BindingsModel model) {
+    public static void AssignNamespaces(BindingsContext context, BindingsModel model) {
         IEnumerable<ITopLevelEntity> topLevelEntities =
             model
                 .Children
@@ -74,11 +72,9 @@ public static class ModelModifiers {
             string targetNamespace = context.Customizations.RequireCustomization(entity.SourceLocation).Namespace;
             entity.Namespace = targetNamespace;
         }
-
-        return model;
     }
 
-    public static BindingsModel MakePointersToStructsOpaque(BindingsContext context, BindingsModel model) {
+    public static void MakePointersToStructsOpaque(BindingsContext context, BindingsModel model) {
         IGrouping<string, Function>[] functionsBySourceLocations =
             model.GetAllFunctions()
                 .ToArray()
@@ -91,10 +87,6 @@ public static class ModelModifiers {
                 context.Customizations.RequireCustomization(functionsBySourceLocation.Key);
 
             foreach (Function function in functionsBySourceLocation) {
-                if (function.Name.Contains("InitForSDLRenderer")) {
-                    Console.Write(6);
-                }
-
                 foreach (FunctionArgument argument in function.Arguments) {
                     if (argument.Type.Value is not Pointer pointer)
                         continue;
@@ -137,17 +129,17 @@ public static class ModelModifiers {
             }
         }
 
-        return model;
-
         static bool UpdateType(BindingsFileCustomizations customizations, IEntityReference type, out IEntityReference? newType) {
             newType = null;
             if (type.Value is not Pointer pointer)
                 return false;
 
+            IEntityReference pointerValueType = pointer.ValueType.ExpandTypedef()!;
+
             // FIXME: why does stuff like SDL_Event become a Builtin instead of Struct?
             string? pointerValueTypeName =
-                (pointer.ValueType.Value as Struct)?.Name ??
-                (pointer.ValueType.Value as Builtin)?.BuiltinName;
+                (pointerValueType.Value as Struct)?.Name ??
+                (pointerValueType.Value as Builtin)?.BuiltinName;
 
             if (pointerValueTypeName == null ||
                 !customizations.MakePointersToStructsOpaque.Contains(pointerValueTypeName))
@@ -158,7 +150,7 @@ public static class ModelModifiers {
         }
     }
 
-    public static BindingsModel GenerateDelegatesForInlineFunctionArguments(BindingsModel model) {
+    public static void GenerateDelegatesForInlineFunctionArguments(BindingsModel model) {
         IReadOnlyList<Function> allFunctions = model.GetAllFunctions().ToArray().Select(x => x.Value).ToArray();
 
         foreach (Function function in allFunctions) {
@@ -186,8 +178,6 @@ public static class ModelModifiers {
                 model.Children.Add(newDelegateTypedefReference);
             }
         }
-
-        return model;
     }
 
     private static CompilationUnitWithFileInformation GeneratePointerHandle(

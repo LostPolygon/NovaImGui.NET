@@ -1,3 +1,4 @@
+//#define DISABLE_PARALLEL
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -118,10 +119,14 @@ public class BindingsModelCodeGenerator {
             }
         );
 
+#if DISABLE_PARALLEL
+        generationActions.ForEach(action => action());
+#else
         Parallel.ForEach(
             Partitioner.Create(generationActions.ToArray(), true),
             action => action()
         );
+#endif
 
         BindingsModel.ExtraCompilationUnits
             .Select(unit => new BindingsCompilationUnit(unit.File, unit.CompilationUnitSyntax, unit.File.Category))

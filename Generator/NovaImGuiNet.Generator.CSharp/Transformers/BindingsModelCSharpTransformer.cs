@@ -31,36 +31,38 @@ public class BindingsModelCSharpTransformer {
 
     public BindingsModel Transform() {
         using (Operation("Assigning namespaces")) {
-            Model = ModelModifiers.AssignNamespaces(Context, Model);
+            ModelModifiers.AssignNamespaces(Context, Model);
         }
 
         using (Operation("Genericizing structs")) {
-            Model = GenericizeStructsByFieldType(Model, "ImVector", "Data", true);
-            Model = GenericizeStructsByFieldType(Model, "ImSpan", "Data", true);
-            Model = GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiTableSettings", "ImChunkStream", "ImGuiTableSettings");
-            Model = GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiWindowSettings", "ImChunkStream", "ImGuiWindowSettings");
-            Model = GenericizeStructByTypeName(Model, "ImPool_ImGuiMultiSelectState", "ImPool", "ImGuiMultiSelectState");
-            Model = GenericizeStructByTypeName(Model, "ImPool_ImGuiTabBar", "ImPool", "ImGuiTabBar");
-            Model = GenericizeStructByTypeName(Model, "ImPool_ImGuiTable", "ImPool", "ImGuiTable");
+            GenericizeStructsByFieldType(Model, "ImVector", "Data", true);
+            GenericizeStructsByFieldType(Model, "ImSpan", "Data", true);
+            GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiTableSettings", "ImChunkStream", "ImGuiTableSettings");
+            GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiWindowSettings", "ImChunkStream", "ImGuiWindowSettings");
+            GenericizeStructByTypeName(Model, "ImPool_ImGuiMultiSelectState", "ImPool", "ImGuiMultiSelectState");
+            GenericizeStructByTypeName(Model, "ImPool_ImGuiTabBar", "ImPool", "ImGuiTabBar");
+            GenericizeStructByTypeName(Model, "ImPool_ImGuiTable", "ImPool", "ImGuiTable");
         }
 
         using (Operation("Renaming anonymous types")) {
-            Model = RenameStructFieldType(Model, "ImGuiInputEvent", "__anonymous_type", "ImGuiInputEventData", "EventData");
-            Model = RenameStructFieldType(Model, "ImGuiStoragePair", "__anonymous_type", "ImGuiStoragePairValue", "Value");
-            Model = RenameStructFieldType(Model, "ImGuiStyleMod", "__anonymous_type", "ImGuiStyleModBackupValue", "BackupValue");
+            RenameStructFieldType(Model, "ImGuiInputEvent", "__anonymous_type", "ImGuiInputEventData", "EventData");
+            RenameStructFieldType(Model, "ImGuiStoragePair", "__anonymous_type", "ImGuiStoragePairValue", "Value");
+            RenameStructFieldType(Model, "ImGuiStyleMod", "__anonymous_type", "ImGuiStyleModBackupValue", "BackupValue");
         }
 
         using (Operation("Generating handle types")) {
-            Model = ModelModifiers.GenerateHandleTypes(Context, Model);
+            ModelModifiers.GenerateHandleTypes(Context, Model);
         }
 
-        using (Operation("Rewriting typedefs to enums")) {
-            Model = UpdateEnumTypedefs(Model);
-        }
+        Transform(
+            "Rewriting typedefs to enums",
+            Model.Typedefs,
+            x => UpdateEnumTypedefs(x, Model)
+        );
 
         // Enums
-        Transform("Adding public members to internal enums", Model.Enums, x => AddPublicMembersToPrivateEnum(Model, x));
-        Transform("Cleaning up enum identifiers", Model.Enums, CleanupIdentifiers);
+        Transform("Adding public members to internal enums", Model.Enums, x => AddPublicMembersToPrivateEnum(x, Model));
+        Transform("Cleaning up enum identifiers", Model.Enums, CleanupEnumIdentifiers);
         Transform("Patching enum values referencing other enums", Model.Enums, PatchEnumsReferencingOtherEnums);
         Transform(
             "Wrapping enums in shared conditionals",
@@ -79,7 +81,7 @@ public class BindingsModelCSharpTransformer {
             Model.Structs.ForEach(structure =>
                 structure.Value.Children
                     .UpdateInPlace<IEntity, Field>(field =>
-                        PatchEnumReferencesInFieldArraySizeDeclaration(Model, field)
+                        PatchEnumReferencesInFieldArraySizeDeclaration(field, Model)
                     )
             );
         }
@@ -87,17 +89,31 @@ public class BindingsModelCSharpTransformer {
         Transform(
             "Manually patching tricky numeric array bounds in fixed array fields",
             Model.Structs,
-            structure => PatchManualMissingFieldArrayNumericBounds(Model, structure)
+            structure => PatchManualMissingFieldArrayNumericBounds(structure, Model)
         );
+
         Transform(
             "Calculating numeric array bounds in fixed array fields",
             Model.Structs,
-            structure => FixMissingFieldArrayNumericBounds(Context, MetadataDto, Model, structure)
+            structure => FixMissingFieldArrayNumericBounds(structure, MetadataDto, Context, Model)
         );
+
         Transform(
             "Exploding fixed size array fields with non-primitive types into multiple fields",
             Model.Structs,
             ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes
+        );
+
+        Transform(
+            "Converting bitfields into property accessors",
+            Model.Structs,
+            ConvertBitFields
+        );
+
+        Transform(
+            "Adding NullTerminatedString properties to string-like fields",
+            Model.Structs,
+            AddNullTerminatedStringPropertyForConstCharPointerFields
         );
 
         if (Context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes) {
@@ -109,14 +125,21 @@ public class BindingsModelCSharpTransformer {
         }
 
         Transform(
-            "Convert bitfields into property accessors",
+            "Converting void* fields to IntPtr",
             Model.Structs,
-            ConvertBitFields
+            ConvertVoidPointerFieldsToIntPtr
         );
+
         Transform(
-            "Adding IntPtr accessors to fields of function pointer types",
+            "Adding IntPtr properties to fields of function pointer types",
             Model.Structs,
-            AddUnmanagedFunctionPointerFieldRawPtrAccessor
+            AddIntPtrAccessorPropertyForUnmanagedFunctionPointerFields
+        );
+
+        Transform(
+            "Adding IntPtr properties to fields of non-void pointer types",
+            Model.Structs,
+            AddIntPtrAccessorPropertyForPointerFields
         );
 
         using (Operation("Prettifying delegate names")) {
@@ -131,17 +154,25 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (Operation("Generating delegates for inline function definitions in function arguments")) {
-            Model = ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Model);
+            ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Model);
         }
 
         Transform(
             "Workaround .NET recursive generic struct bug",
             Model.Structs,
-            x => WorkaroundDotNetRecursiveGenericStructBug(Model, x)
+            x => WorkaroundDotNetRecursiveGenericStructBug(x, Model)
         );
 
         // Functions and typedef delegates
-        IReadOnlyList<IFunctionLike> allFunctionsAnDelegates =
+        IReadOnlyList<IFunctionLike> allFunctions =
+            new List<IEntityReference>([
+                    ..Model.GetAllFunctions().Select(x => x.Reference),
+                ])
+                .Select(x => x.Value)
+                .Cast<IFunctionLike>()
+                .ToArray();
+
+        IReadOnlyList<IFunctionLike> allFunctionsAndDelegates =
             new List<IEntityReference>([
                     ..Model.GetAllFunctions().Select(x => x.Reference),
                     ..Model.Typedefs
@@ -152,8 +183,16 @@ public class BindingsModelCSharpTransformer {
                 .Cast<IFunctionLike>()
                 .ToArray();
 
-        void UpdateFunctionArguments(Func<IFunctionLike, FunctionArgument, int, FunctionArgument> transformer) {
-            allFunctionsAnDelegates.ForEach(function => {
+        void UpdateFunctionsArguments(Func<IFunctionLike, FunctionArgument, int, FunctionArgument> transformer) {
+            allFunctions.ForEach(function => {
+                function.Arguments.UpdateInPlace<FunctionArgument, FunctionArgument>(
+                    (arg, argIndex) => transformer(function, arg, argIndex)
+                );
+            });
+        }
+
+        void UpdateFunctionsAndDelegatesArguments(Func<IFunctionLike, FunctionArgument, int, FunctionArgument> transformer) {
+            allFunctionsAndDelegates.ForEach(function => {
                 function.Arguments.UpdateInPlace<FunctionArgument, FunctionArgument>(
                     (arg, argIndex) => transformer(function, arg, argIndex)
                 );
@@ -161,34 +200,44 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (Operation("Patching function argument default values")) {
-            allFunctionsAnDelegates.ForEach(x => PatchArgumentDefaultValues(Model, x));
+            allFunctionsAndDelegates.ForEach(x => PatchArgumentDefaultValues(x, Model));
         }
 
-        using (Operation("Fixing invalid argument names")) {
-            UpdateFunctionArguments((_, arg, argIndex) => {
+        using (Operation("Fixing invalid function arguments names")) {
+            UpdateFunctionsAndDelegatesArguments((_, arg, argIndex) => {
                 arg.Name = FixInvalidArgumentNames(arg.Name, argIndex);
                 return arg;
             });
         }
 
-        using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size structs")) {
-            UpdateFunctionArguments((_, arg, _) =>
-                ConvertFixedSizeArrayArgumentToFixedSizeStruct(Context, arg)
+        using (Operation("Converting void* native function arguments to IntPtr")) {
+            UpdateFunctionsArguments((_, arg, _) =>
+                ConvertVoidPointerArgumentsToIntPtr(arg)
             );
         }
 
-        using (Operation("Convert C-style unbound array arguments to pointers")) {
-            UpdateFunctionArguments((_, arg, _) =>
+        using (Operation("Converting void* native function return values to IntPtr")) {
+            allFunctions.ForEach(ConvertVoidPointerReturnValuesToIntPtr);
+        }
+
+        using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size structs")) {
+            UpdateFunctionsAndDelegatesArguments((_, arg, _) =>
+                ConvertFixedSizeArrayArgumentToFixedSizeStruct(arg, Context)
+            );
+        }
+
+        using (Operation("Converting C-style unbound array arguments to pointers")) {
+            UpdateFunctionsAndDelegatesArguments((_, arg, _) =>
                 PatchArrayArgumentsToUseByReference(arg)
             );
         }
 
         using (Operation("Remove variadic functions and delegates")) {
-            allFunctionsAnDelegates.ForEach(DisableVarArgsFunctionsAndDelegates);
+            allFunctionsAndDelegates.ForEach(DisableVarArgsFunctionsAndDelegates);
         }
 
-        using (Operation("Remove broken conditional defines around some functions")) {
-            allFunctionsAnDelegates.ForEach(RemoveBrokenConditionalDefines);
+        using (Operation("Removing broken conditional defines around some functions")) {
+            allFunctionsAndDelegates.ForEach(RemoveBrokenConditionalDefines);
         }
 
         using (Operation("FIXME: Disabling broken functions")) {
@@ -211,7 +260,7 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (Operation("Making pointers to chosen structs opaque")) {
-            Model = ModelModifiers.MakePointersToStructsOpaque(Context, Model);
+            ModelModifiers.MakePointersToStructsOpaque(Context, Model);
         }
 
         using (Operation("Generating ImGuiConstants class")) {

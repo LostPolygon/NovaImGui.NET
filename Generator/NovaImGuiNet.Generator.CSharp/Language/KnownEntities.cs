@@ -19,4 +19,12 @@ public static class KnownEntities {
             pointer.ValueType.Equals(VoidPointer.ValueType) ||
             pointer.ValueType.Equals(ConstVoidPointer.ValueType);
     }
+
+    public static bool IsConstCharPointer(this Entity entity) =>
+        entity is Pointer {
+            ValueType.Value: Builtin { IsConstCharPointer: true }
+        };
+
+    public static bool IsConstCharPointer(this IEntityReference entityReference) =>
+        IsConstCharPointer(entityReference.ExpandTypedef()!.Value);
 }

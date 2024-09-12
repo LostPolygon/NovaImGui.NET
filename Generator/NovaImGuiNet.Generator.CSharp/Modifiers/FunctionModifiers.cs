@@ -13,7 +13,7 @@ using static SyntaxFactoryCached;
 public static class FunctionModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(FunctionModifiers));
 
-    public static void PatchArgumentDefaultValues<T>(BindingsModel model, T functionLike) where T : IFunctionLike {
+    public static void PatchArgumentDefaultValues<T>(T functionLike, BindingsModel model) where T : IFunctionLike {
         int? lastArgumentWithInvalidDefaultValueIndex = null;
         for (int index = 0; index < functionLike.Arguments.Count; index++) {
             FunctionArgument argument = functionLike.Arguments[index];
@@ -53,6 +53,26 @@ public static class FunctionModifiers {
         return argument;
     }
 
+    public static FunctionArgument ConvertVoidPointerArgumentsToIntPtr(FunctionArgument argument) {
+        if (argument.Type.Value is not Pointer argumentTypePointer ||
+            !argumentTypePointer.IsVoidPointer())
+            return argument;
+
+        argument = argument with {
+            Type = KnownEntities.IntPtr.AsEntityReference()
+        };
+
+        return argument;
+    }
+
+    public static void ConvertVoidPointerReturnValuesToIntPtr<T>(T functionLike) where T : IFunctionLike {
+        if (functionLike.ReturnType.Value is not Pointer returnValueTypePointer ||
+            !returnValueTypePointer.IsVoidPointer())
+            return;
+
+        functionLike.ReturnType = KnownEntities.IntPtr.AsEntityReference();
+    }
+
     // TODO: merge with one below
     public static FunctionArgument PatchArrayArgumentsToUseByReference(FunctionArgument argument) {
         if (argument.Type.Value is not Array array)
@@ -82,8 +102,9 @@ public static class FunctionModifiers {
     /// Fixed size arrays can't be represented as function arguments in C#,
     /// so we replace them by fixed-size ImFixedArray&lt;T&gt; structures.
     /// </summary>
-    public static FunctionArgument ConvertFixedSizeArrayArgumentToFixedSizeStruct(BindingsContext context, FunctionArgument argument) {
-        if (argument.Type.Value is not Array argumentTypeArray || String.IsNullOrEmpty(argumentTypeArray.ArrayBounds))
+    public static FunctionArgument ConvertFixedSizeArrayArgumentToFixedSizeStruct(FunctionArgument argument, BindingsContext context) {
+        if (argument.Type.Value is not Array argumentTypeArray ||
+            String.IsNullOrEmpty(argumentTypeArray.ArrayBounds))
             return argument;
 
         if (argumentTypeArray.ArrayBoundsNumeric == null)
@@ -130,12 +151,13 @@ public static class FunctionModifiers {
     }
 
     public static void DisableVarArgsFunctionsAndDelegates<T>(T functionLike) where T : IFunctionLike {
-        IReadOnlyList<string> bannedTypeNames = ["varargs", "va_list"];
-
         bool hasBannedArgumentType = functionLike.Arguments.Any(
             arg => {
                 string typeName = FormatType(arg.Type.Value, new FormatTypeOptions { DelegatesAsFunctionPointers = true });
-                return bannedTypeNames.Any(banned => typeName.Contains(banned));
+                return KnownBindingsEntitiesInfo.VarArgTypeNames.Any(
+                    // FIXME: Contains() here is super jank
+                    banned => typeName.Contains(banned)
+                );
             }
         );
 
@@ -245,6 +267,7 @@ public static class FunctionModifiers {
                 switch (literalExpressionSyntax.Kind()) {
                     case SyntaxKind.StringLiteralExpression:
                         isDefaultValueValidInDeclaration = false;
+                        argument.DefaultValueKind = FunctionArgumentDefaultValueKind.String;
                         return; // FIXME: we'll need this later
                     default:
                         return;

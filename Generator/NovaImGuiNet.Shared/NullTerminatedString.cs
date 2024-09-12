@@ -34,4 +34,6 @@ public readonly unsafe struct NullTerminatedString(byte* data) {
     }
 
     public static implicit operator string?(NullTerminatedString nts) => nts.ToString();
+
+    public static implicit operator ReadOnlySpan<byte>(NullTerminatedString nts) => nts.AsReadOnlyUtf8ByteSpan();
 }

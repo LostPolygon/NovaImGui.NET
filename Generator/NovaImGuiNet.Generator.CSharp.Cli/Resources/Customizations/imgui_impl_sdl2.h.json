@@ -13,5 +13,8 @@
   ],
   "external_types": [
     "SDL_Event"
+  ],
+  "make_pointers_to_structs_opaque": [
+   "SDL_Event" 
   ]
 }

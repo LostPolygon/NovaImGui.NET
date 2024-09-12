@@ -78,7 +78,7 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
                 true,
                 null
             ) {
-                Name = defineDto.Name,
+                BaseName = defineDto.Name,
                 Type = new Builtin(constFieldType, null, StorageClass.NotSpecified).AsEntityReference(),
                 Value = constFieldValue
             };

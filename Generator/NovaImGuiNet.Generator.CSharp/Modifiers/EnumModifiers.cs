@@ -35,7 +35,7 @@ public static class EnumModifiers {
         return enumeration;
     }
 
-    public static Enum AddPublicMembersToPrivateEnum(BindingsModel model, Enum enumeration) {
+    public static Enum AddPublicMembersToPrivateEnum(Enum enumeration, BindingsModel model) {
         string cleanedName = CleanupEnumIdentifier(enumeration.Name, null);
         if (!cleanedName.EndsWith("Private", StringComparison.Ordinal))
             return enumeration;
@@ -54,7 +54,7 @@ public static class EnumModifiers {
         return enumeration;
     }
 
-    public static Enum CleanupIdentifiers(Enum enumeration) {
+    public static Enum CleanupEnumIdentifiers(Enum enumeration) {
         string initialEnumName = enumeration.Name;
         return enumeration with {
             Name = CleanupEnumIdentifier(initialEnumName, null),
@@ -68,7 +68,7 @@ public static class EnumModifiers {
         };
     }
 
-    public static string CleanupEnumIdentifier(string text, string? typeName, bool isValue = false) {
+    private static string CleanupEnumIdentifier(string text, string? typeName, bool isValue = false) {
         if (typeName != null) {
             typeName = RemoveTrailingUnderscoresFromExpression(typeName);
             if (typeName.EndsWith("Private")) {

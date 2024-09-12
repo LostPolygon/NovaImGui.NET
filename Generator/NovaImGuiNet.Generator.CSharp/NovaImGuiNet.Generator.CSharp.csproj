@@ -16,10 +16,6 @@
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.7.0" />
       <PackageReference Include="Mono.TextTemplating" Version="3.0.0" />
       <PackageReference Include="morelinq" Version="4.3.0" />
-      <PackageReference Include="Nerdbank.GitVersioning" Version="3.7.77-alpha">
-        <PrivateAssets>all</PrivateAssets>
-        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      </PackageReference>
       <PackageReference Include="OneOf" Version="3.0.271" />
       <PackageReference Include="OneOf.SourceGenerator" Version="3.0.271" />
       <PackageReference Include="org.matheval" Version="1.0.0.3" />

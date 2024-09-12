@@ -72,7 +72,7 @@ public partial class BindingsModelFromMetadataResolver {
             metadata.IsConstant,
             metadata.Width
         ) {
-            Name = metadata.Name,
+            BaseName = metadata.Name,
             Value = metadata.DefaultValue,
             Type = ResolveEntity(metadata.Type),
         };

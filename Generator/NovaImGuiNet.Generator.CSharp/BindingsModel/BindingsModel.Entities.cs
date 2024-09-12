@@ -258,11 +258,15 @@ public partial class BindingsModel {
     }
 
     public record Field : IndependentEntity {
-        public required string Name { get; set; }
+        public required string BaseName { get; set; }
+        public string? NamePrefix { get; set; }
         public required IEntityReference Type { get; set; }
         public bool IsConstant { get; set; }
         public int? BitWidth { get; set; }
         public required string? Value { get; set; }
+        public bool IsExplodedFixedSizeArrayField { get; set; }
+
+        public string Name => NamePrefix != null ? BaseName + NamePrefix : BaseName;
 
         public Field() {
         }
@@ -295,6 +299,7 @@ public partial class BindingsModel {
         public required bool IsInstancePointer { get; set; }
         public required FunctionArgumentPassType PassType { get; set; }
         public required string? DefaultValue { get; set; }
+        public FunctionArgumentDefaultValueKind DefaultValueKind { get; set; }
         public EqualityList<AttributeSyntax> Attributes { get; set; } = [];
 
         public bool IsDefaultValueValidInDeclaration {
@@ -306,6 +311,11 @@ public partial class BindingsModel {
             }
             set => _isDefaultValueValidInDeclaration = value;
         }
+    }
+
+    public enum FunctionArgumentDefaultValueKind {
+        NotDetermined,
+        String
     }
 
     public enum FunctionArgumentPassType {
@@ -468,8 +478,8 @@ public partial class BindingsModel {
 
         protected SyntaxEntity(
             T syntax,
-            IIndependentEntity other
-        ) : this(syntax, other.Comments, other.Conditionals, other.SourceLocation, other.IsInternal, other.IsDisabled, other.NoEmit) {
+            IIndependentEntity copyFrom
+        ) : this(syntax, copyFrom.Comments, copyFrom.Conditionals, copyFrom.SourceLocation, copyFrom.IsInternal, copyFrom.IsDisabled, copyFrom.NoEmit) {
         }
 
         protected SyntaxEntity(
@@ -506,8 +516,8 @@ public partial class BindingsModel {
 
         public MemberDeclarationSyntaxEntity(
             MemberDeclarationSyntax syntax,
-            IIndependentEntity other
-        ) : base(syntax, other) {
+            IIndependentEntity copyFrom
+        ) : base(syntax, copyFrom) {
         }
 
         public MemberDeclarationSyntaxEntity(

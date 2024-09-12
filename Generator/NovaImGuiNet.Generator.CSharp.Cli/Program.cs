@@ -25,7 +25,7 @@ string outputPath = args[0];
 
 CodeFormatMode codeFormatMode = CodeFormatMode.Fancy;
 #if true || DEBUG
-//codeFormatMode = CodeFormatMode.Basic;
+codeFormatMode = CodeFormatMode.Basic;
 #endif
 
 BindingsGenerationOptions bindingsGenerationOptions = new() {

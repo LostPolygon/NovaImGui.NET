@@ -1,10 +1,7 @@
 namespace NovaImGuiNet;
 
-internal static unsafe class ModuleInitializer {
-    #pragma warning disable CA2255
-    [ModuleInitializer]
-    #pragma warning restore CA2255
-    public static void Initialize() {
+public static unsafe partial class ImGui {
+    public static void CheckVersion() {
         bool isAbiValid = ImGui.DebugCheckVersionAndDataLayout(
             IMGUI_VERSION.AsSpan(),
             sizeof(ImGuiIO),
@@ -26,6 +23,7 @@ internal static unsafe class ModuleInitializer {
                  Operating System: {Environment.OSVersion}
                  NovaImGuiNet version: {ThisAssembly.AssemblyInformationalVersion}
                  Dear ImGui version: {new NullTerminatedString(ImGui.GetVersion())}
+                 Expected Dear ImGui version: {IMGUI_VERSION}
 
                  sizeof(IntPtr): {sizeof(IntPtr)}
                  sizeof(ImGuiIO): {sizeof(ImGuiIO)}

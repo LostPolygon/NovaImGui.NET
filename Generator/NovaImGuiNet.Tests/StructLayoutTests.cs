@@ -1,9 +1,10 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using NovaImGuiNet.Internal;
 
 namespace NovaImGuiNet.Tests;
 
-public unsafe class StructSizeTests {
+public unsafe class StructLayoutTests {
     [Test]
     public void SizeOf() {
         Assert.That(sizeof(bool), Is.EqualTo(1));
@@ -17,8 +18,23 @@ public unsafe class StructSizeTests {
         Assert.That(Marshal.SizeOf<ImGuiBoxSelectState>(), Is.EqualTo(104));
         Assert.That(sizeof(ImGuiBoxSelectState), Is.EqualTo(104));
 
+        Assert.That(Marshal.SizeOf<ImGuiIO>(), Is.EqualTo(14616));
+        Assert.That(sizeof(ImGuiIO), Is.EqualTo(14616));
+
         //Assert.That(Marshal.SizeOf<ImGuiDockNode>(), Is.EqualTo(208));
         //Assert.That(sizeof(ImGuiDockNode), Is.EqualTo(208));
+    }
+
+    [Test]
+    public void ImGUIIO_Layout() {
+        Type type = typeof(ImGuiIO);
+        Console.Write($"sizeof({nameof(ImGuiIO)}): {sizeof(ImGuiIO)}");
+        FieldInfo[] fieldInfos = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        for (int index = 0; index < fieldInfos.Length; index++) {
+            FieldInfo fieldInfo = fieldInfos[index];
+            IntPtr fieldOffset = Marshal.OffsetOf(type, fieldInfo.Name);
+            Console.WriteLine($"[{index + 1}] {fieldInfo.Name}, offset {fieldOffset} (0x{fieldOffset.ToInt32():x8})");
+        }
     }
 
     [Test]
@@ -34,8 +50,7 @@ public unsafe class StructSizeTests {
         Assert.That(foo2, Is.Not.EqualTo(foo3));
     }
 
-    public unsafe partial struct ImGuiStackLevelInfo
-    {
+    public unsafe partial struct ImGuiStackLevelInfo {
         public uint ID;
         public byte QueryFrameCount;
         [MarshalAs(UnmanagedType.I1)] public bool QuerySuccess;

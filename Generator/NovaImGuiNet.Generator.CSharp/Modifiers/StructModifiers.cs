@@ -17,7 +17,7 @@ using static SyntaxFactoryCached;
 public static class StructModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(StructModifiers));
 
-    public static BindingsModel RenameStructFieldType(
+    public static void RenameStructFieldType(
         BindingsModel model,
         string structName,
         string fieldNamePrefix,
@@ -43,12 +43,10 @@ public static class StructModifiers {
             );
 
         fieldTypeStruct.Name = newFieldTypeName;
-        field.Name = newFieldName;
-
-        return model;
+        field.BaseName = newFieldName;
     }
 
-    public static BindingsModel GenericizeStructByTypeName(
+    public static void GenericizeStructByTypeName(
         BindingsModel model,
         string typeName,
         string newTypeName,
@@ -68,11 +66,10 @@ public static class StructModifiers {
         if (genericArgumentTypeReference == null)
             throw new InvalidOperationException($"Found no struct with name {genericArgumentTypeName}");
 
-        GenericizeStruct(newTypeName, structReference, genericArgumentTypeReference.Reference);
-        return model;
+        GenericizeStruct(structReference, genericArgumentTypeReference.Reference, newTypeName);
     }
 
-    public static BindingsModel GenericizeStructsByFieldType(
+    public static void GenericizeStructsByFieldType(
         BindingsModel model,
         string baseTypeName,
         string genericTypeDiscriminatorFieldName,
@@ -98,23 +95,117 @@ public static class StructModifiers {
                 genericArgumentReference = pointerType.ValueType;
             }
 
-            GenericizeStruct(baseTypeName, structReference, genericArgumentReference);
+            GenericizeStruct(structReference, genericArgumentReference, baseTypeName);
         }
-
-        return model;
     }
 
-    public static Struct AddUnmanagedFunctionPointerFieldRawPtrAccessor(Struct structure) {
+    public static Struct AddIntPtrAccessorPropertyForUnmanagedFunctionPointerFields(Struct structure) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
             if (field.Type.Value is not Delegate fieldTypeDelegate)
                 return [field];
 
-            return AddUnmanagedFunctionPointerFieldRawPtrAccessor(field, fieldTypeDelegate);
+            PropertyDeclarationSyntax intPtrProperty =
+                CreateIntPtrAccessorPropertyForField(
+                    field.BaseName,
+                    field.Name,
+                    FormatUnmanagedFunctionPointer(fieldTypeDelegate)
+                );
+
+            MemberDeclarationSyntaxEntity intPtrPropertyEntity = new(intPtrProperty, field);
+            return [intPtrPropertyEntity, field];
         });
         return structure;
     }
 
-    public static Field PatchEnumReferencesInFieldArraySizeDeclaration(BindingsModel model, Field field) {
+    public static Struct AddIntPtrAccessorPropertyForPointerFields(Struct structure) {
+        structure.Children.UpdateInPlace<IEntity, Field>(field => {
+            if (field.Type.Value is not Pointer fieldTypePointer ||
+                fieldTypePointer.IsVoidPointer()) // void* is replaced with IntPtr
+                return [field];
+
+            PropertyDeclarationSyntax intPtrProperty =
+                CreateIntPtrAccessorPropertyForField(
+                    field.BaseName,
+                    field.Name,
+                    FormatType(fieldTypePointer)
+                );
+
+            MemberDeclarationSyntaxEntity intPtrPropertyEntity = new(intPtrProperty, field);
+            return [intPtrPropertyEntity, field];
+        });
+        return structure;
+    }
+
+    public static Struct ConvertVoidPointerFieldsToIntPtr(Struct structure) {
+        structure.Children.UpdateInPlace<IEntity, Field>(field => {
+            if (field.Type.Value is not Pointer fieldTypePointer ||
+                !fieldTypePointer.IsVoidPointer())
+                return field;
+
+            field.Type = KnownEntities.IntPtr.AsEntityReference();
+            return field;
+        });
+        return structure;
+    }
+
+    public static Struct AddNullTerminatedStringPropertyForConstCharPointerFields(Struct structure) {
+        structure.Children.UpdateInPlace<IEntity, Field>(field => {
+            if (field.IsExplodedFixedSizeArrayField)
+                return [field];
+
+            bool isConstCharPointer = field.Type.Value.IsConstCharPointer();
+            bool isFixedSizeCharArray = field.Type.Value is Array { ElementType.Value: Builtin { BuiltinName: "byte" } };
+
+            // FIXME: this is ugly
+            bool isFixedSizeCharArrayLikelyString =
+                isFixedSizeCharArray &&
+                ((string[]) ["name", "prefix", "suffix", "fmt"])
+                .Any(nameSub =>
+                    field.Name.Contains(nameSub, StringComparison.OrdinalIgnoreCase)
+                );
+
+            if (!isConstCharPointer && !isFixedSizeCharArrayLikelyString)
+                return [field];
+
+            // Promote using the NTS property
+            string propertyName = field.BaseName;
+
+            if (field.NamePrefix == null) {
+                field.NamePrefix = "_";
+            } else {
+                propertyName += "String";
+            }
+
+            string ntsConstructorArgument =
+                isFixedSizeCharArray ?
+                    $"(byte*) Unsafe.AsPointer(ref {field.Name}[0])" :
+                    field.Name;
+
+            var propertyGetLambda = ArrowExpressionClause(
+                ParseExpression($"new NullTerminatedString({ntsConstructorArgument})")
+            );
+
+            PropertyDeclarationSyntax ntsProperty =
+                PropertyDeclaration(
+                        ParseTypeName("NullTerminatedString"),
+                        propertyName
+                    )
+                    .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                    .AddAccessorListAccessors(
+                        AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                            .WithExpressionBody(propertyGetLambda)
+                            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                            .WithLeadingTrivia(CarriageReturnLineFeed)
+                            .WithTrailingTrivia(LineFeed)
+                    );
+
+            MemberDeclarationSyntaxEntity ntsPropertyEntity = new(ntsProperty, field);
+            return [ntsPropertyEntity, field];
+        });
+        return structure;
+    }
+
+    public static Field PatchEnumReferencesInFieldArraySizeDeclaration(Field field, BindingsModel model) {
         if (field.Type.Value is not Array fieldTypeArray)
             return field;
 
@@ -134,28 +225,29 @@ public static class StructModifiers {
     }
 
     public static Struct FixMissingFieldArrayNumericBounds(
-        BindingsContext context,
+        Struct structure,
         MetadataDto dto,
-        BindingsModel model,
-        Struct structure
+        BindingsContext context,
+        BindingsModel model
     ) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
             if (field.Type.Value is not Array fieldTypeArray)
                 return field;
 
             return FixMissingFieldArrayNumericBounds(
-                dto,
-                model,
                 field,
                 fieldTypeArray,
-                context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes
+                context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes,
+                dto,
+                model
             );
         });
+
         return structure;
     }
 
     // FIXME: can at least some of those be automated?
-    public static Struct PatchManualMissingFieldArrayNumericBounds(BindingsModel model, Struct structure) {
+    public static Struct PatchManualMissingFieldArrayNumericBounds(Struct structure, BindingsModel model) {
         IReadOnlyList<Field> fields = structure.Children.OfType<Field>().ToList();
 
         switch (structure.Name) {
@@ -263,7 +355,7 @@ public static class StructModifiers {
             if (field.Type.Value is not Array fieldTypeArray)
                 return [field];
 
-            return HandleFixedSizeArrayField(structure, field, fieldTypeArray, false, false);
+            return ProcessFixedSizeArrayField(structure, field, fieldTypeArray, false, false);
         });
 
         return structure;
@@ -274,14 +366,14 @@ public static class StructModifiers {
             if (field.Type.Value is not Array fieldTypeArray)
                 return [field];
 
-            return HandleFixedSizeArrayField(structure, field, fieldTypeArray, false, true);
+            return ProcessFixedSizeArrayField(structure, field, fieldTypeArray, false, true);
         });
 
         return structure;
     }
 
     // https://github.com/dotnet/runtime/issues/6924
-    public static Struct WorkaroundDotNetRecursiveGenericStructBug(BindingsModel model, Struct structure) {
+    public static Struct WorkaroundDotNetRecursiveGenericStructBug(Struct structure, BindingsModel model) {
         switch (structure.Name) {
             case "ImGuiWindowTempData":
                 Field? childWindowsField = structure.Children.OfType<Field>().FirstOrDefault(x => x.Name == "ChildWindows");
@@ -343,8 +435,8 @@ public static class StructModifiers {
 
             Field[] oldFields = allFields[startIndex..(endIndex + 1)];
             Debug.Assert(oldFields[0].Value == null);
-            Field combinedField = new Field {
-                Name = String.Join("_", oldFields.Select(x => x.Name)),
+            Field combinedField = new() {
+                BaseName = String.Join("_", oldFields.Select(x => x.Name)),
                 Type = oldFields[0].Type,
                 Value = null,
 
@@ -381,11 +473,11 @@ public static class StructModifiers {
     }
 
     private static Field FixMissingFieldArrayNumericBounds(
-        MetadataDto dto,
-        BindingsModel model,
         Field field,
         Array fieldTypeArray,
-        bool resolveNumericArrayBoundsForPrimitiveTypes
+        bool resolveNumericArrayBoundsForPrimitiveTypes,
+        MetadataDto dto,
+        BindingsModel model
     ) {
         string? arrayBounds = fieldTypeArray.ArrayBounds;
         long? arrayBoundsNumeric =
@@ -393,10 +485,10 @@ public static class StructModifiers {
             EvaluateExpressionAsLong(fieldTypeArray.ArrayBounds);
 
         if (arrayBoundsNumeric == null &&
-            (!IsPrimitiveArrayElementType(fieldTypeArray.ElementType.Value) ||
+            (!IsPrimitiveArrayElementType(fieldTypeArray.ElementType) ||
                 resolveNumericArrayBoundsForPrimitiveTypes)
            ) {
-            arrayBoundsNumeric = ResolveNumericArrayBoundsValue(dto, model, fieldTypeArray);
+            arrayBoundsNumeric = ResolveNumericArrayBoundsValue(fieldTypeArray, dto, model);
         }
 
         if (arrayBoundsNumeric == null) {
@@ -418,7 +510,7 @@ public static class StructModifiers {
 
     // C# doesn't support non-primitive fixed size array fields,
     // so we explode them into a field per array element
-    private static IReadOnlyList<IEntity> HandleFixedSizeArrayField(
+    private static IReadOnlyList<IEntity> ProcessFixedSizeArrayField(
         Struct structure,
         Field field,
         Array fieldTypeArray,
@@ -426,7 +518,7 @@ public static class StructModifiers {
         bool createSpanAccessorForPrimitiveTypes
     ) {
         Entity arrayElementType = fieldTypeArray.ElementType.Value;
-        bool isPrimitive = IsPrimitiveArrayElementType(arrayElementType);
+        bool isPrimitive = IsPrimitiveArrayElementType(fieldTypeArray.ElementType);
         long? arrayBoundsValue = fieldTypeArray.ArrayBoundsNumeric;
 
         // Nothing to do, nothing to check
@@ -436,25 +528,31 @@ public static class StructModifiers {
         if (arrayBoundsValue == null)
             throw new Exception(
                 $"Failed to determine numeric array bounds for field {structure.Name}.{field.Name} " +
-                $"(expression {fieldTypeArray.ArrayBounds})");
+                $"(expression {fieldTypeArray.ArrayBounds})"
+            );
 
         IEntityReference arrayElementTypeReference = arrayElementType.AsEntityReference();
         List<Field> fields;
         if (!isPrimitive || explodePrimitiveTypes) {
-            fields = Enumerable.Range(0, (int) arrayBoundsValue.Value)
-                .Select(index => {
-                    Comments fieldComments =
-                        field.Comments
-                            .WithAddedNotes(
-                                $"{field.Name} [{index} / {(int) arrayBoundsValue.Value} ({fieldTypeArray.ArrayBounds})]"
+            fields =
+                Enumerable
+                    .Range(0, (int) arrayBoundsValue.Value)
+                    .Select(index => {
+                        Comments fieldComments = field.Comments;
+                        if (index == 0) {
+                            fieldComments = fieldComments.WithAddedNotes(
+                                $"{field.Name} [total {arrayBoundsValue.Value} elements ({fieldTypeArray.ArrayBounds})]"
                             );
-                    return field with {
-                        Name = $"{field.Name}_{index}",
-                        Type = arrayElementTypeReference,
-                        Comments = fieldComments
-                    };
-                })
-                .ToList();
+                        }
+
+                        return field with {
+                            BaseName = $"{field.Name}_{index}",
+                            Type = arrayElementTypeReference,
+                            Comments = fieldComments,
+                            IsExplodedFixedSizeArrayField = true
+                        };
+                    })
+                    .ToList();
         } else {
             fields = [field];
         }
@@ -462,27 +560,33 @@ public static class StructModifiers {
         if (isPrimitive && !createSpanAccessorForPrimitiveTypes)
             return fields;
 
-        string primitiveFieldName = $"{field.Name}_";
+        string propertyName = field.BaseName;
+        if (isPrimitive) {
+            if (field.NamePrefix == null) {
+                // Rename the base field as otherwise the Span accessor would be named the same.
+                // The expectation is that the Span accessor would be the preferred way.
+                field.NamePrefix = "_";
+            } else {
+                propertyName += "Span";
+            }
+        }
+
         PropertyDeclarationSyntax spanAccessorProperty =
-            CreateSpanAccessorProperty(
-                field,
+            CreateFixedSizeArrayFieldSpanAccessorProperty(
+                propertyName,
+                field.Name,
                 arrayElementType,
                 arrayBoundsValue.Value,
                 !isPrimitive,
-                primitiveFieldName
+                field.Name
             );
-
-        if (isPrimitive) {
-            // Rename the base field as otherwise the Span accessor would be named the same.
-            // The expectation is that the Span accessor would be the preferred way.
-            field.Name = primitiveFieldName;
-        }
 
         return [new MemberDeclarationSyntaxEntity(spanAccessorProperty, field), ..fields];
     }
 
-    private static PropertyDeclarationSyntax CreateSpanAccessorProperty(
-        Field field,
+    private static PropertyDeclarationSyntax CreateFixedSizeArrayFieldSpanAccessorProperty(
+        string propertyName,
+        string fieldName,
         Entity arrayElementType,
         long arrayBoundsValue,
         bool asPointerToExplodedField,
@@ -494,7 +598,7 @@ public static class StructModifiers {
                 new FormatTypeOptions { UsePointerWrapper = true }
             );
 
-        string pointerVariableName = $"{field.Name.ToCamelCase()}Pointer";
+        string pointerVariableName = $"{fieldName.ToCamelCase()}Pointer";
 
         StatementSyntax getBody;
         if (asPointerToExplodedField) {
@@ -509,7 +613,7 @@ public static class StructModifiers {
                                 VariableDeclarator(
                                     Identifier(pointerVariableName),
                                     default,
-                                    EqualsValueClause(ParseExpression($"&{field.Name}_0"))
+                                    EqualsValueClause(ParseExpression($"&{fieldName}_0"))
                                 )
                             )
                         )
@@ -542,7 +646,7 @@ public static class StructModifiers {
         PropertyDeclarationSyntax spanAccessorProperty =
             PropertyDeclaration(
                     ParseTypeName($"Span<{arrayElementTypeFormatted}>"),
-                    field.Name
+                    propertyName
                 )
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
                 .AddAccessorListAccessors(
@@ -555,22 +659,42 @@ public static class StructModifiers {
         return spanAccessorProperty;
     }
 
-    private static bool IsPrimitiveArrayElementType(Entity arrayElement) {
-        return arrayElement is Builtin or Typedef { Type.Value: Builtin };
+    private static bool IsPrimitiveArrayElementType(IEntityReference arrayElementTypeReference) {
+        // Treat bool as non-primitive because by default,
+        // it's marshalled as 4 bytes instead of 1 byte
+        arrayElementTypeReference = arrayElementTypeReference.ExpandTypedef()!;
+        if (arrayElementTypeReference.Value is not Builtin builtin)
+            return false;
+
+        if (builtin.ManagedType == typeof(bool))
+            return false;
+
+        return true;
     }
 
-    private static IReadOnlyList<IEntity> AddUnmanagedFunctionPointerFieldRawPtrAccessor(Field field, Delegate userDelegate) {
+    private static PropertyDeclarationSyntax CreateIntPtrAccessorPropertyForField(
+        string propertyName,
+        string fieldName,
+        string fieldType
+    ) {
         var propertyGetLambda = ArrowExpressionClause(
-            ParseExpression($"(IntPtr) {field.Name}")
-        );
-        var propertySetLambda = ArrowExpressionClause(
-            ParseExpression($"{field.Name} = ({FormatUnmanagedFunctionPointer(userDelegate)}) value")
+            ParseExpression($"(IntPtr) {fieldName}")
         );
 
-        PropertyDeclarationSyntax property =
+        var propertySetLambda = ArrowExpressionClause(
+            ParseExpression($"{fieldName} = ({fieldType}) value")
+        );
+
+        if (Char.IsNumber(propertyName[^1])) {
+            propertyName += "_";
+        }
+
+        propertyName += "IntPtr";
+
+        PropertyDeclarationSyntax intPtrProperty =
             PropertyDeclaration(
                     ParseTypeName("IntPtr"),
-                    field.Name + "Ptr"
+                    propertyName
                 )
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
                 .AddAccessorListAccessors(
@@ -585,16 +709,10 @@ public static class StructModifiers {
                         .WithTrailingTrivia(LineFeed)
                 );
 
-        MemberDeclarationSyntaxEntity entity = new(property, field);
-        entity.Conditionals = [
-            ..entity.Conditionals,
-            new Conditional("!NETSTANDARD2_0_OR_GREATER")
-        ];
-
-        return [entity, field];
+        return intPtrProperty;
     }
 
-    private static long? ResolveNumericArrayBoundsValue(MetadataDto dto, BindingsModel model, Array fieldTypeArray) {
+    private static long? ResolveNumericArrayBoundsValue(Array fieldTypeArray, MetadataDto dto, BindingsModel model) {
         // We have a numeric literal, we're golden
         long? arrayBoundsValue = fieldTypeArray.ArrayBoundsNumeric;
         if (arrayBoundsValue != null)
@@ -643,9 +761,9 @@ public static class StructModifiers {
     }
 
     private static void GenericizeStruct(
-        string newTypeName,
         EntityReferenceWrapper<Struct> structReference,
-        IEntityReference genericArgumentReference
+        IEntityReference genericArgumentReference,
+        string newTypeName
     ) {
         Struct structure = structReference.Value;
 
