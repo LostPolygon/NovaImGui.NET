@@ -410,7 +410,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             ManagedMethodArgument[] overloadArguments = baseArguments.ToArray();
 
             DisableDefaultValuesInArguments(overloadArguments, lastInvalidArgument);
-            RemoveInvalidArgumentsFromDeclaration(overloadArguments, firstInvalidArgument);
+            RemoveInvalidArgumentsFromDeclaration(overloadArguments, baseArgIndex);
 
             MethodSignature overload = baseMethod with {
                 Arguments = overloadArguments
