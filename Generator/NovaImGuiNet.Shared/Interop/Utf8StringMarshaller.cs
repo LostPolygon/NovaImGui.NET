@@ -30,7 +30,7 @@ public static unsafe class Utf8StringMarshaller {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ConvertUtf16PointerToUtf8Pointer(char* chars, int charCount, byte* bytes, int byteCount) {
+    public static void ConvertUtf16PointerToNullTerminatedUtf8Pointer(char* chars, int charCount, byte* bytes, int byteCount) {
         int utf8BytesWritten = Encoding.UTF8.GetBytes(chars, charCount, bytes, byteCount);
         bytes[utf8BytesWritten] = 0;
     }
@@ -39,37 +39,12 @@ public static unsafe class Utf8StringMarshaller {
         public static int StackAllocMaxSize => 1024;
 
         private readonly ReadOnlySpan<char> _charSpan;
-        private readonly bool _isUtf8;
-        private readonly char* _utf16Pointer;
         private byte* _utf8Pointer;
         private bool _utf8Allocated;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ManagedToUnmanagedIn(ReadOnlySpan<byte> utf8Span) {
-            _isUtf8 = true;
-            _charSpan = default;
-
-            _utf8Pointer = InteropUtility.SpanToPointer(utf8Span);
-            if (_utf8Pointer != null && utf8Span.IsEmpty) {
-                _utf8Pointer = EmptyUtf8StringPointer;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ManagedToUnmanagedIn(ReadOnlySpan<char> charSpan) {
-            _isUtf8 = false;
-            _utf8Pointer = null;
-
             _charSpan = charSpan;
-            char* utf16Pointer = InteropUtility.SpanToPointer(charSpan);
-            if (utf16Pointer == null) {
-                _isUtf8 = true;
-            } else if (charSpan.IsEmpty) {
-                _isUtf8 = true;
-                _utf8Pointer = EmptyUtf8StringPointer;
-            } else {
-                _utf16Pointer = utf16Pointer;
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -78,10 +53,15 @@ public static unsafe class Utf8StringMarshaller {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte* ConvertToNative(Span<byte> utf8Buffer) {
-            if (_isUtf8)
-                return _utf8Pointer;
-
             ReadOnlySpan<char> utf16 = _charSpan;
+            char* utf16Pointer = InteropUtility.SpanToPointer(utf16);
+
+            if (utf16Pointer == null)
+                return null;
+
+            if (utf16.IsEmpty)
+                return EmptyUtf8StringPointer;
+
             int utf8MaxBytes = EstimateNullTerminatedUtf8StringByteCount(utf16.Length);
 
             bool stackBufferEnough = utf8MaxBytes <= utf8Buffer.Length;
@@ -92,7 +72,7 @@ public static unsafe class Utf8StringMarshaller {
                 _utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
             }
 
-            ConvertUtf16PointerToUtf8Pointer(_utf16Pointer, utf16.Length, _utf8Pointer, utf8MaxBytes - 1);
+            ConvertUtf16PointerToNullTerminatedUtf8Pointer(utf16Pointer, utf16.Length, _utf8Pointer, utf8MaxBytes - 1);
             return _utf8Pointer;
         }
 
