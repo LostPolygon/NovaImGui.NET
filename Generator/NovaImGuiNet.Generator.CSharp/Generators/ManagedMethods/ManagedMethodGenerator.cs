@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
-using MoreLinq;
 
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
@@ -147,14 +147,19 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         NativeFunctionArgumentMarshallingVariant[][] nativeArgumentMarshallingVariants =
             nativeArgumentDescriptions
-                .Select(arg => ResolveNativeArgumentMarshallingVariants(arg, isFunctionBanned))
+                .Select((_, argIndex) => ResolveNativeArgumentMarshallingVariants(nativeArgumentDescriptions, argIndex, isFunctionBanned))
                 .ToArray();
 
         NativeFunctionReturnTypeMarshallingVariant[] nativeReturnTypeMarshallingVariants =
             ResolveNativeReturnTypeMarshallingVariants(nativeFunctionReturnTypeDescription);
 
+        // FIXME: account for more than one return type variant
+        Debug.Assert(nativeReturnTypeMarshallingVariants.Length == 1);
+
         List<MethodArgumentOverloadRaw> rawMethodArgumentOverloads = [];
         GenerateArgumentMarshallingVariantsMethodOverloads(nativeArgumentMarshallingVariants, rawMethodArgumentOverloads, null, 0, 0);
+
+        rawMethodArgumentOverloads = FilterRawMethodArgumentOverloads(rawMethodArgumentOverloads);
 
         List<MethodSignature> methodSignatures =
             rawMethodArgumentOverloads
@@ -162,13 +167,19 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     new MethodSignature(
                         nativeFunction,
                         ResolveManagedMethodArguments(raw.Arguments).ToEqualityList(),
-                        ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0]) // FIXME: use array
+                        ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0])
                     )
                 )
                 .ToList();
 
         if (methodSignatures.Count == 0) {
-            methodSignatures.Add(new MethodSignature(nativeFunction, [], ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0])));
+            methodSignatures.Add(
+                new MethodSignature(
+                    nativeFunction,
+                    [],
+                    ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0])
+                )
+            );
         }
 
         Range? defaultValueInvalidArgumentsRange =
@@ -220,6 +231,45 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         return managedMethods;
     }
 
+    private List<MethodArgumentOverloadRaw> FilterRawMethodArgumentOverloads(List<MethodArgumentOverloadRaw> overloads) {
+        List<MethodArgumentOverloadRaw> newOverloads = [];
+        foreach (MethodArgumentOverloadRaw overload in overloads) {
+            (int Index, NativeFunctionArgumentMarshallingVariant Item) stringBeginEndPairBeginWithIndex =
+                overload.Arguments
+                    .Index()
+                    .FirstOrDefault(
+                        argWithIndex =>
+                            argWithIndex.Item.StringBeginEndPairMode is
+                                StringBeginEndPairMode.Begin or
+                                StringBeginEndPairMode.BeginOnly
+                    );
+
+            NativeFunctionArgumentMarshallingVariant stringBeginEndPairBegin = stringBeginEndPairBeginWithIndex.Item;
+            if (stringBeginEndPairBegin != null) {
+                NativeFunctionArgumentMarshallingVariant stringBeginEndPairEnd =
+                    overload.Arguments[stringBeginEndPairBeginWithIndex.Index + 1];
+
+                bool isValidStringBeginEndPair =
+                    (
+                        stringBeginEndPairBegin.StringBeginEndPairMode == StringBeginEndPairMode.Begin &&
+                        stringBeginEndPairEnd.StringBeginEndPairMode == StringBeginEndPairMode.End
+                    )
+                    ||
+                    (
+                        stringBeginEndPairBegin.StringBeginEndPairMode == StringBeginEndPairMode.BeginOnly &&
+                        stringBeginEndPairEnd.StringBeginEndPairMode == StringBeginEndPairMode.EndDefault
+                    );
+
+                if (!isValidStringBeginEndPair)
+                    continue;
+            }
+
+            newOverloads.Add(overload);
+        }
+
+        return newOverloads;
+    }
+
     private static Struct CreateImGuiManagedMethodsStruct(string targetNamespace, string structName) {
         Struct structure = new() {
             Kind = Struct.StructKind.StaticClass,
@@ -267,8 +317,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 .Select(arg => ArgumentMarshallerFactory.Create(methodSignature, arg))
                 .ToArray();
 
-        string invocationValuesFormatted = String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
-        string nativeFunctionInvocation = $"{nativeFunctionsClassName}.{methodSignature.NativeFunction.Name}({invocationValuesFormatted})";
+        string invocationValuesFormatted =
+            String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
+        string nativeFunctionInvocation =
+            $"{nativeFunctionsClassName}.{methodSignature.NativeFunction.Name}({invocationValuesFormatted})";
 
         IReturnTypeMarshaller returnTypeMarshaller =
             ReturnTypeMarshallerFactory.Create(methodSignature, nativeFunctionInvocation);
@@ -317,6 +369,23 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             ReturnType = methodSignature.ReturnType.MarshalledReturnType.AsEntityReference(),
             IsNativeFunction = false
         };
+
+        // Only enable String arguments on .NET Standard 2.0,
+        // as newer NET versions can just use ReadOnlySpan<char>
+
+        bool anyStringsInSignatureArguments =
+            signatureArguments
+                .Any(arg =>
+                    arg.Type.ExpandPointer().Value is Builtin builtin &&
+                    builtin.ManagedType == typeof(string)
+                );
+
+        if (anyStringsInSignatureArguments) {
+            managedMethod.Conditionals = [
+                ..managedMethod.Conditionals,
+                new Conditional("NETSTANDARD2_0")
+            ];
+        }
 
         return managedMethod;
     }
@@ -432,14 +501,18 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     }
 
     private static NativeFunctionArgumentMarshallingVariant[] ResolveNativeArgumentMarshallingVariants(
-        NativeFunctionArgumentDescription description,
+        IReadOnlyList<NativeFunctionArgumentDescription> argumentDescriptions,
+        int argumentIndex,
         bool forceBaseOnly
     ) {
+        NativeFunctionArgumentDescription description = argumentDescriptions[argumentIndex];
+
         NativeFunctionArgumentMarshallingVariant baseMarshallingVariant = new(
             description.Argument,
             description.ArgumentIndex,
             description.IsString ? StringMarshallingMode.BytePointer : StringMarshallingMode.Undefined,
-            description.IsPointer ? PointerMarshallingMode.Pointer : PointerMarshallingMode.Undefined
+            description.IsPointer ? PointerMarshallingMode.Pointer : PointerMarshallingMode.Undefined,
+            StringBeginEndPairMode.None
         );
 
         if (description.Argument.IsInstancePointer || forceBaseOnly)
@@ -447,9 +520,23 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         List<NativeFunctionArgumentMarshallingVariant> variants = [];
         if (description.IsString) {
-            AddVariant(StringMarshallingMode.ReadOnlyByteSpan, PointerMarshallingMode.Undefined);
-            AddVariant(StringMarshallingMode.ReadOnlyCharSpan, PointerMarshallingMode.Undefined);
-            AddVariant(StringMarshallingMode.String, PointerMarshallingMode.Undefined);
+            bool isStringBeginEndPairBegin = IsStringBeginEndPairBegin(argumentIndex);
+            bool isStringBeginEndPairEnd = IsStringBeginEndPairBegin(argumentIndex - 1);
+
+            if (isStringBeginEndPairBegin) {
+                AddVariant(StringMarshallingMode.BytePointer, PointerMarshallingMode.Undefined, StringBeginEndPairMode.Begin);
+
+                AddVariant(StringMarshallingMode.ReadOnlyByteSpan, PointerMarshallingMode.Undefined, StringBeginEndPairMode.BeginOnly);
+                AddVariant(StringMarshallingMode.ReadOnlyCharSpan, PointerMarshallingMode.Undefined, StringBeginEndPairMode.BeginOnly);
+                AddVariant(StringMarshallingMode.String, PointerMarshallingMode.Undefined, StringBeginEndPairMode.BeginOnly);
+            } else if (isStringBeginEndPairEnd) {
+                AddVariant(StringMarshallingMode.BytePointer, PointerMarshallingMode.Undefined, StringBeginEndPairMode.End);
+                AddVariant(StringMarshallingMode.BytePointer, PointerMarshallingMode.Undefined, StringBeginEndPairMode.EndDefault);
+            } else {
+                AddVariant(StringMarshallingMode.ReadOnlyByteSpan, PointerMarshallingMode.Undefined);
+                AddVariant(StringMarshallingMode.ReadOnlyCharSpan, PointerMarshallingMode.Undefined);
+                AddVariant(StringMarshallingMode.String, PointerMarshallingMode.Undefined);
+            }
 
             // FIXME: handle combination with IsPointer
         } else if (description.IsPointer) {
@@ -487,15 +574,36 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         return variants.ToArray();
 
-        void AddVariant(StringMarshallingMode stringMarshalKind, PointerMarshallingMode pointerMarshalKind) {
+        void AddVariant(
+            StringMarshallingMode stringMarshalKind,
+            PointerMarshallingMode pointerMarshalKind,
+            StringBeginEndPairMode stringBeginEndPairMode = StringBeginEndPairMode.None
+        ) {
             variants.Add(
                 new NativeFunctionArgumentMarshallingVariant(
                     description.Argument,
                     description.ArgumentIndex,
                     stringMarshalKind,
-                    pointerMarshalKind
+                    pointerMarshalKind,
+                    stringBeginEndPairMode
                 )
             );
+        }
+
+        bool IsStringBeginEndPairBegin(int argumentIndex) {
+            if (argumentDescriptions.Count <= argumentIndex + 1 || argumentIndex < 0)
+                return false;
+
+            NativeFunctionArgumentDescription thisArg = argumentDescriptions[argumentIndex];
+            NativeFunctionArgumentDescription nextArg = argumentDescriptions[argumentIndex + 1];
+
+            if (!thisArg.IsString || !nextArg.IsString)
+                return false;
+
+            if (nextArg.Argument.Name == thisArg.Argument.Name + "_end")
+                return true;
+
+            return false;
         }
     }
 
@@ -585,12 +693,20 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     throw new ArgumentOutOfRangeException();
             }
 
+            bool isPartOfDeclaration =
+                !nativeArgumentMarshallingVariant.NativeFunctionArgument.IsInstancePointer &&
+                nativeArgumentMarshallingVariant.StringBeginEndPairMode != StringBeginEndPairMode.EndDefault;
+
+            if (nativeArgumentMarshallingVariant.StringBeginEndPairMode == StringBeginEndPairMode.EndDefault) {
+                managedArgument.DefaultValue = "default";
+            }
+
             managedArguments.Add(
                 new ManagedMethodArgument(
                     nativeArgumentMarshallingVariant.NativeFunctionArgument,
                     managedArgument,
                     nativeArgumentMarshallingVariant,
-                    !nativeArgumentMarshallingVariant.NativeFunctionArgument.IsInstancePointer
+                    isPartOfDeclaration
                 )
             );
         }

@@ -1,10 +1,11 @@
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
-public readonly record struct NativeFunctionArgumentMarshallingVariant(
+public record NativeFunctionArgumentMarshallingVariant(
     BindingsModel.FunctionArgument NativeFunctionArgument,
     int NativeFunctionArgumentIndex,
     StringMarshallingMode StringMarshallingMode,
-    PointerMarshallingMode PointerMarshallingMode
+    PointerMarshallingMode PointerMarshallingMode,
+    StringBeginEndPairMode StringBeginEndPairMode
 ) {
     public override string ToString() {
         List<string> elements = [];
@@ -15,6 +16,10 @@ public readonly record struct NativeFunctionArgumentMarshallingVariant(
 
         if (PointerMarshallingMode != PointerMarshallingMode.Undefined) {
             elements.Add($"Pointer = {PointerMarshallingMode}");
+        }
+
+        if (StringBeginEndPairMode != StringBeginEndPairMode.None) {
+            elements.Add($"BeginEndPair = {StringBeginEndPairMode}");
         }
 
         return $"{NativeFunctionArgument.Name} ({String.Join(", ", elements)})";

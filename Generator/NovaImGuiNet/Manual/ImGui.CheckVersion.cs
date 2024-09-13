@@ -27,7 +27,7 @@ public static unsafe partial class ImGui {
                  Operating System: {Environment.OSVersion}
                  NovaImGuiNet version: {ThisAssembly.AssemblyInformationalVersion}
                  Expected Dear ImGui version: {IMGUI_VERSION}
-                 Actual Dear ImGui version: {new NullTerminatedString(GetVersion())}
+                 Actual Dear ImGui version: {GetVersion()}
 
                  sizeof(IntPtr): {sizeof(IntPtr)}
                  sizeof(ImGuiIO): {sizeof(ImGuiIO)}
