@@ -120,6 +120,9 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
 #>
     }
 
+    public static implicit operator <#= typeName #><T>((<#= String.Join(", ", Enumerable.Range(1, tupleSize).Select(index => $"T value{index}")) #>) tuple) => 
+        new <#= typeName #><T>(<#= String.Join(", ", Enumerable.Range(1, tupleSize).Select(index => $"tuple.value{index}")) #>);
+
 <#
    }
 #>
