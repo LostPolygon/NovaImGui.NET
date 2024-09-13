@@ -20,7 +20,8 @@
     }
   ],
   "no_emit_managed_methods_for_native_functions": [
-
+    "ImGui_PushIDStr",
+    "ImGui_GetIDStr"
   ],
   "no_emit_structs": [
     "ImVec2",

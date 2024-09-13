@@ -600,7 +600,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             if (!thisArg.IsString || !nextArg.IsString)
                 return false;
 
-            if (nextArg.Argument.Name == thisArg.Argument.Name + "_end")
+            if (thisArg.Argument.Name + "_end" == nextArg.Argument.Name)
+                return true;
+
+            if (thisArg.Argument.Name.RemoveSuffix("_begin") + "_end" == nextArg.Argument.Name)
                 return true;
 
             return false;
