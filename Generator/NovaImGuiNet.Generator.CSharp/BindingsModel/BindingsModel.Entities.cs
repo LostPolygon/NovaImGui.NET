@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OneOf;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
@@ -390,7 +391,7 @@ public partial class BindingsModel {
         public bool IsManualHelper { get; set; }
         public bool IsUnformattedHelper { get; set; }
         public bool IsStatic { get; set; }
-        public BlockSyntax? Body { get; set; }
+        public OneOf<BlockSyntax, ArrowExpressionClauseSyntax>? Body { get; set; }
 
         public Function() {
         }

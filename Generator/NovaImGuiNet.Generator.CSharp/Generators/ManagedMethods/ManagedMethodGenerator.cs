@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using CaseConverter;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
@@ -69,11 +70,18 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
             // Assume that the function with the shortest name is the one matching the original
             EntityReferenceWrapper<Function> originalFunction = functions.MinBy(x => x.Value.Name.Length)!;
+            string baseFunctionName = originalFunction.Value.Name;
 
             Function[] newFunctions =
                 functions
                     .SelectMany(function => {
-                        string functionName = originalFunction.Value.Name;
+                        string functionName = baseFunctionName;
+
+                        // Unformatted is the only prefix we preserve
+                        if (function.Value.IsUnformattedHelper) {
+                            functionName = function.Value.Name;
+                        }
+
                         return GenerateManagedMethodsForNativeFunction(structure, function.Value, functionName);
                     })
                     .ToArray();
@@ -135,7 +143,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         NativeFunctionReturnTypeDescription nativeFunctionReturnTypeDescription =
             new(nativeFunction.ReturnType.Value) {
                 IsString = nativeFunction.ReturnType.Value.IsConstCharPointer(),
-                IsVoid = nativeFunction.ReturnType.Value is Builtin builtin && builtin.ManagedType == typeof(void)
+                IsVoid = nativeFunction.ReturnType.Value.IsVoid()
             };
 
         // Generate marshalling variant of return types and of every argument
@@ -228,6 +236,22 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             );
         }
 
+        BindingsFileCustomizations.ManagedMethodAliasDefinition[] aliases =
+            bindingsFileCustomizations.GenerateManagedMethodAliases
+                .Where(x => x.NativeFunction == nativeFunction.Name)
+                .ToArray();
+
+        List<Function> managedMethodAliases = [];
+        foreach (BindingsFileCustomizations.ManagedMethodAliasDefinition alias in aliases) {
+            foreach (Function managedMethod in managedMethods) {
+                managedMethodAliases.Add(
+                    GenerateManagedMethodAlias(managedMethod, alias.ManagedMethodAlias)
+                );
+            }
+        }
+
+        managedMethods.AddRange(managedMethodAliases);
+
         return managedMethods;
     }
 
@@ -306,6 +330,23 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         return new Range(firstArgumentInvalidInAnySignature.Value, lastArgumentInvalidInAnySignature.Value);
     }
 
+    private static Function GenerateManagedMethodAlias(
+        Function managedMethod,
+        string aliasMethodName
+    ) {
+        string invocationValuesFormatted =
+            String.Join(", ", managedMethod.Arguments.Select(x => x.Name));
+        string managedMethodInvocation =
+            $"{managedMethod.Name}({invocationValuesFormatted})";
+
+        Function aliasMethod = managedMethod with {
+            Name = aliasMethodName,
+            Body = ArrowExpressionClause(ParseExpression(managedMethodInvocation)),
+        };
+
+        return aliasMethod;
+    }
+
     private static Function GenerateManagedMethodForNativeFunction(
         Struct structure,
         string methodName,
@@ -325,36 +366,19 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         IReturnTypeMarshaller returnTypeMarshaller =
             ReturnTypeMarshallerFactory.Create(methodSignature, nativeFunctionInvocation);
 
-        List<StatementSyntax> statements = [];
-
-        void Append(ManagedMethodArgumentMarshallerStatement newStatement) {
-            newStatement.Switch(
-                statementText => statements.Add(ParseStatementWithLeadingLineFeed(statementText)),
-                statementSyntax => statements.Add(statementSyntax),
-                syntaxTrivia => {
-                    if (statements.Count != 0) {
-                        statements[^1] = statements[^1].AddTrailingTriviaToEnd(syntaxTrivia);
-                    }
-                });
-        }
-
-        void AppendRange(IReadOnlyList<ManagedMethodArgumentMarshallerStatement> newStatements) {
-            foreach (ManagedMethodArgumentMarshallerStatement newStatement in newStatements) {
-                Append(newStatement);
-            }
-        }
+        StatementSyntaxListBuilder bodyBuilder = new();
 
         foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
-            AppendRange(argumentMarshaller.CreateMarshalStatements());
+            bodyBuilder.AppendRange(argumentMarshaller.CreateMarshalStatements());
         }
 
-        AppendRange(returnTypeMarshaller.CreateInvokeStatements());
+        bodyBuilder.AppendRange(returnTypeMarshaller.CreateInvokeStatements());
 
         foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
-            AppendRange(argumentMarshaller.CreateUnmarshalStatements());
+            bodyBuilder.AppendRange(argumentMarshaller.CreateUnmarshalStatements());
         }
 
-        AppendRange(returnTypeMarshaller.CreateReturnStatements());
+        bodyBuilder.AppendRange(returnTypeMarshaller.CreateReturnStatements());
 
         List<FunctionArgument> signatureArguments =
             methodSignature.Arguments
@@ -364,7 +388,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         Function managedMethod = methodSignature.NativeFunction with {
             Name = methodName,
-            Body = Block(statements),
+            Body = Block(bodyBuilder.Statements),
             Arguments = signatureArguments,
             ReturnType = methodSignature.ReturnType.MarshalledReturnType.AsEntityReference(),
             IsNativeFunction = false
@@ -638,7 +662,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         List<ManagedMethodArgument> managedArguments = [];
         foreach (NativeFunctionArgumentMarshallingVariant nativeArgumentMarshallingVariant in nativeArgumentMarshallingVariants) {
             FunctionArgument managedArgument = nativeArgumentMarshallingVariant.NativeFunctionArgument with { };
-            managedArgument = FunctionModifiers.PrettifyArgumentName(managedArgument);
 
             switch (nativeArgumentMarshallingVariant.StringMarshallingMode) {
                 case StringMarshallingMode.BytePointer:
@@ -700,9 +723,16 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 !nativeArgumentMarshallingVariant.NativeFunctionArgument.IsInstancePointer &&
                 nativeArgumentMarshallingVariant.StringBeginEndPairMode != StringBeginEndPairMode.EndDefault;
 
-            if (nativeArgumentMarshallingVariant.StringBeginEndPairMode == StringBeginEndPairMode.EndDefault) {
-                managedArgument.DefaultValue = "default";
+            switch (nativeArgumentMarshallingVariant.StringBeginEndPairMode) {
+                case StringBeginEndPairMode.BeginOnly:
+                    managedArgument.Name = managedArgument.Name.RemoveSuffix("_begin");
+                    break;
+                case StringBeginEndPairMode.EndDefault:
+                    managedArgument.DefaultValue = "default";
+                    break;
             }
+
+            managedArgument = FunctionModifiers.PrettifyArgumentName(managedArgument);
 
             managedArguments.Add(
                 new ManagedMethodArgument(

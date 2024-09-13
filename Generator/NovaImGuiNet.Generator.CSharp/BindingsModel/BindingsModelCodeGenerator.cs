@@ -1,4 +1,5 @@
 //#define DISABLE_PARALLEL
+
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -356,7 +357,7 @@ public class BindingsModelCodeGenerator {
         bool isStaticMethod,
         bool isNativeMethod,
         bool delegatesAsFunctionPointers,
-        BlockSyntax? bodyBlockSyntax
+        OneOf<BlockSyntax, ArrowExpressionClauseSyntax>? bodySyntax
     ) {
         List<SyntaxKind> modifiers = [SyntaxKind.PublicKeyword];
 
@@ -377,8 +378,16 @@ public class BindingsModelCodeGenerator {
                     .AddAttributeLists(CreateMarshalAsAttributeLists(function.ReturnType.Value, true));
         }
 
-        if (bodyBlockSyntax != null) {
-            methodDeclarationSyntax = methodDeclarationSyntax.WithBody(bodyBlockSyntax);
+        if (bodySyntax != null) {
+            MethodDeclarationSyntax methodDeclarationSyntaxCopy = methodDeclarationSyntax;
+            methodDeclarationSyntax =
+                bodySyntax.Value.Match(
+                    blockSyntax => methodDeclarationSyntaxCopy.WithBody(blockSyntax),
+                    arrowExpressionSyntax =>
+                        methodDeclarationSyntaxCopy
+                            .WithExpressionBody(arrowExpressionSyntax)
+                            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                );
         } else {
             methodDeclarationSyntax = methodDeclarationSyntax.WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
         }

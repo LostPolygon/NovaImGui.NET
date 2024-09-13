@@ -8,6 +8,11 @@
   "no_emit_structs": [
     "ImStb_STB_TexteditState"
   ],
+  "no_emit_managed_methods_for_native_functions": [
+    // unformatted helpers for formatting functions make no sense
+    "cImFormatStringUnformatted",
+    "cImFormatStringToTempBufferUnformatted"
+  ],
   "functions_no_permutations": [
     "cImStristr",
     "cImStreolRange",

@@ -11,6 +11,8 @@ public static class KnownEntities {
     public static readonly Pointer VoidPointer = new Builtin("void", typeof(void), StorageClass.NotSpecified).AsPointer();
     public static readonly Pointer ConstVoidPointer = new Builtin("void", typeof(void), StorageClass.Const).AsPointer();
 
+    public static bool IsVoid(this Entity entity) => entity is Builtin builtin && builtin.ManagedType == typeof(void);
+
     public static bool IsVoidPointer(this Entity entity) {
         if (entity is not Pointer pointer)
             return false;

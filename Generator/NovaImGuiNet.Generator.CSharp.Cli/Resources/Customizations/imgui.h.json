@@ -31,5 +31,59 @@
     {
       "name": "ImTextureID"
     }
+  ],
+  "generate_managed_method_aliases": [
+    {
+      "native_function": "ImGui_TextUnformatted",
+      "managed_method_alias": "Text"
+    },
+    {
+      "native_function": "ImGui_TextColoredUnformatted",
+      "managed_method_alias": "TextColored"
+    },
+    {
+      "native_function": "ImGui_TextDisabledUnformatted",
+      "managed_method_alias": "TextDisabled"
+    },
+    {
+      "native_function": "ImGui_TextWrappedUnformatted",
+      "managed_method_alias": "TextWrapped"
+    },
+    {
+      "native_function": "ImGui_LabelTextUnformatted",
+      "managed_method_alias": "LabelText"
+    },
+    {
+      "native_function": "ImGui_BulletTextUnformatted",
+      "managed_method_alias": "BulletText"
+    },
+    {
+      "native_function": "ImGui_TreeNodeStrUnformatted",
+      "managed_method_alias": "TreeNode"
+    },
+    {
+      "native_function": "ImGui_TreeNodePtrUnformatted",
+      "managed_method_alias": "TreeNode"
+    },
+    {
+      "native_function": "ImGui_TreeNodeExStrUnformatted",
+      "managed_method_alias": "TreeNode"
+    },
+    {
+      "native_function": "ImGui_SetTooltipUnformatted",
+      "managed_method_alias": "SetTooltip"
+    },
+    {
+      "native_function": "ImGui_SetItemTooltipUnformatted",
+      "managed_method_alias": "SetItemTooltip"
+    },
+    {
+      "native_function": "ImGui_LogTextUnformatted",
+      "managed_method_alias": "LogText"
+    },
+    {
+      "native_function": "ImGui_DebugLogUnformatted",
+      "managed_method_alias": "DebugLog"
+    }
   ]
 }
