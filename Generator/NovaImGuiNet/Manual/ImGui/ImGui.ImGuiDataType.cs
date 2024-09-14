@@ -9,7 +9,11 @@ public static unsafe partial class ImGui {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImGuiDataType GetImGuiDataType(Type type) =>
-        Type.GetTypeCode(type) switch {
+        GetImGuiDataType(Type.GetTypeCode(type));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ImGuiDataType GetImGuiDataType(TypeCode typeCode) =>
+        typeCode switch {
             TypeCode.Boolean => ImGuiDataType.Bool,
             TypeCode.SByte => ImGuiDataType.S8,
             TypeCode.Byte => ImGuiDataType.U8,
