@@ -12,8 +12,10 @@ public class PassthroughReturnTypeMarshaller : ReturnTypeMarshaller {
     }
 
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateReturnStatements() {
-        return [
-            $"return {ReturnVariableName};"
-        ];
+        if (NativeFunction.IsConstructor) {
+            return [$"this = {ReturnVariableName};"];
+        }
+
+        return [$"return {ReturnVariableName};"];
     }
 }

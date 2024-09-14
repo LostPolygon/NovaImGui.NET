@@ -391,6 +391,7 @@ public partial class BindingsModel {
         public bool IsManualHelper { get; set; }
         public bool IsUnformattedHelper { get; set; }
         public bool IsStatic { get; set; }
+        public bool IsConstructor { get; set; }
         public OneOf<BlockSyntax, ArrowExpressionClauseSyntax>? Body { get; set; }
 
         public Function() {
@@ -408,7 +409,8 @@ public partial class BindingsModel {
             bool hasImstrHelper,
             bool isManualHelper,
             bool isUnformattedHelper,
-            bool isStatic
+            bool isStatic,
+            bool isConstructor
         ) : base(comments, conditionals, sourceLocation, isInternal) {
             OwnerStruct = ownerStruct;
             OriginalFullyQualifiedName = originalFullyQualifiedName;
@@ -418,6 +420,7 @@ public partial class BindingsModel {
             IsManualHelper = isManualHelper;
             IsUnformattedHelper = isUnformattedHelper;
             IsStatic = isStatic;
+            IsConstructor = isConstructor;
         }
 
         public override IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {

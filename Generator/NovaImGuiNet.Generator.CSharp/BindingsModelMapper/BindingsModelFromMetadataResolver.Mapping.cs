@@ -77,28 +77,33 @@ public partial class BindingsModelFromMetadataResolver {
             Type = ResolveEntity(metadata.Type),
         };
 
-    private BindingsModel.Function ResolveFunction(MetadataModel.Function metadata) =>
-        new(
+    private BindingsModel.Function ResolveFunction(MetadataModel.Function metadata) {
+        BindingsModel.EntityReferenceWrapper<BindingsModel.Struct>? originalClass =
+            metadata.OriginalClass != null ?
+                new BindingsModel.EntityReferenceWrapper<BindingsModel.Struct>(ResolveEntity(metadata.OriginalClass)) :
+                null;
+
+        return new(
             Map(metadata.Comments),
             Map(metadata.Conditionals),
             Map(metadata.SourceLocation),
             metadata.IsInternal,
-            metadata.OriginalClass != null ?
-                new BindingsModel.EntityReferenceWrapper<BindingsModel.Struct>(ResolveEntity(metadata.OriginalClass)) :
-                null,
+            originalClass,
             metadata.OriginalFullyQualifiedName,
             metadata.IsDefaultArgumentHelper,
             metadata.IsImstrHelper,
             metadata.HasImstrHelper,
             metadata.IsManualHelper,
             metadata.IsUnformattedHelper,
-            metadata.IsStatic
+            metadata.IsStatic,
+            originalClass != null && originalClass.Value.Name == metadata.OriginalFullyQualifiedName
         ) {
             Name = metadata.Name,
             Arguments = metadata.Arguments.Select(ResolveFunctionArgument).ToList(),
             ReturnType = ResolveEntity(metadata.ReturnType),
             IsNativeFunction = true
         };
+    }
 
     private BindingsModel.Delegate ResolveDelegate(MetadataModel.Delegate metadata) =>
         new(

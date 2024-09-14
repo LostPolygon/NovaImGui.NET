@@ -10,7 +10,7 @@ public static class ReturnTypeMarshallerFactory {
             case ReturnTypeMarshallingMode.NullTerminatedString:
                 return new NullTerminatedStringReturnTypeMarshaller(methodSignature, nativeFunctionInvocation);
             default:
-                throw new ArgumentOutOfRangeException();
+                break;
         }
 
         throw new ArgumentException(

@@ -246,7 +246,7 @@ public class BindingsModelCodeGenerator {
         return (globalUsingsCompilationUnits, delegatesCompilationUnits);
     }
 
-    private IReadOnlyList<MethodDeclarationSyntax> GenerateNativeFunctionBinding(Function function) {
+    private IReadOnlyList<BaseMethodDeclarationSyntax> GenerateNativeFunctionBinding(Function function) {
         IEntityReference[] allChildTypes = function.GetReferencedTypes([]).ToArray();
         IEntityReference[] callbacks = [
             ..allChildTypes.Where(x => x.Value is Delegate),
@@ -254,8 +254,8 @@ public class BindingsModelCodeGenerator {
         ];
 
         if (callbacks.Length != 0) {
-            MethodDeclarationSyntax managedMethodSyntax = Generate(false);
-            MethodDeclarationSyntax unmanagedMethodSyntax = Generate(true);
+            BaseMethodDeclarationSyntax managedMethodSyntax = Generate(false);
+            BaseMethodDeclarationSyntax unmanagedMethodSyntax = Generate(true);
             unmanagedMethodSyntax = ApplyConditionals(
                 unmanagedMethodSyntax,
                 [new Conditional("NET6_0_OR_GREATER")]
@@ -266,7 +266,7 @@ public class BindingsModelCodeGenerator {
 
         return [Generate(false)];
 
-        MethodDeclarationSyntax Generate(bool delegatesAsFunctionPointers) {
+        BaseMethodDeclarationSyntax Generate(bool delegatesAsFunctionPointers) {
             const bool useLibraryImport = false;
 
             List<AttributeSyntax> importAttributes;
@@ -304,7 +304,7 @@ public class BindingsModelCodeGenerator {
                 ];
             }
 
-            MethodDeclarationSyntax methodSyntax =
+            BaseMethodDeclarationSyntax methodSyntax =
                 GenerateFunctionBindingMethodSyntax(
                         function,
                         true,
@@ -352,7 +352,7 @@ public class BindingsModelCodeGenerator {
         }
     }
 
-    private static MethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
+    private static BaseMethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
         Function function,
         bool isStaticMethod,
         bool isNativeMethod,
@@ -365,12 +365,21 @@ public class BindingsModelCodeGenerator {
             modifiers.Add(SyntaxKind.StaticKeyword);
         }
 
-        MethodDeclarationSyntax methodDeclarationSyntax =
-            MethodDeclaration(
-                    ParseTypeName(FormatType(function.ReturnType.Value)),
-                    function.Name
-                )
-                .AddModifiers(modifiers.Select(Token).ToArray());
+        BaseMethodDeclarationSyntax methodDeclarationSyntax;
+        if (function.IsConstructor && !isNativeMethod) {
+            methodDeclarationSyntax =
+                ConstructorDeclaration(
+                        FormatType(function.ReturnType.Value)
+                    )
+                    .AddModifiers(modifiers.Select(Token).ToArray());
+        } else {
+            methodDeclarationSyntax =
+                MethodDeclaration(
+                        ParseTypeName(FormatType(function.ReturnType.Value)),
+                        function.Name
+                    )
+                    .AddModifiers(modifiers.Select(Token).ToArray());
+        }
 
         if (isNativeMethod) {
             methodDeclarationSyntax =
@@ -379,7 +388,7 @@ public class BindingsModelCodeGenerator {
         }
 
         if (bodySyntax != null) {
-            MethodDeclarationSyntax methodDeclarationSyntaxCopy = methodDeclarationSyntax;
+            BaseMethodDeclarationSyntax methodDeclarationSyntaxCopy = methodDeclarationSyntax;
             methodDeclarationSyntax =
                 bodySyntax.Value.Match(
                     blockSyntax => methodDeclarationSyntaxCopy.WithBody(blockSyntax),
@@ -580,7 +589,7 @@ public class BindingsModelCodeGenerator {
                 case Function functionModel: {
                     Debug.Assert(functionModel.Body != null);
 
-                    MethodDeclarationSyntax methodSyntax =
+                    BaseMethodDeclarationSyntax methodSyntax =
                         GenerateFunctionBindingMethodSyntax(
                             functionModel,
                             functionModel.OwnerStruct == null || functionModel.IsStatic,

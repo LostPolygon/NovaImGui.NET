@@ -21,7 +21,17 @@
   ],
   "no_emit_managed_methods_for_native_functions": [
     "ImGui_PushIDStr",
-    "ImGui_GetIDStr"
+    "ImGui_GetIDStr",
+    
+    // Default constructors
+    "ImVec1_ImVec1",
+    
+    // We use manual constructors for ImColor
+    "ImColor_ImColor",
+    "ImColor_ImColorFloat",
+    "ImColor_ImColorImVec4",
+    "ImColor_ImColorInt",
+    "ImColor_ImColorImU32"
   ],
   "no_emit_structs": [
     "ImVec2",
@@ -84,6 +94,10 @@
     {
       "native_function": "ImGui_DebugLogUnformatted",
       "managed_method_alias": "DebugLog"
+    },
+    {
+      "native_function": "ImGuiSelectionBasicStorage_ImGuiSelectionBasicStorage",
+      "managed_method_alias": "Create"
     }
   ]
 }
