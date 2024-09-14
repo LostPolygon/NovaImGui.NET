@@ -10,13 +10,13 @@ public static unsafe partial class ImGui {
         if (underlyingType == typeof(int)) {
             ref int flagsInt = ref Unsafe.As<TEnum, int>(ref flags);
             int flagsValueInt = Unsafe.As<TEnum, int>(ref flagsValue);
-            return CheckboxFlagsIntPtr(label, ref flagsInt, flagsValueInt);
+            return CheckboxFlags(label, ref flagsInt, flagsValueInt);
         }
 
         if (underlyingType == typeof(int)) {
             ref uint flagsUint = ref Unsafe.As<TEnum, uint>(ref flags);
             uint flagsValueUint = Unsafe.As<TEnum, uint>(ref flagsValue);
-            return CheckboxFlagsIntPtr(label, ref flagsUint, flagsValueUint);
+            return CheckboxFlags(label, ref flagsUint, flagsValueUint);
         }
 
         throw new InvalidCastException(
@@ -31,13 +31,13 @@ public static unsafe partial class ImGui {
         if (underlyingType == typeof(int)) {
             ref int flagsInt = ref Unsafe.As<TEnum, int>(ref flags);
             int flagsValueInt = Unsafe.As<TEnum, int>(ref flagsValue);
-            return CheckboxFlagsIntPtr(label, ref flagsInt, flagsValueInt);
+            return CheckboxFlags(label, ref flagsInt, flagsValueInt);
         }
 
         if (underlyingType == typeof(int)) {
             ref uint flagsUint = ref Unsafe.As<TEnum, uint>(ref flags);
             uint flagsValueUint = Unsafe.As<TEnum, uint>(ref flagsValue);
-            return CheckboxFlagsIntPtr(label, ref flagsUint, flagsValueUint);
+            return CheckboxFlags(label, ref flagsUint, flagsValueUint);
         }
 
         throw new InvalidCastException(
@@ -53,13 +53,13 @@ public static unsafe partial class ImGui {
         if (underlyingType == typeof(int)) {
             ref int flagsInt = ref Unsafe.As<TEnum, int>(ref flags);
             int flagsValueInt = Unsafe.As<TEnum, int>(ref flagsValue);
-            return CheckboxFlagsIntPtr(label.AsSpan(), ref flagsInt, flagsValueInt);
+            return CheckboxFlags(label.AsSpan(), ref flagsInt, flagsValueInt);
         }
 
         if (underlyingType == typeof(int)) {
             ref uint flagsUint = ref Unsafe.As<TEnum, uint>(ref flags);
             uint flagsValueUint = Unsafe.As<TEnum, uint>(ref flagsValue);
-            return CheckboxFlagsIntPtr(label.AsSpan(), ref flagsUint, flagsValueUint);
+            return CheckboxFlags(label.AsSpan(), ref flagsUint, flagsValueUint);
         }
 
         throw new InvalidCastException(

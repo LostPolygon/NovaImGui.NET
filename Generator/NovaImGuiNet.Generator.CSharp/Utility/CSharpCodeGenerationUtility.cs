@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace NovaImGuiNet.Generator.CSharp;
@@ -69,8 +70,26 @@ public static class CSharpCodeGenerationUtility {
         }
     }
 
-    public static string FormatUnmanagedFunctionPointer(Delegate userDelegate) {
-        string functionPointer = "delegate* unmanaged<";
+    public static string FormatUnmanagedFunctionPointer(
+        Delegate userDelegate,
+        string? callingConvention = "Cdecl",
+        bool suppressGCTransition = false
+    ) {
+        string functionPointer = "delegate* unmanaged";
+        List<string> attributes = [];
+        if (callingConvention != null) {
+            attributes.Add(callingConvention);
+        }
+
+        if (suppressGCTransition) {
+            attributes.Add("SuppressGCTransition");
+        }
+
+        if (attributes.Count != 0) {
+            functionPointer += $"[{String.Join(", ", attributes)}]";
+        }
+
+        functionPointer += " <";
         List<string> functionPointerGenericArguments =
             userDelegate.Arguments
                 .Select(a => FormatType(a.Type.Value))
