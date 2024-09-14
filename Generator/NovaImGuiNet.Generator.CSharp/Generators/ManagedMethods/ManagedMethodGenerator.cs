@@ -76,7 +76,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     .SelectMany(function => {
                         (string nativeFunctionBaseName, string managedMethodName) =
                             CalculateManagedMethodName(
-                                isFreeFunctionsWrapperStruct ? "ImGui" :structure.Name,
+                                isFreeFunctionsWrapperStruct ? "ImGui" : structure.Name,
                                 functions,
                                 function.Value,
                                 bindingsFileCustomizations
@@ -110,9 +110,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         // Sometimes all we get is functions with added suffixes.
         // Try to recover the actual original name
-        int classSeparatorIndex = -1;
         if (!String.IsNullOrEmpty(originalFunction.Value.OriginalFullyQualifiedName)) {
-            classSeparatorIndex =
+            int classSeparatorIndex =
                 originalFunction.Value.OriginalFullyQualifiedName.IndexOf("::", StringComparison.Ordinal);
 
             if (classSeparatorIndex != -1) {
@@ -144,8 +143,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 managedMethodName = managedMethodName
                     .RemovePrefix("ImGui_")
                     .FirstCharToUpperCase();
-            } else {
-                managedMethodName ="Im" + managedMethodName.RemovePrefix("cIm");
             }
         }
 
@@ -178,7 +175,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             nativeArgumentDescriptions.Add(
                 new NativeFunctionArgumentDescription(nativeFunctionArgument, index) {
                     IsString = isString,
-                    IsPointer = !isString && nativeFunctionArgument.Type.ExpandTypedef()!.Value is Pointer
+                    IsPointer = !isString && nativeFunctionArgument.Type.ExpandTypedef().Value is Pointer,
+                    IsDelegate = nativeFunctionArgument.Type.ExpandAllTypedefsAndPointers().Value is Delegate,
                 }
             );
         }
@@ -470,6 +468,22 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             ];
         }
 
+        // Only enable function pointer arguments on .NET 6.0+,
+        // as older versions don't support function pointer with
+        // unmanaged calling conventions
+        bool anyFunctionPointerSignatureArguments =
+            signatureArguments
+                .Any(arg =>
+                    arg.Type.ExpandTypedef().Value is Delegate { IsFunctionPointer: true }
+                );
+
+        if (anyFunctionPointerSignatureArguments) {
+            managedMethod.Conditionals = [
+                ..managedMethod.Conditionals,
+                new Conditional("NET6_0_OR_GREATER")
+            ];
+        }
+
         return managedMethod;
     }
 
@@ -593,8 +607,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         NativeFunctionArgumentMarshallingVariant baseMarshallingVariant = new(
             description.Argument,
             description.ArgumentIndex,
-            description.IsString ? StringMarshallingMode.BytePointer : StringMarshallingMode.Undefined,
-            description.IsPointer ? PointerMarshallingMode.Pointer : PointerMarshallingMode.Undefined,
+            ArgumentMarshallingMode.Passthrough,
             StringBeginEndPairMode.None
         );
 
@@ -602,28 +615,35 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             return [baseMarshallingVariant];
 
         List<NativeFunctionArgumentMarshallingVariant> variants = [];
-        if (description.IsString) {
+        if (description.IsDelegate) {
+            if (description.IsPointer) {
+                // Assume it's an out argument (like ImGui.GetAllocatorFunctions)
+                AddVariant(ArgumentMarshallingMode.IntPtrOut);
+            } else {
+                AddVariant(ArgumentMarshallingMode.DelegateManaged);
+                AddVariant(ArgumentMarshallingMode.DelegateFunctionPointer);
+                AddVariant(ArgumentMarshallingMode.DelegateIntPtr);
+            }
+        } else if (description.IsString) {
             bool isStringBeginEndPairBegin = IsStringBeginEndPairBegin(argumentIndex);
             bool isStringBeginEndPairEnd = IsStringBeginEndPairBegin(argumentIndex - 1);
 
             if (isStringBeginEndPairBegin) {
-                AddVariant(StringMarshallingMode.BytePointer, PointerMarshallingMode.Undefined, StringBeginEndPairMode.Begin);
+                AddVariant(ArgumentMarshallingMode.Passthrough, StringBeginEndPairMode.Begin);
 
-                AddVariant(StringMarshallingMode.ReadOnlyByteSpan, PointerMarshallingMode.Undefined, StringBeginEndPairMode.BeginOnly);
-                AddVariant(StringMarshallingMode.ReadOnlyCharSpan, PointerMarshallingMode.Undefined, StringBeginEndPairMode.BeginOnly);
-                AddVariant(StringMarshallingMode.String, PointerMarshallingMode.Undefined, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.ReadOnlyByteSpan, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.ReadOnlyCharSpan, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.String, StringBeginEndPairMode.BeginOnly);
             } else if (isStringBeginEndPairEnd) {
-                AddVariant(StringMarshallingMode.BytePointer, PointerMarshallingMode.Undefined, StringBeginEndPairMode.End);
-                AddVariant(StringMarshallingMode.BytePointer, PointerMarshallingMode.Undefined, StringBeginEndPairMode.EndDefault);
+                AddVariant(ArgumentMarshallingMode.Passthrough, StringBeginEndPairMode.End);
+                AddVariant(ArgumentMarshallingMode.Passthrough, StringBeginEndPairMode.EndDefault);
             } else {
-                AddVariant(StringMarshallingMode.ReadOnlyByteSpan, PointerMarshallingMode.Undefined);
-                AddVariant(StringMarshallingMode.ReadOnlyCharSpan, PointerMarshallingMode.Undefined);
-                AddVariant(StringMarshallingMode.String, PointerMarshallingMode.Undefined);
+                AddVariant(ArgumentMarshallingMode.ReadOnlyByteSpan);
+                AddVariant(ArgumentMarshallingMode.ReadOnlyCharSpan);
+                AddVariant(ArgumentMarshallingMode.String);
             }
-
-            // FIXME: handle combination with IsPointer
         } else if (description.IsPointer) {
-            AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Pointer);
+            AddVariant(ArgumentMarshallingMode.Passthrough);
 
             bool isOutPointer = description.Argument.Name.Contains("out", StringComparison.OrdinalIgnoreCase);
             bool isVoidPointer = description.Argument.Type.Value.IsVoidPointer();
@@ -632,21 +652,21 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 pointer.ValueType.Value.IsVoidPointer();
 
             if (isVoidPointerPointer) {
-                AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtr);
+                AddVariant(ArgumentMarshallingMode.IntPtr);
                 if (isOutPointer) {
-                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Out);
-                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtrOut);
+                    AddVariant(ArgumentMarshallingMode.Out);
+                    AddVariant(ArgumentMarshallingMode.IntPtrOut);
                 } else {
-                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Ref);
-                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtrRef);
+                    AddVariant(ArgumentMarshallingMode.Ref);
+                    AddVariant(ArgumentMarshallingMode.IntPtrRef);
                 }
             } else if (isVoidPointer) {
-                AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.IntPtr);
+                AddVariant(ArgumentMarshallingMode.IntPtr);
             } else {
                 if (isOutPointer) {
-                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Out);
+                    AddVariant(ArgumentMarshallingMode.Out);
                 } else {
-                    AddVariant(StringMarshallingMode.Undefined, PointerMarshallingMode.Ref);
+                    AddVariant(ArgumentMarshallingMode.Ref);
                 }
             }
         }
@@ -658,16 +678,14 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         return variants.ToArray();
 
         void AddVariant(
-            StringMarshallingMode stringMarshalKind,
-            PointerMarshallingMode pointerMarshalKind,
+            ArgumentMarshallingMode argumentMarshallingMode,
             StringBeginEndPairMode stringBeginEndPairMode = StringBeginEndPairMode.None
         ) {
             variants.Add(
                 new NativeFunctionArgumentMarshallingVariant(
                     description.Argument,
                     description.ArgumentIndex,
-                    stringMarshalKind,
-                    pointerMarshalKind,
+                    argumentMarshallingMode,
                     stringBeginEndPairMode
                 )
             );
@@ -722,60 +740,64 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         foreach (NativeFunctionArgumentMarshallingVariant nativeArgumentMarshallingVariant in nativeArgumentMarshallingVariants) {
             FunctionArgument managedArgument = nativeArgumentMarshallingVariant.NativeFunctionArgument with { };
 
-            switch (nativeArgumentMarshallingVariant.StringMarshallingMode) {
-                case StringMarshallingMode.BytePointer:
-                    managedArgument.Type = KnownEntities.Utf8BytePointer.AsEntityReference();
+            switch (nativeArgumentMarshallingVariant.ArgumentMarshallingMode) {
+                case ArgumentMarshallingMode.Passthrough:
                     break;
-                case StringMarshallingMode.ReadOnlyByteSpan:
-                    managedArgument.Type = KnownEntities.ReadOnlySpanByte.AsEntityReference();
-                    break;
-                case StringMarshallingMode.ReadOnlyCharSpan:
-                    managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
-                    break;
-                case StringMarshallingMode.String:
-                    managedArgument.Type = KnownEntities.String.AsEntityReference();
-                    break;
-                case StringMarshallingMode.Undefined:
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-
-            switch (nativeArgumentMarshallingVariant.PointerMarshallingMode) {
-                case PointerMarshallingMode.Undefined:
-                case PointerMarshallingMode.Pointer:
-                    break;
-                case PointerMarshallingMode.Ref:
+                case ArgumentMarshallingMode.Ref:
                     managedArgument.PassType = FunctionArgumentPassType.Ref;
                     managedArgument.Type = managedArgument.Type.ExpandPointer();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case PointerMarshallingMode.Out:
+                case ArgumentMarshallingMode.Out:
                     managedArgument.PassType = FunctionArgumentPassType.Out;
                     managedArgument.Type = managedArgument.Type.ExpandPointer();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case PointerMarshallingMode.IntPtr:
+                case ArgumentMarshallingMode.IntPtr:
                     managedArgument.PassType = FunctionArgumentPassType.Normal;
                     managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
 
                     break;
-                case PointerMarshallingMode.IntPtrRef:
+                case ArgumentMarshallingMode.IntPtrRef:
                     managedArgument.PassType = FunctionArgumentPassType.Ref;
                     managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case PointerMarshallingMode.IntPtrOut:
+                case ArgumentMarshallingMode.IntPtrOut:
                     managedArgument.PassType = FunctionArgumentPassType.Out;
                     managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
+                case ArgumentMarshallingMode.ReadOnlyByteSpan:
+                    managedArgument.Type = KnownEntities.ReadOnlySpanByte.AsEntityReference();
+                    break;
+                case ArgumentMarshallingMode.ReadOnlyCharSpan:
+                    managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
+                    break;
+                case ArgumentMarshallingMode.String:
+                    managedArgument.Type = KnownEntities.String.AsEntityReference();
+                    break;
+                case ArgumentMarshallingMode.DelegateManaged:
+                    break;
+                case ArgumentMarshallingMode.DelegateFunctionPointer:
+                    Delegate argumentDelegate = (Delegate) managedArgument.Type.ExpandTypedef().Value;
+                    managedArgument.Type = (argumentDelegate with {
+                        IsFunctionPointer = true
+                    }).AsEntityReference();
+                    break;
+                case ArgumentMarshallingMode.DelegateIntPtr:
+                    managedArgument.Type = KnownEntities.IntPtr.AsEntityReference();
+                    break;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new ArgumentOutOfRangeException(
+                        nameof(nativeArgumentMarshallingVariant),
+                        $"Unexpected ArgumentMarshallingMode '{nativeArgumentMarshallingVariant.ArgumentMarshallingMode}' " +
+                        $"for argument '{nativeArgumentMarshallingVariant.NativeFunctionArgument.Name}'"
+                    );
             }
 
             bool isPartOfDeclaration =
@@ -837,8 +859,9 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     private record MethodArgumentOverloadRaw(IReadOnlyList<NativeFunctionArgumentMarshallingVariant> Arguments);
 
     private readonly record struct NativeFunctionArgumentDescription(FunctionArgument Argument, int ArgumentIndex) {
-        public bool IsString { get; init; }
-        public bool IsPointer { get; init; }
+        public required bool IsString { get; init; }
+        public required bool IsPointer { get; init; }
+        public required bool IsDelegate { get; init; }
     }
 
     private readonly record struct NativeFunctionReturnTypeDescription(Entity ReturnType) {

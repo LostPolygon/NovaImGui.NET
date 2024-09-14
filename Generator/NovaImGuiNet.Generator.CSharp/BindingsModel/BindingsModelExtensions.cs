@@ -5,8 +5,8 @@ namespace NovaImGuiNet.Generator.CSharp;
 using static BindingsModel;
 
 public static class BindingsModelExtensions {
-    public static Pointer AsPointer(this Builtin builtin, bool? isNullable = null) =>
-        new(builtin.AsEntityReference(), isNullable);
+    public static Pointer AsPointer(this Entity entity, bool? isNullable = null) =>
+        new(entity.AsEntityReference(), isNullable);
 
     public static IEntityReference? ExpandAllTypedefsAndPointers<T>(this IEntityReference? entityReference) where T : Entity {
         if (entityReference == null)

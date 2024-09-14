@@ -365,6 +365,10 @@ public partial class BindingsModel {
     }
 
     public record Delegate : FunctionLike {
+        // Means we want this delegate to always be treated and formatted
+        // as an unmanaged function pointer
+        public bool IsFunctionPointer { get; set; }
+
         public Delegate() {
         }
 

@@ -153,7 +153,7 @@ public class BindingsModelCodeGenerator {
             List<MemberDeclarationSyntax> methodSyntaxes = [];
             foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
                 Function apiModelFunction = functionReference.Value;
-                methodSyntaxes.AddRange(GenerateNativeFunctionBinding(apiModelFunction));
+                methodSyntaxes.AddRange(GenerateNativeFunctionDeclaration(apiModelFunction));
             }
 
             string targetClassName =
@@ -204,7 +204,7 @@ public class BindingsModelCodeGenerator {
                         typedefBindingsNamespace.Add(GenerateBinding(typedef));
                     }
 
-                    return (typedefsByNamespace.Key, typedefBindingsNamespace);
+                    return (typedefsByNamespace.Key!, typedefBindingsNamespace);
                 })
                 .ToArray();
 
@@ -246,7 +246,7 @@ public class BindingsModelCodeGenerator {
         return (globalUsingsCompilationUnits, delegatesCompilationUnits);
     }
 
-    private IReadOnlyList<BaseMethodDeclarationSyntax> GenerateNativeFunctionBinding(Function function) {
+    private IReadOnlyList<BaseMethodDeclarationSyntax> GenerateNativeFunctionDeclaration(Function function) {
         IEntityReference[] allChildTypes = function.GetReferencedTypes([]).ToArray();
         IEntityReference[] callbacks = [
             ..allChildTypes.Where(x => x.Value is Delegate),
@@ -254,8 +254,8 @@ public class BindingsModelCodeGenerator {
         ];
 
         if (callbacks.Length != 0) {
-            BaseMethodDeclarationSyntax managedMethodSyntax = Generate(false);
-            BaseMethodDeclarationSyntax unmanagedMethodSyntax = Generate(true);
+            BaseMethodDeclarationSyntax managedMethodSyntax = Generate(function, false);
+            BaseMethodDeclarationSyntax unmanagedMethodSyntax = Generate(function, true);
             unmanagedMethodSyntax = ApplyConditionals(
                 unmanagedMethodSyntax,
                 [new Conditional("NET6_0_OR_GREATER")]
@@ -264,14 +264,13 @@ public class BindingsModelCodeGenerator {
             return [managedMethodSyntax, unmanagedMethodSyntax];
         }
 
-        return [Generate(false)];
+        return [Generate(function, false)];
 
-        BaseMethodDeclarationSyntax Generate(bool delegatesAsFunctionPointers) {
-            const bool useLibraryImport = false;
-
-            List<AttributeSyntax> importAttributes;
-            if (useLibraryImport) {
-                importAttributes = [
+        // When delegatesAsFunctionPointers is true, generates delegates unmanaged function pointers
+        // When delegatesAsFunctionPointers is false, generates delegates as IntPtr
+        BaseMethodDeclarationSyntax Generate(Function function, bool delegatesAsFunctionPointers) {
+#if USE_LIBRARY_IMPORT
+                List<AttributeSyntax> importAttributes = [
                     Attribute(ParseName("LibraryImport"))
                         .WithArgumentList(AttributeArgumentList(
                             SeparatedList(
@@ -290,18 +289,45 @@ public class BindingsModelCodeGenerator {
                             )
                         ))
                 ];
-            } else {
-                importAttributes = [
-                    Attribute(ParseName("DllImport"))
-                        .WithArgumentList(AttributeArgumentList(
-                            SeparatedList(
-                                [
-                                    AttributeArgument(ParseExpression("ImGuiDllName")),
-                                    AttributeArgument(ParseExpression("CallingConvention = ImGuiCallingConvention"))
-                                ]
-                            )
-                        ))
-                ];
+#else
+            List<AttributeSyntax> importAttributes = [
+                Attribute(ParseName("DllImport"))
+                    .WithArgumentList(AttributeArgumentList(
+                        SeparatedList(
+                            [
+                                AttributeArgument(ParseExpression("ImGuiDllName")),
+                                AttributeArgument(ParseExpression("CallingConvention = ImGuiCallingConvention"))
+                            ]
+                        )
+                    ))
+            ];
+#endif
+
+            // Mangle the function by replacing all delegates with IntPtr
+            if (!delegatesAsFunctionPointers) {
+                List<FunctionArgument> newArguments =
+                    function.Arguments
+                    .Select(arg => {
+                        // This two-level nonsense deals with ImGui.GetAllocatorFunctions
+                        // pointers to function pointers
+                        Delegate? firstLevelDelegate = arg.Type.ExpandTypedef().Value as Delegate;
+                        Delegate? secondLevelDelegate = arg.Type.ExpandAllTypedefsAndPointers().Value as Delegate;
+                        if (firstLevelDelegate == null && secondLevelDelegate == null)
+                            return arg;
+
+                        if (firstLevelDelegate == null && secondLevelDelegate != null) {
+                            arg = arg with { Type = KnownEntities.VoidVoidPointer.AsEntityReference() };
+                        } else {
+                            arg = arg with { Type = KnownEntities.IntPtr.AsEntityReference() };
+                        }
+
+                        return arg;
+                    })
+                    .ToList();
+
+                function = function with {
+                    Arguments = newArguments
+                };
             }
 
             BaseMethodDeclarationSyntax methodSyntax =
@@ -318,13 +344,12 @@ public class BindingsModelCodeGenerator {
                                 AttributeList(SeparatedList([attr]))
                             )
                             .ToArray()
-                    );
-
-            if (useLibraryImport) {
-                methodSyntax = methodSyntax.AddModifiers(Token(SyntaxKind.PartialKeyword));
-            } else {
-                methodSyntax = methodSyntax.AddModifiers(Token(SyntaxKind.ExternKeyword));
-            }
+                    )
+#if USE_LIBRARY_IMPORT
+                    .AddModifiers(Token(SyntaxKind.PartialKeyword));
+#else
+                    .AddModifiers(Token(SyntaxKind.ExternKeyword));
+#endif
 
             List<string> generatorCommentItems = [$"OriginalFullyQualifiedName = {function.OriginalFullyQualifiedName}"];
             if (function.OwnerStruct != null) {
@@ -342,12 +367,9 @@ public class BindingsModelCodeGenerator {
                 LineFeed
             ];
 
-            methodSyntax =
-                methodSyntax
-                    .AddLeadingTriviaToEnd(generatorTrivia);
+            methodSyntax = methodSyntax.AddLeadingTriviaToEnd(generatorTrivia);
 
             methodSyntax = ApplyCommonEntitySyntax(methodSyntax, function);
-
             return methodSyntax;
         }
     }

@@ -23,6 +23,10 @@
     "ImGui_PushIDStr",
     "ImGui_GetIDStr",
     
+    // TODO: rename those instead of not emitting
+    "ImGui_ComboObsolete",
+    "ImGui_ListBoxObsolete",
+    
     // Default constructors
     "ImVec1_ImVec1",
     

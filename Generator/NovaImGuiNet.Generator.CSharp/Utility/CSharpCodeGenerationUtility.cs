@@ -49,8 +49,8 @@ public static class CSharpCodeGenerationUtility {
             case Typedef userTypedef:
                 bool expand = options.ExpandTypedefs;
                 if (!expand &&
-                    options.DelegatesAsFunctionPointers &&
-                    userTypedef.Type.Value is Delegate
+                    userTypedef.Type.Value is Delegate delegateType &&
+                    (options.DelegatesAsFunctionPointers || delegateType.IsFunctionPointer)
                    ) {
                     expand = true;
                 }
@@ -62,7 +62,7 @@ public static class CSharpCodeGenerationUtility {
                 return userTypedef.Name;
             case Delegate userDelegate:
                 return
-                    options.DelegatesAsFunctionPointers ?
+                    (options.DelegatesAsFunctionPointers || userDelegate.IsFunctionPointer) ?
                         FormatUnmanagedFunctionPointer(userDelegate) :
                         $"{userDelegate.Name}";
             default:

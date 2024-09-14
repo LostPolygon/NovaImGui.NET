@@ -131,7 +131,7 @@ public class BindingsModelCSharpTransformer {
         );
 
         Transform(
-            "Adding IntPtr properties to fields of function pointer types",
+            "Adding IntPtr accessors to fields of function pointer types",
             Model.Structs,
             AddIntPtrAccessorPropertyForUnmanagedFunctionPointerFields
         );
@@ -164,14 +164,6 @@ public class BindingsModelCSharpTransformer {
         );
 
         // Functions and typedef delegates
-        IReadOnlyList<IFunctionLike> allFunctions =
-            new List<IEntityReference>([
-                    ..Model.GetAllFunctions().Select(x => x.Reference),
-                ])
-                .Select(x => x.Value)
-                .Cast<IFunctionLike>()
-                .ToArray();
-
         IReadOnlyList<IFunctionLike> allFunctionsAndDelegates =
             new List<IEntityReference>([
                     ..Model.GetAllFunctions().Select(x => x.Reference),
@@ -182,14 +174,6 @@ public class BindingsModelCSharpTransformer {
                 .Select(x => x.Value)
                 .Cast<IFunctionLike>()
                 .ToArray();
-
-        void UpdateFunctionsArguments(Func<IFunctionLike, FunctionArgument, int, FunctionArgument> transformer) {
-            allFunctions.ForEach(function => {
-                function.Arguments.UpdateInPlace<FunctionArgument, FunctionArgument>(
-                    (arg, argIndex) => transformer(function, arg, argIndex)
-                );
-            });
-        }
 
         void UpdateFunctionsAndDelegatesArguments(Func<IFunctionLike, FunctionArgument, int, FunctionArgument> transformer) {
             allFunctionsAndDelegates.ForEach(function => {
@@ -211,13 +195,13 @@ public class BindingsModelCSharpTransformer {
         }
 
         using (Operation("Converting void* native function arguments to IntPtr")) {
-            UpdateFunctionsArguments((_, arg, _) =>
+            UpdateFunctionsAndDelegatesArguments((_, arg, _) =>
                 ConvertVoidPointerArgumentsToIntPtr(arg)
             );
         }
 
         using (Operation("Converting void* native function return values to IntPtr")) {
-            allFunctions.ForEach(ConvertVoidPointerReturnValuesToIntPtr);
+            allFunctionsAndDelegates.ForEach(ConvertVoidPointerReturnValuesToIntPtr);
         }
 
         using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size structs")) {

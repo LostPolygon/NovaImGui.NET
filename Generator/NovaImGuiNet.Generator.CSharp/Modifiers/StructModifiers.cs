@@ -104,6 +104,8 @@ public static class StructModifiers {
             if (field.Type.Value is not Delegate fieldTypeDelegate)
                 return [field];
 
+            // FIXME: move IntPtr field generation from outside BindingsModelCodeGenerator
+            // to a modifier
             PropertyDeclarationSyntax intPtrProperty =
                 CreateIntPtrAccessorPropertyForField(
                     field.BaseName,
@@ -111,8 +113,29 @@ public static class StructModifiers {
                     FormatUnmanagedFunctionPointer(fieldTypeDelegate)
                 );
 
-            MemberDeclarationSyntaxEntity intPtrPropertyEntity = new(intPtrProperty, field);
-            return [intPtrPropertyEntity, field];
+            PropertyDeclarationSyntax intPtrLegacyProperty =
+                CreateIntPtrAccessorPropertyForField(
+                    field.BaseName,
+                    field.Name,
+                    "IntPtr"
+                );
+
+            MemberDeclarationSyntaxEntity intPtrPropertyEntity =
+                new(intPtrProperty, field) {
+                    Conditionals = [
+                        ..field.Conditionals,
+                        new Conditional("!NETSTANDARD2_0_OR_GREATER")
+                    ]
+                };
+            MemberDeclarationSyntaxEntity intPtrLegacyPropertyEntity =
+                new(intPtrLegacyProperty, field) {
+                    Conditionals = [
+                        ..field.Conditionals,
+                        new Conditional("NETSTANDARD2_0_OR_GREATER")
+                    ]
+                };
+
+            return [intPtrPropertyEntity, intPtrLegacyPropertyEntity, field];
         });
         return structure;
     }
@@ -404,7 +427,9 @@ public static class StructModifiers {
     }
 
     public static Struct ConvertBitFields(Struct structure) {
+        #pragma warning disable CS8321 // Local function is declared but never used
         bool Iteration() {
+            #pragma warning restore CS8321 // Local function is declared but never used
             int startIndex = -1;
             int endIndex = -1;
             int currentBitSize = 0;
