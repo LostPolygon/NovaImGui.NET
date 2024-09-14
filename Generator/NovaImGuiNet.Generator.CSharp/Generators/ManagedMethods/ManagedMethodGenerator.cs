@@ -41,10 +41,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     model.Children.Add(imGuiMethodsStructReference);
 
                     ownerStruct = new EntityReferenceWrapper<Struct>(imGuiMethodsStructReference);
-                    GenerateManagedMethodsForStruct(ownerStruct, freeFunctionsByNamespace.ToArray());
+                    GenerateManagedMethodsForStruct(ownerStruct.Value, true, freeFunctionsByNamespace.ToArray());
                 }
             } else {
-                GenerateManagedMethodsForStruct(ownerStruct, structFunctions);
+                GenerateManagedMethodsForStruct(ownerStruct.Value, false, structFunctions);
             }
         }
 
@@ -52,11 +52,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     }
 
     private void GenerateManagedMethodsForStruct(
-        EntityReferenceWrapper<Struct> structureReference,
+        Struct structure,
+        bool isFreeFunctionsWrapperStruct,
         EntityReferenceWrapper<Function>[] structFunctionReferences
     ) {
-        Struct structure = structureReference.Value;
-
         // C doesn't support function overloads,
         // so overloads are implemented by appending prefixes to the base function name.
         // C# supports overloads just fine, so we need to group them back under a single name.
@@ -68,21 +67,28 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             if (functions.Length == 0)
                 continue;
 
-            // Assume that the function with the shortest name is the one matching the original
-            EntityReferenceWrapper<Function> originalFunction = functions.MinBy(x => x.Value.Name.Length)!;
-            string baseFunctionName = originalFunction.Value.Name;
+            BindingsFileCustomizations bindingsFileCustomizations =
+                bindingsContext.Customizations
+                    .RequireCustomization(functions[0].Value.SourceLocation);
 
             Function[] newFunctions =
                 functions
                     .SelectMany(function => {
-                        string functionName = baseFunctionName;
+                        (string nativeFunctionBaseName, string managedMethodName) =
+                            CalculateManagedMethodName(
+                                isFreeFunctionsWrapperStruct ? "ImGui" :structure.Name,
+                                functions,
+                                function.Value,
+                                bindingsFileCustomizations
+                            );
 
-                        // Unformatted is the only prefix we preserve
-                        if (function.Value.IsUnformattedHelper) {
-                            functionName = function.Value.Name;
-                        }
-
-                        return GenerateManagedMethodsForNativeFunction(structure, function.Value, functionName);
+                        return GenerateManagedMethodsForNativeFunction(
+                            structure,
+                            function.Value,
+                            nativeFunctionBaseName,
+                            managedMethodName,
+                            bindingsFileCustomizations
+                        );
                     })
                     .ToArray();
 
@@ -90,41 +96,78 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         }
     }
 
-    private List<Function> GenerateManagedMethodsForNativeFunction(
-        Struct structure,
+    private static(string nativeFunctionBaseName, string managedMethodName) CalculateManagedMethodName(
+        string structureNativeName,
+        IReadOnlyList<EntityReferenceWrapper<Function>> nativeFunctions,
         Function nativeFunction,
-        string nativeFunctionBaseName
+        BindingsFileCustomizations bindingsFileCustomizations
     ) {
-        if (nativeFunction.IsDisabled)
-            return [];
-
-        BindingsFileCustomizations bindingsFileCustomizations =
-            bindingsContext.Customizations
-                .RequireCustomization(nativeFunction.SourceLocation);
-
-        if (bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions.Contains(nativeFunction.Name))
-            return [];
-
         bool isInstanceMethod = nativeFunction.OwnerStruct != null;
 
+        // Assume that the function with the shortest name is the one matching the original
+        EntityReferenceWrapper<Function> originalFunction = nativeFunctions.MinBy(x => x.Value.Name.Length)!;
+        string nativeFunctionBaseName = originalFunction.Value.Name;
+
+        // Sometimes all we get is functions with added suffixes.
+        // Try to recover the actual original name
+        int classSeparatorIndex = -1;
+        if (!String.IsNullOrEmpty(originalFunction.Value.OriginalFullyQualifiedName)) {
+            classSeparatorIndex =
+                originalFunction.Value.OriginalFullyQualifiedName.IndexOf("::", StringComparison.Ordinal);
+
+            if (classSeparatorIndex != -1) {
+                string potentialBaseFunctionName =
+                    structureNativeName +
+                    "_" +
+                    originalFunction.Value.OriginalFullyQualifiedName[(classSeparatorIndex + 2)..];
+
+                if (potentialBaseFunctionName.Length < nativeFunctionBaseName.Length) {
+                    nativeFunctionBaseName = potentialBaseFunctionName;
+                }
+            }
+        }
+
+        // Unformatted is the only prefix we preserve
+        if (nativeFunction.IsUnformattedHelper) {
+            nativeFunctionBaseName = nativeFunction.Name;
+        }
+
         // Figure out the managed method name
-        string methodName = nativeFunctionBaseName;
+        string managedMethodName = nativeFunctionBaseName;
         if (isInstanceMethod) {
-            methodName = methodName
-                .RemovePrefix(structure.Name + "_")
+            managedMethodName = managedMethodName
+                .RemovePrefix(structureNativeName + "_")
                 .FirstCharToUpperCase();
         } else {
             bool isFreeFunction = nativeFunctionBaseName.StartsWith("cIm", StringComparison.Ordinal);
             if (!isFreeFunction) {
-                methodName = methodName
+                managedMethodName = managedMethodName
                     .RemovePrefix("ImGui_")
                     .FirstCharToUpperCase();
+            } else {
+                managedMethodName ="Im" + managedMethodName.RemovePrefix("cIm");
             }
         }
 
         foreach (string removedPrefix in bindingsFileCustomizations.PrefixesRemovedFromManagedMethods) {
-            methodName = methodName.RemovePrefix(removedPrefix);
+            managedMethodName = managedMethodName.RemovePrefix(removedPrefix);
         }
+
+        return (nativeFunctionBaseName, managedMethodName);
+    }
+
+    private List<Function> GenerateManagedMethodsForNativeFunction(
+        Struct structure,
+        Function nativeFunction,
+        string nativeFunctionBaseName,
+        string managedMethodName,
+        BindingsFileCustomizations bindingsFileCustomizations
+    ) {
+        if (nativeFunction.IsDisabled)
+            return [];
+
+        if (bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions.Contains(nativeFunction.Name))
+            return [];
 
         // Collect metadata about function argument and return types
         List<NativeFunctionArgumentDescription> nativeArgumentDescriptions = [];
@@ -229,7 +272,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             managedMethods.Add(
                 GenerateManagedMethodForNativeFunction(
                     structure,
-                    methodName,
+                    managedMethodName,
                     methodSignature,
                     nativeFunctionsClassName
                 )
@@ -245,7 +288,12 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         foreach (BindingsFileCustomizations.ManagedMethodAliasDefinition alias in aliases) {
             foreach (Function managedMethod in managedMethods) {
                 managedMethodAliases.Add(
-                    GenerateManagedMethodAlias(managedMethod, alias.ManagedMethodAlias)
+                    GenerateManagedMethodAlias(
+                        managedMethod,
+                        alias.ManagedMethodAlias,
+                        nativeFunction,
+                        nativeFunctionsClassName
+                    )
                 );
             }
         }
@@ -332,16 +380,27 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
     private static Function GenerateManagedMethodAlias(
         Function managedMethod,
-        string aliasMethodName
+        string aliasMethodName,
+        Function nativeFunction,
+        string nativeFunctionsClassName
     ) {
         string invocationValuesFormatted =
             String.Join(", ", managedMethod.Arguments.Select(x => x.Name));
-        string managedMethodInvocation =
-            $"{managedMethod.Name}({invocationValuesFormatted})";
+
+        string invocation;
+        if (managedMethod.IsConstructor) {
+            invocation =
+                $"{nativeFunctionsClassName}.{nativeFunction.Name}({invocationValuesFormatted})";
+        } else {
+            invocation =
+                $"{managedMethod.Name}({invocationValuesFormatted})";
+        }
 
         Function aliasMethod = managedMethod with {
             Name = aliasMethodName,
-            Body = ArrowExpressionClause(ParseExpression(managedMethodInvocation)),
+            Body = ArrowExpressionClause(ParseExpression(invocation)),
+            IsConstructor = false,
+            IsStatic = managedMethod.IsConstructor
         };
 
         return aliasMethod;
