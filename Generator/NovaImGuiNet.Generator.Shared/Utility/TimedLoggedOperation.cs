@@ -8,11 +8,13 @@ public readonly struct TimedLoggedOperation : IDisposable {
     private readonly ILogger _logger;
     private readonly string _operationName;
 
-    public TimedLoggedOperation(ILogger logger, string operationName) {
+    public TimedLoggedOperation(ILogger logger, string operationName, bool noStartLog = false) {
         _logger = logger;
         _operationName = operationName;
 
-        _logger.LogInformation($"{_operationName}");
+        if (!noStartLog) {
+            _logger.LogInformation($"{_operationName}");
+        }
     }
 
     public void Dispose() {

@@ -100,13 +100,13 @@ public static class FunctionModifiers {
         if (array.ArrayBounds == null) {
             // 1. Convert boundless arrays to pointer
             argument = argument with {
-                Type = new Pointer(array.ElementType, false).AsEntityReference()
+                Type = new Pointer(array.ElementType, false, PointerType.Unmanaged).AsEntityReference()
             };
         } else {
             // 2. in C, passing fixed size array to a function is actually still passing a pointer.
             // So let's make it actually pass a pointer.
             argument = argument with {
-                Type = new Pointer(array.ElementType, false).AsEntityReference()
+                Type = new Pointer(array.ElementType, false, PointerType.Unmanaged).AsEntityReference()
             };
         }
 
@@ -140,7 +140,8 @@ public static class FunctionModifiers {
                         ByValue = true,
                         NoEmit = true
                     }.AsEntityReference(),
-                    false
+                    false,
+                    PointerType.Unmanaged
                 );
         } else {
             argument.Type.Value =
@@ -150,7 +151,8 @@ public static class FunctionModifiers {
                         argumentTypeArray.ArrayBoundsNumeric.Value,
                         argumentTypeArray.ElementType
                     ).AsEntityReference(),
-                    false
+                    false,
+                    PointerType.Unmanaged
                 );
         }
 

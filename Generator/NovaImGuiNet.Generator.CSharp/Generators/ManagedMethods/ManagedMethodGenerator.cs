@@ -1,14 +1,11 @@
 using System.Diagnostics;
 using CaseConverter;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 using static BindingsModel;
-using static CSharpCodeGenerationUtility;
 using static SyntaxFactory;
 using static SyntaxFactoryCached;
 
@@ -163,7 +160,11 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         if (nativeFunction.IsDisabled)
             return [];
 
-        if (bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions.Contains(nativeFunction.Name))
+        bool isNoEmitMethod = TextMatchUtility.IsMatchAny(
+            nativeFunction.Name,
+            bindingsFileCustomizations.NoEmitManagedMethodsForNativeFunctions
+        );
+        if (isNoEmitMethod)
             return [];
 
         // Collect metadata about function argument and return types
@@ -184,15 +185,19 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         NativeFunctionReturnTypeDescription nativeFunctionReturnTypeDescription =
             new(nativeFunction.ReturnType.Value) {
                 IsString = nativeFunction.ReturnType.Value.IsConstCharPointer(),
-                IsVoid = nativeFunction.ReturnType.Value.IsVoid()
+                IsVoid = nativeFunction.ReturnType.Value.IsVoid(),
+                IsPointer = nativeFunction.ReturnType.ExpandTypedef().Value is Pointer,
+                IsKnownNonNull =
+                    TextMatchUtility.IsMatchAny(
+                        nativeFunctionBaseName,
+                        bindingsFileCustomizations.TreatNativeFunctionReturnValueAsNonNull
+                    )
             };
 
         // Generate marshalling variant of return types and of every argument
 
         bool isFunctionBanned =
-            bindingsFileCustomizations
-                .FunctionsNoPermutations
-                .Contains(nativeFunctionBaseName);
+            TextMatchUtility.IsMatchAny(nativeFunctionBaseName, bindingsFileCustomizations.FunctionsNoPermutations);
 
         NativeFunctionArgumentMarshallingVariant[][] nativeArgumentMarshallingVariants =
             nativeArgumentDescriptions
@@ -203,35 +208,43 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             ResolveNativeReturnTypeMarshallingVariants(nativeFunctionReturnTypeDescription);
 
         // FIXME: account for more than one return type variant
-        Debug.Assert(nativeReturnTypeMarshallingVariants.Length == 1);
+
+        // Each method with each return type variant needs to have a different name
+        Debug.Assert(
+            nativeReturnTypeMarshallingVariants.DistinctBy(v => v.ManagedMethodNameSuffix).Count() ==
+            nativeReturnTypeMarshallingVariants.Length
+        );
 
         List<MethodArgumentOverloadRaw> rawMethodArgumentOverloads = [];
         GenerateArgumentMarshallingVariantsMethodOverloads(nativeArgumentMarshallingVariants, rawMethodArgumentOverloads, null, 0, 0);
 
         rawMethodArgumentOverloads = FilterRawMethodArgumentOverloads(rawMethodArgumentOverloads);
 
-        List<MethodSignature> methodSignatures =
-            rawMethodArgumentOverloads
-                .Select(raw =>
+        List<MethodSignature> methodSignatures = [];
+        foreach (NativeFunctionReturnTypeMarshallingVariant returnTypeMarshallingVariant in nativeReturnTypeMarshallingVariants) {
+            if (rawMethodArgumentOverloads.Count == 0) {
+                methodSignatures.Add(
                     new MethodSignature(
                         nativeFunction,
-                        ResolveManagedMethodArguments(raw.Arguments).ToEqualityList(),
-                        ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0])
+                        [],
+                        ResolveManagedMethodReturnType(returnTypeMarshallingVariant)
                     )
-                )
-                .ToList();
+                );
+                continue;
+            }
+
+            foreach (MethodArgumentOverloadRaw rawMethodArgumentOverload in rawMethodArgumentOverloads) {
+                methodSignatures.Add(
+                    new MethodSignature(
+                        nativeFunction,
+                        ResolveManagedMethodArguments(rawMethodArgumentOverload.Arguments).ToEqualityList(),
+                        ResolveManagedMethodReturnType(returnTypeMarshallingVariant)
+                    )
+                );
+            }
+        }
 
         DisambiguateAmbiguousDefaultArgumentValues(methodSignatures);
-
-        if (methodSignatures.Count == 0) {
-            methodSignatures.Add(
-                new MethodSignature(
-                    nativeFunction,
-                    [],
-                    ResolveManagedMethodReturnType(nativeReturnTypeMarshallingVariants[0])
-                )
-            );
-        }
 
         Range? defaultValueInvalidArgumentsRange =
             GetInvalidForSignatureDefaultValuesArgumentIndexRange(methodSignatures);
@@ -246,7 +259,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                             defaultValueInvalidArgumentsRange.Value.End.Value
                         )
                     )
-                    .DistinctBy(MethodSignatureArgumentsDiscriminator.Create)
+                    .DistinctBy(MethodSignatureDiscriminator.Create)
                     .ToList();
         }
 
@@ -348,7 +361,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             potentiallyAmbiguousArguments
                 .GroupBy(x => x.argumentIndex)
                 .Where(x => x.Count() > 1)
-                .SelectMany(x =>x)
+                .SelectMany(x => x)
                 .ToList();
 
         int? firstArgumentAmbiguousInAnySignature = null;
@@ -461,14 +474,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         string invocationValuesFormatted =
             String.Join(", ", managedMethod.Arguments.Select(x => x.Name));
 
-        string invocation;
-        if (managedMethod.IsConstructor) {
-            invocation =
-                $"{nativeFunctionsClassName}.{nativeFunction.Name}({invocationValuesFormatted})";
-        } else {
-            invocation =
+        string invocation =
+            managedMethod.IsConstructor ?
+                $"{nativeFunctionsClassName}.{nativeFunction.Name}({invocationValuesFormatted})" :
                 $"{managedMethod.Name}({invocationValuesFormatted})";
-        }
 
         Function aliasMethod = managedMethod with {
             Name = aliasMethodName,
@@ -518,6 +527,11 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 .Where(x => x.IsPartOfDeclaration)
                 .Select(x => x.MarshalledArgument)
                 .ToList();
+
+        string? methodNameSuffix = methodSignature.ReturnType.MarshallingVariant.ManagedMethodNameSuffix;
+        if (methodNameSuffix != null) {
+            methodName += methodNameSuffix;
+        }
 
         Function managedMethod = methodSignature.NativeFunction with {
             Name = methodName,
@@ -652,7 +666,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     ) {
         NativeFunctionReturnTypeMarshallingVariant voidVariant = new(
             description.ReturnType,
-            ReturnTypeMarshallingMode.Void
+            ReturnTypeMarshallingMode.Void,
+            null
         );
 
         if (description.IsVoid)
@@ -660,7 +675,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         NativeFunctionReturnTypeMarshallingVariant ntsVariant = new(
             description.ReturnType,
-            ReturnTypeMarshallingMode.NullTerminatedString
+            ReturnTypeMarshallingMode.NullTerminatedString,
+            null
         );
 
         if (description.IsString)
@@ -668,13 +684,26 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         NativeFunctionReturnTypeMarshallingVariant passthroughVariant = new(
             description.ReturnType,
-            ReturnTypeMarshallingMode.Passthrough
+            ReturnTypeMarshallingMode.Passthrough,
+            null
         );
 
-        return [passthroughVariant];
+        if (description is { IsPointer: true, IsKnownNonNull: true }) {
+            NativeFunctionReturnTypeMarshallingVariant refVariant = new(
+                description.ReturnType,
+                ReturnTypeMarshallingMode.Ref,
+                null
+            );
 
-        //List<NativeFunctionReturnTypeMarshallingVariant> variants = [];
-        //return variants.ToArray();
+            // FIXME: this shouldn't be done here
+            passthroughVariant = passthroughVariant with {
+                ManagedMethodNameSuffix = "Pointer"
+            };
+
+            return [refVariant, passthroughVariant];
+        }
+
+        return [passthroughVariant];
     }
 
     private static NativeFunctionArgumentMarshallingVariant[] ResolveNativeArgumentMarshallingVariants(
@@ -801,6 +830,21 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 break;
             case ReturnTypeMarshallingMode.NullTerminatedString:
                 returnType = new Builtin("NullTerminatedString", null, StorageClass.NotSpecified);
+                break;
+            case ReturnTypeMarshallingMode.Ref:
+                Pointer? returnTypePointer = returnType as Pointer;
+                Debug.Assert(returnTypePointer != null);
+
+                // Uglyness to handle void**
+                if (returnTypePointer.ValueType.Value.IsVoidPointer()) {
+                    returnTypePointer = returnTypePointer with {
+                        ValueType = KnownEntities.IntPtr.AsEntityReference()
+                    };
+                }
+
+                returnType = returnTypePointer with {
+                    PointerType = BindingsModel.PointerType.ManagedRef
+                };
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -947,7 +991,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     private readonly record struct NativeFunctionReturnTypeDescription(Entity ReturnType) {
         public bool IsString { get; init; }
         public bool IsVoid { get; init; }
-
-        //public bool IsPointer { get; init; }
+        public bool IsPointer { get; init; }
+        public bool IsKnownNonNull { get; init; }
     }
 }

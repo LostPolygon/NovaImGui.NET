@@ -14,11 +14,10 @@ public record BindingsFileCustomizations {
     public IReadOnlyList<string> PrefixesRemovedFromManagedMethods { get; init; } = [];
     public IReadOnlyList<string> MakePointersToStructsOpaque { get; init; } = [];
     public IReadOnlyList<string> NoEmitManagedMethodsForNativeFunctions { get; init; } = [];
-    public IReadOnlyList<string> NoEmitNativeFunctions { get; init; } = [];
     public IReadOnlyList<string> NoEmitStructs { get; init; } = [];
-    public IReadOnlyList<string> NoEmitTypedefs { get; init; } = [];
     public IReadOnlyList<TreatTypeAsHandle> GenerateHandleTypes { get; init; } = [];
     public IReadOnlyList<ManagedMethodAliasDefinition> GenerateManagedMethodAliases { get; init; } = [];
+    public IReadOnlyList<string> TreatNativeFunctionReturnValueAsNonNull { get; init; } = [];
     public IReadOnlyList<string> ExternalTypes { get; init; } = [];
 
     public record NativeFunctionIdentifier {

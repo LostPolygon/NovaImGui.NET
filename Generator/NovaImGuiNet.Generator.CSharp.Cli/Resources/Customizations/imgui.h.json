@@ -46,6 +46,25 @@
       "name": "ImTextureID"
     }
   ],
+  "treat_native_function_return_value_as_non_null": [
+    "ImGui_CreateContext",
+    "ImGui_GetCurrentContext",
+    "ImGui_GetIO",
+    "ImGui_GetPlatformIO",
+    "ImGui_GetStyle",
+    "ImGui_GetDrawData",
+    "ImGui_GetWindowDrawList",
+    "ImGui_GetWindowViewport",
+    "ImGui_BeginMultiSelect",
+    "ImGui_EndMultiSelect",
+    "ImFontAtlas_AddFontFromFileTTF",
+    "ImFontAtlas_AddFontFromMemoryTTF",
+    "ImFontAtlas_AddFontFromMemoryCompressedTTF",
+    "ImFontAtlas_AddFontFromMemoryCompressedBase85TTF",
+
+    "/ImFontAtlas_GetGlyphRanges\\w+/",
+    "/ImGuiStorage_Get\\w+Ref$/"
+  ],
   "generate_managed_method_aliases": [
     {
       "native_function": "ImGui_TextUnformatted",

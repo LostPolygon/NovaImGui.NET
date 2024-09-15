@@ -286,12 +286,13 @@ public class BindingsModelCSharpTransformer {
         using (Operation("Disabling NoEmit structs")) {
             Model.Structs
                 .Where(structure => structure.Value.SourceLocation != null)
-                .Where(structure =>
-                    Context.Customizations
-                        .RequireCustomization(structure.Value.SourceLocation)
-                        .NoEmitStructs
-                        .Contains(structure.Value.Name)
-                )
+                .Where(structure => {
+                    BindingsFileCustomizations customizations =
+                        Context.Customizations
+                            .RequireCustomization(structure.Value.SourceLocation);
+
+                    return TextMatchUtility.IsMatchAny(structure.Value.Name, customizations.NoEmitStructs);
+                })
                 .ForEach(x => x.Value.NoEmit = true);
         }
 

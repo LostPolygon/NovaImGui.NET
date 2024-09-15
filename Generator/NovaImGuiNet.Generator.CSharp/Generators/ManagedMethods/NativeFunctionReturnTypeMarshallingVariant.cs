@@ -4,7 +4,8 @@ using static BindingsModel;
 
 public readonly record struct NativeFunctionReturnTypeMarshallingVariant(
     Entity NativeFunctionReturnType,
-    ReturnTypeMarshallingMode ReturnTypeMarshallingMode
+    ReturnTypeMarshallingMode ReturnTypeMarshallingMode,
+    string? ManagedMethodNameSuffix
 ) {
     public override string ToString() {
         List<string> elements = [];
@@ -13,6 +14,7 @@ public readonly record struct NativeFunctionReturnTypeMarshallingVariant(
             elements.Add($"ReturnType = {ReturnTypeMarshallingMode}");
         }
 
-        return $"{CSharpCodeGenerationUtility.FormatType(NativeFunctionReturnType)} ({String.Join(", ", elements)})";
+        string suffix = ManagedMethodNameSuffix != null ? $"(suffix: {ManagedMethodNameSuffix}) " : "";
+        return $"{suffix}{CSharpCodeGenerationUtility.FormatType(NativeFunctionReturnType)} ({String.Join(", ", elements)})";
     }
 }

@@ -16,11 +16,11 @@ using static BindingsModel;
 using static SyntaxFactory;
 using static SyntaxFactoryCached;
 
-public class BindingsModelCodeGenerator {
+public class BindingsModelBindingsSyntaxGenerator {
     public BindingsModel BindingsModel { get; }
     public BindingsContext BindingsContext { get; }
 
-    public BindingsModelCodeGenerator(
+    public BindingsModelBindingsSyntaxGenerator(
         BindingsModel metadataModel,
         BindingsContext bindingsContext
     ) {
@@ -307,23 +307,23 @@ public class BindingsModelCodeGenerator {
             if (!delegatesAsFunctionPointers) {
                 List<FunctionArgument> newArguments =
                     function.Arguments
-                    .Select(arg => {
-                        // This two-level nonsense deals with ImGui.GetAllocatorFunctions
-                        // pointers to function pointers
-                        Delegate? firstLevelDelegate = arg.Type.ExpandTypedef().Value as Delegate;
-                        Delegate? secondLevelDelegate = arg.Type.ExpandAllTypedefsAndPointers().Value as Delegate;
-                        if (firstLevelDelegate == null && secondLevelDelegate == null)
+                        .Select(arg => {
+                            // This two-level nonsense deals with ImGui.GetAllocatorFunctions
+                            // pointers to function pointers
+                            Delegate? firstLevelDelegate = arg.Type.ExpandTypedef().Value as Delegate;
+                            Delegate? secondLevelDelegate = arg.Type.ExpandAllTypedefsAndPointers().Value as Delegate;
+                            if (firstLevelDelegate == null && secondLevelDelegate == null)
+                                return arg;
+
+                            if (firstLevelDelegate == null && secondLevelDelegate != null) {
+                                arg = arg with { Type = KnownEntities.VoidVoidPointer.AsEntityReference() };
+                            } else {
+                                arg = arg with { Type = KnownEntities.IntPtr.AsEntityReference() };
+                            }
+
                             return arg;
-
-                        if (firstLevelDelegate == null && secondLevelDelegate != null) {
-                            arg = arg with { Type = KnownEntities.VoidVoidPointer.AsEntityReference() };
-                        } else {
-                            arg = arg with { Type = KnownEntities.IntPtr.AsEntityReference() };
-                        }
-
-                        return arg;
-                    })
-                    .ToList();
+                        })
+                        .ToList();
 
                 function = function with {
                     Arguments = newArguments
@@ -395,9 +395,17 @@ public class BindingsModelCodeGenerator {
                     )
                     .AddModifiers(modifiers.Select(Token).ToArray());
         } else {
+            // Uglyness for ref return support
+            TypeSyntax returnTypeSyntax;
+            if (function.ReturnType.Value is Pointer { PointerType: BindingsModel.PointerType.ManagedRef } pointer) {
+                returnTypeSyntax = RefType(ParseTypeName(FormatType(pointer.ValueType.Value)));
+            } else {
+                returnTypeSyntax = ParseTypeName(FormatType(function.ReturnType.Value));
+            }
+
             methodDeclarationSyntax =
                 MethodDeclaration(
-                        ParseTypeName(FormatType(function.ReturnType.Value)),
+                        returnTypeSyntax,
                         function.Name
                     )
                     .AddModifiers(modifiers.Select(Token).ToArray());

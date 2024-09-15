@@ -1,7 +1,7 @@
 namespace NovaImGuiNet;
 
 /// <summary>
-/// Represent a boolean stored as a single byte.
+/// Represents a boolean stored as a single byte.
 /// Used in some edge-cases where regular bool type is not accepted
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]

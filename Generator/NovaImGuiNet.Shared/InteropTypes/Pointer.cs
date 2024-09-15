@@ -22,7 +22,13 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
 
     public ref T Value {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ref *Ptr;
+        get {
+            if (Ptr == null) {
+                CommonExceptions.ThrowNativePointerNull<T>();
+            }
+
+            return ref *Ptr;
+        }
     }
 
     public override string ToString() {

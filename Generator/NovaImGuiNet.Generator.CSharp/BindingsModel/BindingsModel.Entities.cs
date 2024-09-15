@@ -117,7 +117,8 @@ public partial class BindingsModel {
 
     public record Pointer(
         IEntityReference ValueType,
-        bool? IsNullable
+        bool? IsNullable,
+        PointerType PointerType
     ) : Entity {
         public override IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
             if (visitedNodes.Add(ValueType)) {
@@ -127,6 +128,11 @@ public partial class BindingsModel {
                 }
             }
         }
+    }
+
+    public enum PointerType {
+        Unmanaged,
+        ManagedRef
     }
 
     public record Enum : TopLevelEntity {

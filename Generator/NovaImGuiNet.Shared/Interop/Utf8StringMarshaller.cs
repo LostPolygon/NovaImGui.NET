@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace NovaImGuiNet;
+namespace NovaImGuiNet.Interop;
 
 public static unsafe class Utf8StringMarshaller {
     [FixedAddressValueType]

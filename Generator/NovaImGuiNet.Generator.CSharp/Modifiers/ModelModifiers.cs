@@ -147,7 +147,7 @@ public static class ModelModifiers {
                 (pointerValueType.Value as Builtin)?.BuiltinName;
 
             if (pointerValueTypeName == null ||
-                !customizations.MakePointersToStructsOpaque.Contains(pointerValueTypeName))
+                !TextMatchUtility.IsMatchAny(pointerValueTypeName, customizations.MakePointersToStructsOpaque))
                 return false;
 
             newType = KnownEntities.IntPtr.AsEntityReference();

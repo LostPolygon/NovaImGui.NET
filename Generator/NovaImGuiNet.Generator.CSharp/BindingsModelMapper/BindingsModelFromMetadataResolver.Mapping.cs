@@ -143,7 +143,8 @@ public partial class BindingsModelFromMetadataResolver {
 
         return new BindingsModel.Pointer(
             valueType,
-            metadata.IsNullable
+            metadata.IsNullable,
+            BindingsModel.PointerType.Unmanaged
         );
     }
 

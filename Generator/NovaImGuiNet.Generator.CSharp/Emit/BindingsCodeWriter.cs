@@ -51,9 +51,14 @@ public class BindingsCodeWriter {
     }
 
     private void SaveEntityToFile(BindingsCompilationUnit bindingsCompilationUnit) {
-        string code = WriteCodeToString(bindingsCompilationUnit.SyntaxNode, BindingsContext.Options.CodeFormatMode);
         string fileName = CreateFileName(bindingsCompilationUnit);
         string filePath = CreateFilePath(fileName);
+
+#if DEBUG
+        using TimedLoggedOperation operation = new(Log, $"Writing {fileName} (thread {Thread.CurrentThread.ManagedThreadId})", true);
+#endif
+
+        string code = WriteCodeToString(bindingsCompilationUnit.SyntaxNode, BindingsContext.Options.CodeFormatMode);
         File.WriteAllText(filePath, code);
     }
 

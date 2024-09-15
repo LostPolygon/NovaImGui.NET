@@ -40,5 +40,8 @@
     "cImGuiTestEngineHook_ItemAdd"
   ],
   "treat_pointer_arguments_as_arrays": [
+  ],
+  "treat_native_function_return_value_as_non_null": [
+    "ImGuiTableSettings_GetColumnSettings",
   ]
 }
