@@ -131,25 +131,25 @@ public class BindingsModelCSharpTransformer {
         );
 
         Transform(
-            "Adding IntPtr accessors to fields of function pointer types",
-            Model.Structs,
-            AddIntPtrAccessorPropertyForUnmanagedFunctionPointerFields
-        );
-
-        Transform(
             "Adding IntPtr properties to fields of non-void pointer types",
             Model.Structs,
             AddIntPtrAccessorPropertyForPointerFields
         );
 
-        using (Operation("Prettifying delegate names")) {
+        using (Operation("Prettifying delegate and delegate argument names")) {
             Model.Typedefs
                 .Where(x => x.Reference.ExpandAllTypedefsAndPointers<Delegate>() != null)
-                .ForEach(bindingsTypedef => {
-                    EntityReferenceWrapper<Delegate> bindingsDelegateReference =
-                        new(bindingsTypedef.Reference.ExpandAllTypedefsAndPointers<Delegate>()!);
-                    bindingsDelegateReference.Reference.Value = PrettifyDelegateName(bindingsDelegateReference.Value);
-                    bindingsTypedef.Value.Name = bindingsDelegateReference.Value.Name;
+                .ForEach(delegateType => {
+                    EntityReferenceWrapper<Delegate> delegateReference =
+                        new(delegateType.Reference.ExpandAllTypedefsAndPointers<Delegate>()!);
+                    delegateReference.Reference.Value = PrettifyDelegateName(delegateReference.Value);
+
+                    delegateReference.Value.Arguments =
+                        delegateReference.Value.Arguments
+                            .Select(PrettifyArgumentName)
+                            .ToList();
+
+                    delegateType.Value.Name = delegateReference.Value.Name;
                 });
         }
 
@@ -167,9 +167,7 @@ public class BindingsModelCSharpTransformer {
         IReadOnlyList<IFunctionLike> allFunctionsAndDelegates =
             new List<IEntityReference>([
                     ..Model.GetAllFunctions().Select(x => x.Reference),
-                    ..Model.Typedefs
-                        .Where(typedef => typedef.Value.Type.Value is Delegate)
-                        .Select(typedef => typedef.Value.Type)
+                    ..Model.GetAllDelegates().Select(x => x.Reference),
                 ])
                 .Select(x => x.Value)
                 .Cast<IFunctionLike>()
@@ -194,6 +192,22 @@ public class BindingsModelCSharpTransformer {
             });
         }
 
+        using (Operation("Fixing unblittable delegate arguments")) {
+            UpdateFunctionsAndDelegatesArguments((functionLike, arg, _) => {
+                if (functionLike is not Delegate)
+                    return arg;
+
+                // bool is not blittable. Normally we would just do [MarshalAs(UnmanagedType.I1)],
+                // but we cant do that in a function pointer, so instead we wrap the byte in a ByteBool wrapper.
+                // FIXME: do we need to do the same to the return value?
+                if (arg.Type.Value is Builtin builtin && builtin.ManagedType == typeof(bool)) {
+                    arg.Type = KnownEntities.ByteBool.AsEntityReference();
+                }
+
+                return arg;
+            });
+        }
+
         using (Operation("Converting void* native function arguments to IntPtr")) {
             UpdateFunctionsAndDelegatesArguments((_, arg, _) =>
                 ConvertVoidPointerArgumentsToIntPtr(arg)
@@ -202,6 +216,10 @@ public class BindingsModelCSharpTransformer {
 
         using (Operation("Converting void* native function return values to IntPtr")) {
             allFunctionsAndDelegates.ForEach(ConvertVoidPointerReturnValuesToIntPtr);
+        }
+
+        using (Operation("Converting function pointer native function return values to IntPtr")) {
+            allFunctionsAndDelegates.ForEach(ConvertFunctionPointerReturnValuesToIntPtr);
         }
 
         using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size structs")) {
@@ -219,6 +237,12 @@ public class BindingsModelCSharpTransformer {
         using (Operation("Remove variadic functions and delegates")) {
             allFunctionsAndDelegates.ForEach(DisableVarArgsFunctionsAndDelegates);
         }
+
+        Transform(
+            "Adding IntPtr accessors to fields of function pointer types",
+            Model.Structs,
+            AddIntPtrAccessorPropertyForUnmanagedFunctionPointerFields
+        );
 
         using (Operation("Removing broken conditional defines around some functions")) {
             allFunctionsAndDelegates.ForEach(RemoveBrokenConditionalDefines);

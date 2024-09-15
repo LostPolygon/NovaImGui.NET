@@ -92,8 +92,9 @@ public static class CSharpCodeGenerationUtility {
         functionPointer += " <";
         List<string> functionPointerGenericArguments =
             userDelegate.Arguments
-                .Select(a => FormatType(a.Type.Value))
+                .Select(arg => FormatType(arg.Type.Value))
                 .ToList();
+
         functionPointerGenericArguments.Add(FormatType(userDelegate.ReturnType.Value));
         functionPointer += String.Join(", ", functionPointerGenericArguments);
         functionPointer += ">";
@@ -144,6 +145,7 @@ public static class CSharpCodeGenerationUtility {
             function.Arguments
                 .Select(arg => $"{FormatType(arg.Type.Value)} {arg.Name}")
                 .ToList();
+
         functionPointer += String.Join(", ", functionPointerGenericArguments);
         functionPointer += ")";
         return functionPointer;

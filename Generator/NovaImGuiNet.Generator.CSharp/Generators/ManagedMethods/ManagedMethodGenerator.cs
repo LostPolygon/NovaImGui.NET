@@ -494,31 +494,35 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     ) {
         List<MethodSignature> result = [];
 
+        // Base overload with all possible arguments
         ManagedMethodArgument[] baseArguments = baseMethod.Arguments.ToArray();
         DisableDefaultValuesInArguments(baseArguments, lastInvalidArgument);
 
-        MethodSignature baseOverload = baseMethod with {
-            Arguments = baseArguments
-        };
-
+        MethodSignature baseOverload = baseMethod with { Arguments = baseArguments };
         result.Add(baseOverload);
 
-        for (int baseArgIndex = firstInvalidArgument; baseArgIndex <= lastInvalidArgument; baseArgIndex++) {
-            ManagedMethodArgument[] overloadArguments = baseArguments.ToArray();
+        for (int argIndex = lastInvalidArgument; argIndex >= firstInvalidArgument; argIndex--) {
+            ManagedMethodArgument[] overloadArguments = baseMethod.Arguments.ToArray();
 
-            DisableDefaultValuesInArguments(overloadArguments, lastInvalidArgument);
-            RemoveInvalidArgumentsFromDeclaration(overloadArguments, baseArgIndex);
+            if (argIndex == firstInvalidArgument) {
+                // We've ran out of invalid arguments, no need to disable default values anymore
+                RemoveInvalidArgumentsFromDeclaration(overloadArguments, argIndex);
+            } else {
+                DisableDefaultValuesInArguments(overloadArguments, lastInvalidArgument);
+                RemoveInvalidArgumentsFromDeclaration(overloadArguments, argIndex);
+            }
 
-            MethodSignature overload = baseMethod with {
-                Arguments = overloadArguments
-            };
-
+            MethodSignature overload = baseMethod with { Arguments = overloadArguments };
             result.Add(overload);
         }
 
+        Debug.Assert(result.Count != 0);
         return result;
 
-        static void DisableDefaultValuesInArguments(IList<ManagedMethodArgument> overloadArguments, int lastInvalidArgument) {
+        static void DisableDefaultValuesInArguments(
+            IList<ManagedMethodArgument> overloadArguments,
+            int lastInvalidArgument
+        ) {
             for (int modifiedArgIndex = 0; modifiedArgIndex <= lastInvalidArgument; modifiedArgIndex++) {
                 overloadArguments[modifiedArgIndex] = overloadArguments[modifiedArgIndex] with {
                     MarshalledArgument = overloadArguments[modifiedArgIndex].MarshalledArgument with {

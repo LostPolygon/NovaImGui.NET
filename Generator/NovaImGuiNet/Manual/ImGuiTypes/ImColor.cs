@@ -35,4 +35,6 @@ public partial struct ImColor {
     public static implicit operator ImColor(ImVec4 value) => new(value);
 
     public static implicit operator ImU32(ImColor value) => value.ToUInt32();
+
+    public static implicit operator ImVec4(ImColor value) => value.Value;
 }

@@ -763,8 +763,8 @@ public class BindingsModelCodeGenerator {
     }
 
     private static AttributeListSyntax[] CreateMarshalAsAttributeLists(Entity entity, bool isReturnValue) {
-        string typeExpanded = FormatType(entity);
-        if (typeExpanded == "bool") {
+        if (entity.AsEntityReference().ExpandAllTypedefsAndPointers<Builtin>()?.Value is Builtin builtin &&
+            builtin.ManagedType == typeof(bool)) {
             return [CreateBoolMarshalAsAttribute(isReturnValue ? SyntaxKind.ReturnKeyword : null)];
         }
 

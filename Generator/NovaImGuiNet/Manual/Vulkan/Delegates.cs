@@ -1,3 +1,3 @@
-namespace NovaImGuiNet.Backends.Vulkan;
+// public delegate void PFN_vkVoidFunction();
+global using PFN_vkVoidFunction = nint;
 
-public delegate void PFN_vkVoidFunction();

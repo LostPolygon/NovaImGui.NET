@@ -46,6 +46,14 @@ public static class FunctionModifiers {
     }
 
     public static FunctionArgument PrettifyArgumentName(FunctionArgument argument) {
+        if (argument.Name == null!)
+            return argument;
+
+        if (argument.Name.StartsWith("p_", StringComparison.Ordinal) &&
+            argument.Type.ExpandTypedef().Value is Pointer) {
+            argument.Name = argument.Name.RemovePrefix("p_");
+        }
+
         if (!argument.Name.StartsWith("__")) {
             argument.Name = argument.Name.SnakeCaseToCamelCase();
         }
@@ -70,6 +78,14 @@ public static class FunctionModifiers {
             !returnValueTypePointer.IsVoidPointer())
             return;
 
+        functionLike.ReturnType = KnownEntities.IntPtr.AsEntityReference();
+    }
+
+    public static void ConvertFunctionPointerReturnValuesToIntPtr<T>(T functionLike) where T : IFunctionLike {
+        if (functionLike.ReturnType.Value is not Delegate)
+            return;
+
+        Debug.Assert(false, "ConvertFunctionPointerReturnValuesToIntPtr wasn't encountered before, needs verification");
         functionLike.ReturnType = KnownEntities.IntPtr.AsEntityReference();
     }
 
@@ -155,6 +171,7 @@ public static class FunctionModifiers {
             arg => {
                 string typeName = FormatType(arg.Type.Value, new FormatTypeOptions { DelegatesAsFunctionPointers = true });
                 return KnownBindingsEntitiesInfo.VarArgTypeNames.Any(
+
                     // FIXME: Contains() here is super jank
                     banned => typeName.Contains(banned)
                 );

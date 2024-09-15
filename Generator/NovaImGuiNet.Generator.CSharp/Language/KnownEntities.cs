@@ -3,6 +3,7 @@ namespace NovaImGuiNet.Generator.CSharp;
 using static BindingsModel;
 
 public static class KnownEntities {
+    public static readonly Builtin Byte = new("byte", typeof(byte), StorageClass.NotSpecified);
     public static readonly Builtin String = new("string", typeof(string), StorageClass.Const);
     public static readonly Builtin IntPtr = new("IntPtr", typeof(IntPtr), StorageClass.NotSpecified);
     public static readonly Pointer Utf8BytePointer = new Builtin("byte", typeof(byte), StorageClass.Const).AsPointer();
@@ -11,6 +12,8 @@ public static class KnownEntities {
     public static readonly Pointer VoidPointer = new Builtin("void", typeof(void), StorageClass.NotSpecified).AsPointer();
     public static readonly Pointer VoidVoidPointer = new Builtin("void", typeof(void), StorageClass.NotSpecified).AsPointer().AsPointer();
     public static readonly Pointer ConstVoidPointer = new Builtin("void", typeof(void), StorageClass.Const).AsPointer();
+
+    public static readonly Builtin ByteBool = new("ByteBool", null, StorageClass.NotSpecified);
 
     public static bool IsVoid(this Entity entity) => entity is Builtin builtin && builtin.ManagedType == typeof(void);
 
