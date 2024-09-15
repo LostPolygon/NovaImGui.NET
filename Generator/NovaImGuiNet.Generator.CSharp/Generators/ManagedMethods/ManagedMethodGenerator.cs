@@ -221,6 +221,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 )
                 .ToList();
 
+        DisambiguateAmbiguousDefaultArgumentValues(methodSignatures);
+
         if (methodSignatures.Count == 0) {
             methodSignatures.Add(
                 new MethodSignature(
@@ -299,6 +301,80 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         managedMethods.AddRange(managedMethodAliases);
 
         return managedMethods;
+    }
+
+    private void DisambiguateAmbiguousDefaultArgumentValues(List<MethodSignature> methodSignatures) {
+        if (methodSignatures.Count < 2)
+            return;
+
+        int argumentsCount = methodSignatures[0].Arguments.Count;
+        List<(int argumentIndex, ManagedMethodArgument argument, bool isPrimary)> potentiallyAmbiguousArguments = [];
+
+        for (int sigIndex = 0; sigIndex < methodSignatures.Count; sigIndex++) {
+            for (int argIndex = 0; argIndex < argumentsCount; argIndex++) {
+                MethodSignature signature = methodSignatures[sigIndex];
+                ManagedMethodArgument argument = signature.Arguments[argIndex];
+
+                ArgumentMarshallingMode marshallingMode = argument.MarshallingVariant.ArgumentMarshallingMode;
+
+                // Check if the argument default value is potentially ambiguous
+                if (argument.MarshalledArgument.DefaultValue == null ||
+                    !KnownEntities.PotentiallyAmbiguousDefaultValues.Contains(argument.MarshalledArgument.DefaultValue)) {
+                    continue;
+                }
+
+                // Handle possibly ambiguous combination and pick the argument that will not be disambiguated
+                switch (marshallingMode) {
+                    case ArgumentMarshallingMode.ReadOnlyByteSpan or
+                        ArgumentMarshallingMode.ReadOnlyCharSpan or
+                        ArgumentMarshallingMode.String: {
+                        bool isPrimaryArgument = marshallingMode == ArgumentMarshallingMode.ReadOnlyCharSpan;
+                        potentiallyAmbiguousArguments.Add((argIndex, argument, isPrimaryArgument));
+                        break;
+                    }
+                    case ArgumentMarshallingMode.DelegateManaged or
+                        ArgumentMarshallingMode.DelegateFunctionPointer or
+                        ArgumentMarshallingMode.DelegateIntPtr: {
+                        bool isPrime = marshallingMode == ArgumentMarshallingMode.DelegateIntPtr;
+                        potentiallyAmbiguousArguments.Add((argIndex, argument, isPrime));
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Only keep overloaded ambiguous arguments
+        potentiallyAmbiguousArguments =
+            potentiallyAmbiguousArguments
+                .GroupBy(x => x.argumentIndex)
+                .Where(x => x.Count() > 1)
+                .SelectMany(x =>x)
+                .ToList();
+
+        int? firstArgumentAmbiguousInAnySignature = null;
+        int? lastArgumentAmbiguousInAnySignature = null;
+
+        foreach ((int argumentIndex, _, _) in potentiallyAmbiguousArguments) {
+            if (firstArgumentAmbiguousInAnySignature == null || argumentIndex < firstArgumentAmbiguousInAnySignature) {
+                firstArgumentAmbiguousInAnySignature = argumentIndex;
+            }
+
+            if (lastArgumentAmbiguousInAnySignature == null || argumentIndex > lastArgumentAmbiguousInAnySignature) {
+                lastArgumentAmbiguousInAnySignature = argumentIndex;
+            }
+        }
+
+        if (firstArgumentAmbiguousInAnySignature == null || lastArgumentAmbiguousInAnySignature == null)
+            return;
+
+        // Disable default values for ambiguous arguments
+        for (int i = firstArgumentAmbiguousInAnySignature.Value; i <= lastArgumentAmbiguousInAnySignature.Value; i++) {
+            foreach ((int argumentIndex, ManagedMethodArgument argument, bool isPrime) in potentiallyAmbiguousArguments) {
+                if (argumentIndex == i && !isPrime) {
+                    argument.MarshalledArgument.IsDefaultValueValidInDeclaration = false;
+                }
+            }
+        }
     }
 
     private List<MethodArgumentOverloadRaw> FilterRawMethodArgumentOverloads(List<MethodArgumentOverloadRaw> overloads) {

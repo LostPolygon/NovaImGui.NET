@@ -14,6 +14,8 @@ public static class KnownEntities {
     public static readonly Pointer ConstVoidPointer = new Builtin("void", typeof(void), StorageClass.Const).AsPointer();
 
     public static readonly Builtin ByteBool = new("ByteBool", null, StorageClass.NotSpecified);
+    public static readonly IReadOnlyList<string> NullishValues = ["default", "null"];
+    public static readonly IReadOnlyList<string> PotentiallyAmbiguousDefaultValues = ["default", "null"];
 
     public static bool IsVoid(this Entity entity) => entity is Builtin builtin && builtin.ManagedType == typeof(void);
 
