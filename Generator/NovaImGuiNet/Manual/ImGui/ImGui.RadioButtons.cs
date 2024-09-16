@@ -13,13 +13,8 @@ public static partial class ImGui {
             return RadioButton(label, ref vInt, vButtonInt);
         }
 
-        if (underlyingType == typeof(int)) {
-            ref int vUint = ref Unsafe.As<TEnum, int>(ref v);
-            int vButtonUint = Unsafe.As<TEnum, int>(ref vButton);
-            return RadioButton(label, ref vUint, vButtonUint);
-        }
-
-        throw CommonExceptions.CreateUnsupportedEnumUnderlyingType<TEnum>();
+        InteropExceptions.ThrowUnsupportedEnumUnderlyingType<TEnum>();
+        return false;
     }
 
     public static bool RadioButton<TEnum>(ReadOnlySpan<char> label, ref TEnum v, TEnum vButton)
@@ -32,13 +27,8 @@ public static partial class ImGui {
             return RadioButton(label, ref vInt, vButtonInt);
         }
 
-        if (underlyingType == typeof(int)) {
-            ref int vUint = ref Unsafe.As<TEnum, int>(ref v);
-            int vButtonUint = Unsafe.As<TEnum, int>(ref vButton);
-            return RadioButton(label, ref vUint, vButtonUint);
-        }
-
-        throw CommonExceptions.CreateUnsupportedEnumUnderlyingType<TEnum>();
+        InteropExceptions.ThrowUnsupportedEnumUnderlyingType<TEnum>();
+        return false;
     }
 
 #if NETSTANDARD2_0
@@ -52,13 +42,8 @@ public static partial class ImGui {
             return RadioButton(label, ref vInt, vButtonInt);
         }
 
-        if (underlyingType == typeof(int)) {
-            ref int vUint = ref Unsafe.As<TEnum, int>(ref v);
-            int vButtonUint = Unsafe.As<TEnum, int>(ref vButton);
-            return RadioButton(label, ref vUint, vButtonUint);
-        }
-
-        throw CommonExceptions.CreateUnsupportedEnumUnderlyingType<TEnum>();
+        InteropExceptions.CreateUnsupportedEnumUnderlyingType<TEnum>();
+        return false;
     }
 #endif
 }

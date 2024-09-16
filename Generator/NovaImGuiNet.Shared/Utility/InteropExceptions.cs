@@ -24,8 +24,8 @@ public static class InteropExceptions {
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public static Exception CreateUnsupportedEnumUnderlyingType<TEnum>() where TEnum : unmanaged, Enum {
-        return new InvalidCastException(
+    public static void ThrowUnsupportedEnumUnderlyingType<TEnum>() where TEnum : unmanaged, Enum {
+        throw new InvalidCastException(
             $"Only enums with int and uint underlying types are supported, " +
             $"but enum {typeof(TEnum).FullName} uses underlying type {Enum.GetUnderlyingType(typeof(TEnum)).FullName}"
         );
