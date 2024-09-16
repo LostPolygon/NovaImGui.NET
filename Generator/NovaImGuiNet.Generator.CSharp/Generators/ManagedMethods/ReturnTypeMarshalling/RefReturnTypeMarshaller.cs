@@ -21,7 +21,7 @@ public class RefReturnTypeMarshaller : ReturnTypeMarshaller {
             MethodSignature.ReturnType.MarshalledReturnType.AsEntityReference().ExpandPointer().Value
         );
         return [
-            $"if ({ReturnVariableName} == null) {{\nCommonExceptions.ThrowReturnedNativePointerNull();\n}}",
+            $"if ({ReturnVariableName} == null) {{\nInteropExceptions.ThrowReturnedNativePointerNull();\n}}",
             $"return ref Unsafe.AsRef<{returnTypeValue}>({ReturnVariableName});"
         ];
     }

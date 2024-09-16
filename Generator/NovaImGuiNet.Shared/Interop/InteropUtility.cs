@@ -41,11 +41,24 @@ public static unsafe class InteropUtility {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static nint NativeMemoryAllocate(nuint sizeBytes) {
+    public static nint NativeMemoryReallocate(nint ptr, nuint byteCount) {
 #if NET6_0_OR_GREATER
-        return (IntPtr) NativeMemory.Alloc(sizeBytes);
+        return (IntPtr) NativeMemory.Realloc((void*) ptr, byteCount);
 #else
-        return Marshal.AllocHGlobal((nint) sizeBytes);
+        if (ptr == IntPtr.Zero) {
+            return Marshal.AllocHGlobal((nint) byteCount);
+        } else {
+            return Marshal.ReAllocHGlobal(ptr, (nint) byteCount);
+        }
+#endif
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static nint NativeMemoryAllocate(nuint byteCount) {
+#if NET6_0_OR_GREATER
+        return (IntPtr) NativeMemory.Alloc(byteCount);
+#else
+        return Marshal.AllocHGlobal((nint) byteCount);
 #endif
     }
 

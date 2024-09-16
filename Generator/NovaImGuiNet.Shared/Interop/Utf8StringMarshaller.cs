@@ -40,6 +40,13 @@ public static unsafe class Utf8StringMarshaller {
     public ref struct ManagedToUnmanagedIn {
         public static int StackAllocMaxSize => 1024;
 
+        [ThreadStatic]
+        private static NativeMemoryManagedBuffer? ThreadUtf8ConvertBuffer;
+
+        private const int ThreadUtf8ConvertBufferInitialSize = 128 * 1024;
+        private const int ThreadUtf8ConvertBufferMaxSize = 4 * ThreadUtf8ConvertBufferInitialSize;
+        private const int ThreadUtf8ConvertBufferGrowthChunk = 4096;
+
         private readonly ReadOnlySpan<char> _charSpan;
         private byte* _utf8Pointer;
         private bool _utf8Allocated;
@@ -69,16 +76,37 @@ public static unsafe class Utf8StringMarshaller {
 
             int utf8MaxBytes = EstimateNullTerminatedUtf8StringByteCount(utf16.Length);
 
-            bool stackBufferEnough = utf8MaxBytes <= utf8Buffer.Length;
-            if (!stackBufferEnough) {
-                _utf8Pointer = (byte*) InteropUtility.NativeMemoryAllocate((nuint) utf8MaxBytes);
-                _utf8Allocated = true;
+            bool isStackBufferEnough = utf8MaxBytes <= utf8Buffer.Length;
+            if (!isStackBufferEnough) {
+                EnsureBuffer(utf8MaxBytes);
             } else {
                 _utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
             }
 
             utf8BytesWritten = ConvertUtf16PointerToNullTerminatedUtf8Pointer(utf16Pointer, utf16.Length, _utf8Pointer, utf8MaxBytes - 1);
             return _utf8Pointer;
+        }
+
+        /// <returns>
+        /// Non-zero pointer if long-term buffer was resized to the desired size,
+        /// zero-pointer if <paramref name="byteCount"/> is larger than the long-term buffer size limit,
+        /// and a short-term buffer would need to be allocated instead/
+        /// </returns>
+        private void EnsureBuffer(int byteCount) {
+            // If the requested byte count exceeds the long-term buffer size limit,
+            // we'll allocate a short-term buffer that needs to be freed.
+            // Otherwise, use the long-term buffer.
+            if (byteCount > ThreadUtf8ConvertBufferMaxSize) {
+                _utf8Pointer = (byte*) InteropUtility.NativeMemoryAllocate((UIntPtr) byteCount);
+                _utf8Allocated = true;
+                return;
+            }
+
+            // Grow the long-term buffer in chunks
+            byteCount = (byteCount / ThreadUtf8ConvertBufferGrowthChunk + 1) * ThreadUtf8ConvertBufferGrowthChunk;
+            ThreadUtf8ConvertBuffer ??= new NativeMemoryManagedBuffer((nuint) Math.Max(ThreadUtf8ConvertBufferInitialSize, byteCount));
+
+            _utf8Pointer = (byte*) ThreadUtf8ConvertBuffer.EnsureSize((nuint) byteCount);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

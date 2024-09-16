@@ -25,8 +25,8 @@ public class Generator {
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
             string[] loadedFiles = [
                 // NOTE: SDL2 and SDL3 need to be processed separately because of identical type names
-                //"Resources/cimgui/cimgui_impl_sdl2.json",
                 "Resources/cimgui/cimgui_impl_sdlrenderer2.json",
+                "Resources/cimgui/cimgui_impl_sdl2.json",
 
                 //"Resources/cimgui/cimgui_impl_sdl3.json",
                 //"Resources/cimgui/cimgui_impl_sdlrenderer3.json",
@@ -103,8 +103,8 @@ public class Generator {
 
         IReadOnlyList<BindingsCompilationUnit> compilationUnits;
         using (new TimedLoggedOperation(Log, "Creating C# entities")) {
-            BindingsModelCodeGenerator codeGenerator = new(bindingsModel, BindingsContext);
-            compilationUnits = codeGenerator.Generate();
+            BindingsModelBindingsSyntaxGenerator bindingsSyntaxGenerator = new(bindingsModel, BindingsContext);
+            compilationUnits = bindingsSyntaxGenerator.Generate();
         }
 
         if (!Directory.Exists(BindingsContext.RootOutputPath))

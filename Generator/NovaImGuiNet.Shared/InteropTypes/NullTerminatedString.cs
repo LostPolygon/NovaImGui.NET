@@ -4,10 +4,10 @@ using System.Text;
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct NullTerminatedString {
+public readonly unsafe struct NullTerminatedString : IEquatable<NullTerminatedString> {
     public readonly byte* Data;
 
-    public readonly IntPtr DataIntPtr => (IntPtr) Data;
+    public IntPtr DataIntPtr => (IntPtr) Data;
 
     public NullTerminatedString(byte* data) {
         Data = data;
@@ -38,6 +38,16 @@ public readonly unsafe struct NullTerminatedString {
         }
 #endif
     }
+
+    public bool Equals(NullTerminatedString other) => Data == other.Data;
+
+    public override bool Equals(object? obj) => obj is NullTerminatedString other && Equals(other);
+
+    public override int GetHashCode() => unchecked((int) (long) Data);
+
+    public static bool operator ==(NullTerminatedString left, NullTerminatedString right) => left.Equals(right);
+
+    public static bool operator !=(NullTerminatedString left, NullTerminatedString right) => !left.Equals(right);
 
     public static implicit operator string?(NullTerminatedString nts) => nts.ToString();
 

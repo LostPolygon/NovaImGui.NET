@@ -6,7 +6,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DefineConstants>IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN</DefineConstants>
         <LangVersion>12</LangVersion>
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <NoWarn>$(NoWarn);CS1587;CS1591</NoWarn>
     </PropertyGroup>
 
@@ -28,6 +28,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Polyfill" Version="6.8.0">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
       <ProjectReference Include="..\NovaImGuiNet.Shared\NovaImGuiNet.Shared.csproj" />
     </ItemGroup>
 

@@ -24,7 +24,7 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get {
             if (Ptr == null) {
-                CommonExceptions.ThrowNativePointerNull<T>();
+                InteropExceptions.ThrowNativePointerNull<T>();
             }
 
             return ref *Ptr;
@@ -32,7 +32,7 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     }
 
     public override string ToString() {
-        return IntPtr != IntPtr.Zero ? IntPtr.ToString("x8") : "null";
+        return IntPtr != IntPtr.Zero ? $"0x{IntPtr:x8}" : "null";
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
