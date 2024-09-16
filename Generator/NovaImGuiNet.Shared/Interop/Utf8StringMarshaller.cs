@@ -30,9 +30,11 @@ public static unsafe class Utf8StringMarshaller {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ConvertUtf16PointerToNullTerminatedUtf8Pointer(char* chars, int charCount, byte* bytes, int byteCount) {
+    public static int ConvertUtf16PointerToNullTerminatedUtf8Pointer(char* chars, int charCount, byte* bytes, int byteCount) {
         int utf8BytesWritten = Encoding.UTF8.GetBytes(chars, charCount, bytes, byteCount);
         bytes[utf8BytesWritten] = 0;
+
+        return utf8BytesWritten;
     }
 
     public ref struct ManagedToUnmanagedIn {
@@ -52,7 +54,10 @@ public static unsafe class Utf8StringMarshaller {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte* ConvertToNative(Span<byte> utf8Buffer) {
+        public byte* ConvertToNative(Span<byte> utf8Buffer, out int utf8BytesWritten) {
+            // Must be explicitly 0 so pointer arithmetic works out even if return a null pointer
+            utf8BytesWritten = 0;
+
             ReadOnlySpan<char> utf16 = _charSpan;
             char* utf16Pointer = InteropUtility.SpanToPointer(utf16);
 
@@ -72,7 +77,7 @@ public static unsafe class Utf8StringMarshaller {
                 _utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
             }
 
-            ConvertUtf16PointerToNullTerminatedUtf8Pointer(utf16Pointer, utf16.Length, _utf8Pointer, utf8MaxBytes - 1);
+            utf8BytesWritten = ConvertUtf16PointerToNullTerminatedUtf8Pointer(utf16Pointer, utf16.Length, _utf8Pointer, utf8MaxBytes - 1);
             return _utf8Pointer;
         }
 

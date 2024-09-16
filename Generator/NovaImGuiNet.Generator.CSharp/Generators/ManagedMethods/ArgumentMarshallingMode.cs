@@ -12,9 +12,10 @@ public enum ArgumentMarshallingMode {
     IntPtrOut,
 
     // Strings
-    ReadOnlyByteSpan,
-    ReadOnlyCharSpan,
-    String,
+    StringBytePointer,
+    StringReadOnlyByteSpan,
+    StringReadOnlyCharSpan,
+    StringManaged,
 
     // Delegates
     DelegateManaged,

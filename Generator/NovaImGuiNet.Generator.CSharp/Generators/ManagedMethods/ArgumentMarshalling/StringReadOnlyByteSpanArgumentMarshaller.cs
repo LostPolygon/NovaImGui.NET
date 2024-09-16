@@ -16,8 +16,6 @@ public class StringReadOnlyByteSpanArgumentMarshaller(MethodSignature methodSign
                     $"(ReadOnlySpan<byte>) {defaultValue}";
         }
 
-        return [
-            $"{NativeArgumentType} {InvocationVariableName} = InteropUtility.SpanToPointer({value});"
-        ];
+        return [$"{NativeArgumentType} {InvocationVariableName} = InteropUtility.SpanToPointer({value});"];
     }
 }

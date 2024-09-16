@@ -9,8 +9,9 @@ public static class ArgumentMarshallerFactory {
 
         return argument.MarshallingVariant.ArgumentMarshallingMode switch {
             Passthrough => new PassthroughArgumentMarshaller(methodSignature, argument),
-            ReadOnlyByteSpan => new StringReadOnlyByteSpanArgumentMarshaller(methodSignature, argument),
-            ReadOnlyCharSpan or String => new StringReadOnlyCharSpanArgumentMarshaller(methodSignature, argument),
+            StringBytePointer => new StringBytePointerArgumentMarshaller(methodSignature, argument),
+            StringReadOnlyByteSpan => new StringReadOnlyByteSpanArgumentMarshaller(methodSignature, argument),
+            StringReadOnlyCharSpan or StringManaged => new StringReadOnlyCharSpanArgumentMarshaller(methodSignature, argument),
             Ref => new PointerRefArgumentMarshaller(methodSignature, argument),
             Out => new PointerOutArgumentMarshaller(methodSignature, argument),
             IntPtr => new PointerIntPtrArgumentMarshaller(methodSignature, argument),

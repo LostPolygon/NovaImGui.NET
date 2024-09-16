@@ -16,11 +16,17 @@ public class StringReadOnlyCharSpanArgumentMarshaller(MethodSignature methodSign
             value = $"{value}.AsSpan()";
         }
 
+        string bufferBytesWrittenSizeVarDeclaration = "_";
+        if (Argument.MarshallingVariant.StringBeginEndPairMode == StringBeginEndPairMode.BeginOnly) {
+            bufferBytesWrittenSizeVarDeclaration = "int " + InternalVar("_native_utf8_buffer_bytes_written");
+        }
+
         return [
             $"scoped Utf8StringMarshaller.ManagedToUnmanagedIn {InternalVar("_native_marshaller")} = new({value});",
-
+            $"Span<byte> {InternalVar("_native_utf8_buffer")} = stackalloc byte[Utf8StringMarshaller.ManagedToUnmanagedIn.StackAllocMaxSize];",
             $"{NativeArgumentType} {InvocationVariableName} = " +
-            $"{InternalVar("_native_marshaller")}.ConvertToNative(stackalloc byte[Utf8StringMarshaller.ManagedToUnmanagedIn.StackAllocMaxSize]);"
+            $"{InternalVar("_native_marshaller")}.ConvertToNative(" +
+            $"{InternalVar("_native_utf8_buffer")}, out {bufferBytesWrittenSizeVarDeclaration});"
         ];
     }
 

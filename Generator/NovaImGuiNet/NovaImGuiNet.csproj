@@ -6,7 +6,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DefineConstants>IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN</DefineConstants>
         <LangVersion>12</LangVersion>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>netstandard2.0</TargetFramework>
         <NoWarn>$(NoWarn);CS1587;CS1591</NoWarn>
     </PropertyGroup>
 
@@ -17,14 +17,6 @@
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <DocumentationFile>bin\Release\NovaImGuiNet.xml</DocumentationFile>
     </PropertyGroup>
-
-    <ItemGroup>
-      <PackageReference Include="Polyfill" Version="6.4.1">
-        <PrivateAssets>all</PrivateAssets>
-        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      </PackageReference>
-      <PackageReference Include="System.Memory" Version="4.5.5" />
-    </ItemGroup>
 
     <ItemGroup>
       <Compile Include="..\NovaImGuiNet.Shared\SharedAssemblyInfo.cs">

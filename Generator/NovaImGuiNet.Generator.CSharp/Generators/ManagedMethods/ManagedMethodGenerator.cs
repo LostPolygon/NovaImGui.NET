@@ -338,10 +338,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
                 // Handle possibly ambiguous combination and pick the argument that will not be disambiguated
                 switch (marshallingMode) {
-                    case ArgumentMarshallingMode.ReadOnlyByteSpan or
-                        ArgumentMarshallingMode.ReadOnlyCharSpan or
-                        ArgumentMarshallingMode.String: {
-                        bool isPrimaryArgument = marshallingMode == ArgumentMarshallingMode.ReadOnlyCharSpan;
+                    case ArgumentMarshallingMode.StringReadOnlyByteSpan or
+                        ArgumentMarshallingMode.StringReadOnlyCharSpan or
+                        ArgumentMarshallingMode.StringManaged: {
+                        bool isPrimaryArgument = marshallingMode == ArgumentMarshallingMode.StringReadOnlyCharSpan;
                         potentiallyAmbiguousArguments.Add((argIndex, argument, isPrimaryArgument));
                         break;
                     }
@@ -738,18 +738,19 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             bool isStringBeginEndPairEnd = IsStringBeginEndPairBegin(argumentIndex - 1);
 
             if (isStringBeginEndPairBegin) {
-                AddVariant(ArgumentMarshallingMode.Passthrough, StringBeginEndPairMode.Begin);
+                AddVariant(ArgumentMarshallingMode.StringBytePointer, StringBeginEndPairMode.Begin);
 
-                AddVariant(ArgumentMarshallingMode.ReadOnlyByteSpan, StringBeginEndPairMode.BeginOnly);
-                AddVariant(ArgumentMarshallingMode.ReadOnlyCharSpan, StringBeginEndPairMode.BeginOnly);
-                AddVariant(ArgumentMarshallingMode.String, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.StringManaged, StringBeginEndPairMode.BeginOnly);
             } else if (isStringBeginEndPairEnd) {
-                AddVariant(ArgumentMarshallingMode.Passthrough, StringBeginEndPairMode.End);
-                AddVariant(ArgumentMarshallingMode.Passthrough, StringBeginEndPairMode.EndDefault);
+                AddVariant(ArgumentMarshallingMode.StringBytePointer, StringBeginEndPairMode.End);
+                AddVariant(ArgumentMarshallingMode.StringBytePointer, StringBeginEndPairMode.EndDefault);
             } else {
-                AddVariant(ArgumentMarshallingMode.ReadOnlyByteSpan);
-                AddVariant(ArgumentMarshallingMode.ReadOnlyCharSpan);
-                AddVariant(ArgumentMarshallingMode.String);
+                AddVariant(ArgumentMarshallingMode.StringBytePointer);
+                AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan);
+                AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan);
+                AddVariant(ArgumentMarshallingMode.StringManaged);
             }
         } else if (description.IsPointer) {
             AddVariant(ArgumentMarshallingMode.Passthrough);
@@ -861,7 +862,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         IReadOnlyList<NativeFunctionArgumentMarshallingVariant> nativeArgumentMarshallingVariants
     ) {
         List<ManagedMethodArgument> managedArguments = [];
-        foreach (NativeFunctionArgumentMarshallingVariant nativeArgumentMarshallingVariant in nativeArgumentMarshallingVariants) {
+        for (int index = 0; index < nativeArgumentMarshallingVariants.Count; index++) {
+            NativeFunctionArgumentMarshallingVariant nativeArgumentMarshallingVariant = nativeArgumentMarshallingVariants[index];
             FunctionArgument managedArgument = nativeArgumentMarshallingVariant.NativeFunctionArgument with { };
 
             switch (nativeArgumentMarshallingVariant.ArgumentMarshallingMode) {
@@ -896,14 +898,16 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     managedArgument.IsDefaultValueValidInDeclaration = false;
 
                     break;
-                case ArgumentMarshallingMode.ReadOnlyByteSpan:
+                case ArgumentMarshallingMode.StringReadOnlyByteSpan:
                     managedArgument.Type = KnownEntities.ReadOnlySpanByte.AsEntityReference();
                     break;
-                case ArgumentMarshallingMode.ReadOnlyCharSpan:
+                case ArgumentMarshallingMode.StringReadOnlyCharSpan:
                     managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
                     break;
-                case ArgumentMarshallingMode.String:
+                case ArgumentMarshallingMode.StringManaged:
                     managedArgument.Type = KnownEntities.String.AsEntityReference();
+                    break;
+                case ArgumentMarshallingMode.StringBytePointer:
                     break;
                 case ArgumentMarshallingMode.DelegateManaged:
                     break;
@@ -941,6 +945,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
             managedArguments.Add(
                 new ManagedMethodArgument(
+                    index,
                     nativeArgumentMarshallingVariant.NativeFunctionArgument,
                     managedArgument,
                     nativeArgumentMarshallingVariant,
