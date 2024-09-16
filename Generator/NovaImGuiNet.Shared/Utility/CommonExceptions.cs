@@ -5,7 +5,7 @@ internal static class CommonExceptions {
     public static void ThrowReturnedNativePointerNull(
         string? customCallerName = null,
         [CallerMemberName] string callerMemberName = ""
-        ) {
+    ) {
         customCallerName ??= callerMemberName;
         throw new NullReferenceException(
             $"Native pointer returned for '{customCallerName}' method was null, " +
@@ -22,6 +22,13 @@ internal static class CommonExceptions {
             $"Native pointer was null, and it is not allowed to get a ref from a null pointer. " +
             $"Make sure your code is correct. " +
             $"If you need a raw pointer, use the '{pointerWrapperTypeName}.Ptr' field instead."
+        );
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static Exception CreateUnsupportedEnumUnderlyingType<TEnum>() where TEnum : unmanaged, Enum {
+        return new InvalidCastException(
+            "Only enums with int and uint underlying types are supported, got type: " + typeof(TEnum)
         );
     }
 }

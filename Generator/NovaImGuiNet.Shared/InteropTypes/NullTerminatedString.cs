@@ -7,6 +7,8 @@ namespace NovaImGuiNet;
 public readonly unsafe struct NullTerminatedString {
     public readonly byte* Data;
 
+    public readonly IntPtr DataIntPtr => (IntPtr) Data;
+
     public NullTerminatedString(byte* data) {
         Data = data;
     }
@@ -40,4 +42,8 @@ public readonly unsafe struct NullTerminatedString {
     public static implicit operator string?(NullTerminatedString nts) => nts.ToString();
 
     public static implicit operator ReadOnlySpan<byte>(NullTerminatedString nts) => nts.AsReadOnlyUtf8ByteSpan();
+
+    public static implicit operator byte*(NullTerminatedString nts) => nts.Data;
+
+    public static implicit operator IntPtr(NullTerminatedString nts) => (IntPtr) nts.Data;
 }

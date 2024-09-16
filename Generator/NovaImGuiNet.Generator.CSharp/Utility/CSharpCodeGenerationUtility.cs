@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace NovaImGuiNet.Generator.CSharp;

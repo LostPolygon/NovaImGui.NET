@@ -44,7 +44,8 @@
   "generate_handle_types": [
     {
       "name": "ImTextureID"
-    }
+    },
+    //{ "name": "ImGuiID" }
   ],
   "treat_native_function_return_value_as_non_null": [
     "ImGui_CreateContext",
@@ -54,6 +55,9 @@
     "ImGui_GetStyle",
     "ImGui_GetDrawData",
     "ImGui_GetWindowDrawList",
+    "ImGui_GetBackgroundDrawList",
+    "ImGui_GetForegroundDrawList",
+    "ImGui_GetMainViewport",
     "ImGui_GetWindowViewport",
     "ImGui_BeginMultiSelect",
     "ImGui_EndMultiSelect",

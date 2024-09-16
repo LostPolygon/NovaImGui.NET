@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis.CSharp;
-
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 public class PointerIntPtrOutArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument)

@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
-using static SyntaxFactory;
 using static SyntaxFactoryCached;
 
 public class StatementSyntaxListBuilder {
