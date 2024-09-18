@@ -27,6 +27,24 @@ public readonly unsafe struct ImSpan<T> : IEnumerable<T>, IEquatable<ImSpan<T>> 
 
     public Enumerator GetEnumerator() => new Enumerator(this);
 
+    public bool Equals(ImSpan<T> other) {
+        return Data == other.Data && DataEnd == other.DataEnd;
+    }
+
+    public override bool Equals(object? obj) {
+        return obj is ImSpan<T> other && Equals(other);
+    }
+
+    public override int GetHashCode() {
+        unchecked {
+            return (unchecked((int) (long) Data) * 397) ^ unchecked((int) (long) DataEnd);
+        }
+    }
+
+    public static bool operator ==(ImSpan<T> left, ImSpan<T> right) => left.Equals(right);
+
+    public static bool operator !=(ImSpan<T> left, ImSpan<T> right) => !left.Equals(right);
+
     IEnumerator<T> IEnumerable<T>.GetEnumerator() =>
         Count == 0 ?
             Enumerable.Empty<T>().GetEnumerator() :
@@ -76,9 +94,4 @@ public readonly unsafe struct ImSpan<T> : IEnumerable<T>, IEquatable<ImSpan<T>> 
         public void Dispose() {
         }
     }
-
-    public override int GetHashCode() => EqualityComparer<ImSpan<T>>.Default.GetHashCode(this);
-    public override bool Equals(object? obj) => obj is ImSpan<T> other && Equals(other);
-
-    public bool Equals(ImSpan<T> other) => EqualityComparer<ImSpan<T>>.Default.Equals(this, other);
 }

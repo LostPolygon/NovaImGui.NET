@@ -663,32 +663,18 @@ public class BindingsModelBindingsSyntaxGenerator {
                     ))
                 );
 
-            // Equals(T other)
-
             // FIXME: this is terrible for perf, we need to actually generate
             // Equals(T other) and GetHashCode() manually someday
-            structMembers.Add(
-                MethodDeclaration(ParseTypeName("bool"), Identifier("Equals"))
-                    .WithModifiers(TokenList(
-                        Token(SyntaxKind.PublicKeyword)
-                    ))
-                    .WithParameterList(
-                        ParameterList(
-                            SeparatedList([
-                                Parameter(Identifier("other"))
-                                    .WithType(ParseTypeName(entity.Name))
-                            ])
-                        )
-                    )
-                    .WithExpressionBody(
-                        ArrowExpressionClause(
-                            ParseExpression("base.Equals(other)")
-                        )
-                    )
-                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                    .WithLeadingTrivia(CarriageReturnLineFeed)
-                    .WithTrailingTrivia(LineFeed)
-            );
+            structMembers.AddRange([
+                ParseMemberDeclaration($"public bool Equals({entity.Name} other) => base.Equals(other);\n"),
+                ParseMemberDeclaration($"public bool Equals(in {entity.Name} other) => Unsafe.AreSame(in this, in other) || Equals(other);\n"),
+
+                ParseMemberDeclaration($"public override int GetHashCode() => base.GetHashCode();\n"),
+                ParseMemberDeclaration($"public override bool Equals(object obj) => base.Equals(obj);\n"),
+
+                ParseMemberDeclaration($"public static bool operator ==(in {entity.Name} left, in {entity.Name} right) => left.Equals(in right);\n"),
+                ParseMemberDeclaration($"public static bool operator !=(in {entity.Name} left, in {entity.Name} right) => !left.Equals(in right);\n"),
+            ]);
         }
 
         structSyntax = structSyntax.AddMembers(structMembers.ToArray());
@@ -771,7 +757,7 @@ public class BindingsModelBindingsSyntaxGenerator {
     }
 
     private static AttributeListSyntax[] CreateMarshalAsAttributeLists(Entity entity, bool isReturnValue) {
-        if (entity.AsEntityReference().ExpandAllTypedefsAndPointers<Builtin>()?.Value is Builtin builtin &&
+        if (entity.AsEntityReference().ExpandTypedef().Value is Builtin builtin &&
             builtin.ManagedType == typeof(bool)) {
             return [CreateBoolMarshalAsAttribute(isReturnValue ? SyntaxKind.ReturnKeyword : null)];
         }

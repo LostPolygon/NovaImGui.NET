@@ -4,10 +4,10 @@ using System.Collections;
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> where T : unmanaged {
-    public readonly int Size;
-    public readonly int Capacity;
-    public readonly T* Data;
+public unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> where T : unmanaged {
+    public int Size;
+    public int Capacity;
+    public T* Data;
 
     public IntPtr DataIntPtr => (IntPtr) Data;
 
@@ -48,10 +48,18 @@ public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> wh
         ImGuiNative.ImVector_Destruct((IntPtr) Unsafe.AsPointer(ref vector));
     }
 
-    public override int GetHashCode() => EqualityComparer<ImVector<T>>.Default.GetHashCode(this);
+    public bool Equals(ImVector<T> other) => Size == other.Size && Capacity == other.Capacity && Data == other.Data;
+
     public override bool Equals(object? obj) => obj is ImVector<T> other && Equals(other);
 
-    public bool Equals(ImVector<T> other) => EqualityComparer<ImVector<T>>.Default.Equals(this, other);
+    public override int GetHashCode() {
+        unchecked {
+            int hashCode = Size;
+            hashCode = (hashCode * 397) ^ Capacity;
+            hashCode = (hashCode * 397) ^ unchecked((int) (long) Data);
+            return hashCode;
+        }
+    }
 
     T IList<T>.this[int index] {
         get => this[index];
@@ -110,6 +118,10 @@ public readonly unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> wh
     }
 
     public static implicit operator Span<T>(ImVector<T> vector) => vector.AsSpan();
+
+    public static bool operator ==(ImVector<T> left, ImVector<T> right) => left.Equals(right);
+
+    public static bool operator !=(ImVector<T> left, ImVector<T> right) => !left.Equals(right);
 
     public struct Enumerator : IEnumerator<T> {
         private readonly ImVector<T> _vector;

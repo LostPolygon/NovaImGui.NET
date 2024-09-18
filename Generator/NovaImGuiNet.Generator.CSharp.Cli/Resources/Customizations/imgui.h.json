@@ -53,6 +53,7 @@
     "ImGui_GetIO",
     "ImGui_GetPlatformIO",
     "ImGui_GetStyle",
+    "ImGui_GetStyleColorVec4",
     "ImGui_GetFont",
     "ImGui_GetDrawData",
     "ImGui_GetWindowDrawList",
