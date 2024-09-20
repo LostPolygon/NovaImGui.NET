@@ -4,11 +4,14 @@ namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 public class PointerIntPtrRefArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument)
     : ArgumentMarshaller(methodSignature, argument) {
-    public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() {
+    public override ArgumentMarshallerOutput Marshall() {
         Debug.Assert(Argument.IsPartOfDeclaration);
-        return [
-            $"{NativeArgumentType} {InvocationVariableName} = " +
-            $"({NativeArgumentType}) Unsafe.AsPointer(ref {Argument.MarshalledArgument.Name});"
-        ];
+        return new ArgumentMarshallerOutput(
+            InvocationVariable,
+            [
+                $"{NativeArgumentType} {InvocationVariable} = " +
+                $"({NativeArgumentType}) Unsafe.AsPointer(ref {Argument.MarshalledArgument.Name});"
+            ]
+        );
     }
 }

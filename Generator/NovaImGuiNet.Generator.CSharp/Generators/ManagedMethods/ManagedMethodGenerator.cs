@@ -495,13 +495,13 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         MethodSignature methodSignature,
         string nativeFunctionsClassName
     ) {
-        IArgumentMarshaller[] argumentMarshallers =
+        ArgumentMarshallerOutput[] argumentMarshallerOutputs =
             methodSignature.Arguments
-                .Select(arg => ArgumentMarshallerFactory.Create(methodSignature, arg))
+                .Select(arg => ArgumentMarshallerFactory.Create(methodSignature, arg).Marshall())
                 .ToArray();
 
         string invocationValuesFormatted =
-            String.Join(", ", argumentMarshallers.Select(x => x.InvocationVariableName));
+            String.Join(", ", argumentMarshallerOutputs.Select(x => x.InvocationExpression));
         string nativeFunctionInvocation =
             $"{nativeFunctionsClassName}.{methodSignature.NativeFunction.Name}({invocationValuesFormatted})";
 
@@ -510,14 +510,14 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         StatementSyntaxListBuilder bodyBuilder = new();
 
-        foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
-            bodyBuilder.AppendRange(argumentMarshaller.CreateMarshalStatements());
+        foreach (ArgumentMarshallerOutput argumentMarshallerOutput in argumentMarshallerOutputs) {
+            bodyBuilder.AppendRange(argumentMarshallerOutput.MarshallStatements);
         }
 
         bodyBuilder.AppendRange(returnTypeMarshaller.CreateInvokeStatements());
 
-        foreach (IArgumentMarshaller argumentMarshaller in argumentMarshallers) {
-            bodyBuilder.AppendRange(argumentMarshaller.CreateUnmarshalStatements());
+        foreach (ArgumentMarshallerOutput argumentMarshallerOutput in argumentMarshallerOutputs) {
+            bodyBuilder.AppendRange(argumentMarshallerOutput.UnmarshallStatements);
         }
 
         bodyBuilder.AppendRange(returnTypeMarshaller.CreateReturnStatements());

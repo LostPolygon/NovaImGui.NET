@@ -374,7 +374,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         }
     }
 
-    private static BaseMethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
+    private BaseMethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
         Function function,
         bool isStaticMethod,
         bool isNativeMethod,
@@ -442,7 +442,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         return methodDeclarationSyntax;
     }
 
-    private static ParameterSyntax CreateMethodParameterSyntax(
+    private ParameterSyntax CreateMethodParameterSyntax(
         FunctionArgument argument,
         bool delegatesAsFunctionPointers,
         bool addMarshalling
@@ -510,7 +510,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         return parameter;
     }
 
-    private static EnumDeclarationSyntax GenerateBinding(Enum entity) {
+    private EnumDeclarationSyntax GenerateBinding(Enum entity) {
         EnumDeclarationSyntax enumDeclaration =
             EnumDeclaration(Identifier(entity.Name))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword));
@@ -816,7 +816,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         return declarationSyntax;
     }
 
-    private static DelegateDeclarationSyntax CreateDelegateDeclarationSyntax(Delegate userDelegate, string name) {
+    private DelegateDeclarationSyntax CreateDelegateDeclarationSyntax(Delegate userDelegate, string name) {
         DelegateDeclarationSyntax delegateDeclaration =
             DelegateDeclaration(
                     ParseTypeName(
@@ -911,12 +911,15 @@ public class BindingsModelBindingsSyntaxGenerator {
         );
     }
 
-    private static T ApplyCommonEntitySyntax<T>(
+    private T ApplyCommonEntitySyntax<T>(
         T syntaxNode,
         IIndependentEntity entity,
         bool isTopLevelEntity = false
     ) where T : CSharpSyntaxNode {
-        syntaxNode = ApplyComments(syntaxNode, entity.Comments, true || isTopLevelEntity);
+        if (BindingsContext.Options.GenerateXmlDocumentationComments) {
+            syntaxNode = ApplyComments(syntaxNode, entity.Comments, true || isTopLevelEntity);
+        }
+
         syntaxNode = ApplyConditionals(syntaxNode, entity.Conditionals);
 
         if (entity.IsDisabled) {

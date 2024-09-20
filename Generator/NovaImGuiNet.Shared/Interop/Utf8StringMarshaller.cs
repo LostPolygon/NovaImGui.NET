@@ -1,22 +1,9 @@
+using System.ComponentModel.Design;
 using System.Text;
 
 namespace NovaImGuiNet.Interop;
 
 public static unsafe class Utf8StringMarshaller {
-    [FixedAddressValueType]
-    private static byte EmptyUtf8String; // 0
-
-    private static byte* EmptyUtf8StringPointer;
-
-    #pragma warning disable CA2255
-    [ModuleInitializer]
-    #pragma warning restore CA2255
-    internal static void Initialize() {
-        fixed (byte* emptyUtf8StringPtr = &EmptyUtf8String) {
-            EmptyUtf8StringPointer = emptyUtf8StringPtr;
-        }
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int EstimateNullTerminatedUtf8StringByteCount(int charCount) {
         // This pretty much always overestimates the size,
@@ -38,7 +25,7 @@ public static unsafe class Utf8StringMarshaller {
     }
 
     public ref struct ManagedToUnmanagedIn {
-        public static int StackAllocMaxSize => 1024;
+        public static int StackAllocMaxSize => 2 * 1024;
 
         [ThreadStatic]
         private static NativeMemoryManagedBuffer? ThreadUtf8ConvertBuffer;
@@ -48,8 +35,7 @@ public static unsafe class Utf8StringMarshaller {
         private const int ThreadUtf8ConvertBufferGrowthChunk = 4096;
 
         private readonly ReadOnlySpan<char> _charSpan;
-        private byte* _utf8Pointer;
-        private bool _utf8Allocated;
+        private byte* _heapUtf8Pointer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ManagedToUnmanagedIn(ReadOnlySpan<char> charSpan) {
@@ -62,58 +48,75 @@ public static unsafe class Utf8StringMarshaller {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte* ConvertToNative(Span<byte> utf8Buffer, out int utf8BytesWritten) {
-            // Must be explicitly 0 so pointer arithmetic works out even if return a null pointer
+            // Must be explicitly 0 so pointer arithmetic works out even if we return a null pointer
             utf8BytesWritten = 0;
 
             ReadOnlySpan<char> utf16 = _charSpan;
             char* utf16Pointer = InteropUtility.SpanToPointer(utf16);
-
             if (utf16Pointer == null)
                 return null;
 
-            if (utf16.IsEmpty)
-                return EmptyUtf8StringPointer;
-
             int utf8MaxBytes = EstimateNullTerminatedUtf8StringByteCount(utf16.Length);
+            byte* utf8Pointer = GetUtf8Buffer(utf8Buffer, utf8MaxBytes, ref _heapUtf8Pointer);
 
-            bool isStackBufferEnough = utf8MaxBytes <= utf8Buffer.Length;
-            if (!isStackBufferEnough) {
-                EnsureBuffer(utf8MaxBytes);
-            } else {
-                _utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
-            }
-
-            utf8BytesWritten = ConvertUtf16PointerToNullTerminatedUtf8Pointer(utf16Pointer, utf16.Length, _utf8Pointer, utf8MaxBytes - 1);
-            return _utf8Pointer;
-        }
-
-        /// <returns>
-        /// Non-zero pointer if long-term buffer was resized to the desired size,
-        /// zero-pointer if <paramref name="byteCount"/> is larger than the long-term buffer size limit,
-        /// and a short-term buffer would need to be allocated instead/
-        /// </returns>
-        private void EnsureBuffer(int byteCount) {
-            // If the requested byte count exceeds the long-term buffer size limit,
-            // we'll allocate a short-term buffer that needs to be freed.
-            // Otherwise, use the long-term buffer.
-            if (byteCount > ThreadUtf8ConvertBufferMaxSize) {
-                _utf8Pointer = (byte*) InteropUtility.NativeMemoryAllocate((UIntPtr) byteCount);
-                _utf8Allocated = true;
-                return;
-            }
-
-            // Grow the long-term buffer in chunks
-            byteCount = (byteCount / ThreadUtf8ConvertBufferGrowthChunk + 1) * ThreadUtf8ConvertBufferGrowthChunk;
-            ThreadUtf8ConvertBuffer ??= new NativeMemoryManagedBuffer((nuint) Math.Max(ThreadUtf8ConvertBufferInitialSize, byteCount));
-
-            _utf8Pointer = (byte*) ThreadUtf8ConvertBuffer.EnsureSize((nuint) byteCount);
+            // Using utf8MaxByteCount is fine here because by this point
+            // it's guaranteed the buffer won't be overrun
+            utf8BytesWritten = ConvertUtf16PointerToNullTerminatedUtf8Pointer(
+                utf16Pointer,
+                utf16.Length,
+                utf8Pointer,
+                utf8MaxBytes
+            );
+            return utf8Pointer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Free() {
-            if (_utf8Allocated) {
-                InteropUtility.NativeMemoryFree((IntPtr) _utf8Pointer);
+            if (_heapUtf8Pointer != null) {
+                InteropUtility.NativeMemoryFree((IntPtr) _heapUtf8Pointer);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static byte* GetUtf8Buffer(
+            Span<byte> utf8Buffer,
+            int utf8ByteCount,
+            ref byte* heapUtf8Pointer
+        ) {
+            // Check if the stack-allocated buffer is enough
+            bool isStackBufferEnough = utf8ByteCount <= utf8Buffer.Length;
+            if (isStackBufferEnough) {
+                byte* utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
+                return utf8Pointer;
+            }
+
+            // If the stack-allocated buffer is not enough,
+            // use the long-term heap-allocated buffer,
+            // up to a max size limit
+            if (utf8ByteCount <= ThreadUtf8ConvertBufferMaxSize) {
+                // Grow the buffer in chunks
+                utf8ByteCount = (utf8ByteCount / ThreadUtf8ConvertBufferGrowthChunk + 1) * ThreadUtf8ConvertBufferGrowthChunk;
+                if (ThreadUtf8ConvertBuffer == null) {
+                    ThreadUtf8ConvertBuffer =
+                        new NativeMemoryManagedBuffer(
+                            (nuint) Math.Max(ThreadUtf8ConvertBufferInitialSize, utf8ByteCount)
+                        );
+                } else {
+                    ThreadUtf8ConvertBuffer.EnsureSize((nuint) utf8ByteCount);
+                }
+
+                return (byte*) ThreadUtf8ConvertBuffer.Memory;
+            }
+
+            // If the data size exceeds both previous limits,
+            // fall back to heap-allocating a short-term buffer
+
+            // serhiiy: this line reduces heap memory usage,
+            // but takes a while to execute, reducing the overall performance
+            /*utf8ByteCount = Encoding.UTF8.GetByteCount(utf16) + 1;*/
+
+            heapUtf8Pointer = (byte*) InteropUtility.NativeMemoryAllocate((UIntPtr) utf8ByteCount);
+            return heapUtf8Pointer;
         }
     }
 }

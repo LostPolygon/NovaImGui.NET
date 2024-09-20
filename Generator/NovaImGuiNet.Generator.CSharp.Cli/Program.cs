@@ -24,12 +24,15 @@ if (args.Length < 1 || String.IsNullOrWhiteSpace(args[0]))
 string outputPath = args[0];
 
 CodeFormatMode codeFormatMode = CodeFormatMode.Fancy;
+bool generateXmlDocs = true;
 #if true || DEBUG
 codeFormatMode = CodeFormatMode.Basic;
+generateXmlDocs = false;
 #endif
 
 BindingsGenerationOptions bindingsGenerationOptions = new() {
     CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes = true,
+    GenerateXmlDocumentationComments = generateXmlDocs,
     CodeFormatMode = codeFormatMode
 };
 

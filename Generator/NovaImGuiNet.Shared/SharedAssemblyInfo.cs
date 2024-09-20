@@ -6,4 +6,3 @@
 // runtime marshalling is not disabled (which is only supported on .NET 7+)
 // https://learn.microsoft.com/en-us/dotnet/fundamentals/syslib-diagnostics/syslib1050-1069
 [assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
-

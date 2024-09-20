@@ -15,27 +15,31 @@ public class PointerRefArgumentMarshaller(MethodSignature methodSignature, Manag
     : ArgumentMarshaller(methodSignature, argument) {
 #if USE_UNSAFE_AS_POINTER
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() => [
-        $"{MarshalledArgumentType}* {InvocationVariableName} = " +
+        $"{MarshalledArgumentType}* {DefaultInvocationExpression} = " +
         $"({MarshalledArgumentType}*) Unsafe.AsPointer(ref {Argument.MarshalledArgument.Name});"
     ];
 #endif
 
 #if !USE_UNSAFE_AS_POINTER
-    public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateMarshalStatements() => [
-        $"{MarshalledArgumentType}* {InvocationVariableName};",
-        FixedStatement(
-            VariableDeclaration(
-                ParseTypeName($"{MarshalledArgumentType}*"),
-                SeparatedList([
-                    VariableDeclarator(
-                        Identifier($"{InvocationVariableName}_tmp"),
-                        null,
-                        EqualsValueClause(ParseExpression($"&{Argument.MarshalledArgument.Name}"))
-                    )
-                ])
-            ),
-            ParseStatementWithLeadingLineFeed($"{InvocationVariableName} = {InvocationVariableName}_tmp;")
-        )
-    ];
+    public override ArgumentMarshallerOutput Marshall() =>
+        new(
+            InvocationVariable,
+            [
+                $"{MarshalledArgumentType}* {InvocationVariable};",
+                FixedStatement(
+                    VariableDeclaration(
+                        ParseTypeName($"{MarshalledArgumentType}*"),
+                        SeparatedList([
+                            VariableDeclarator(
+                                Identifier($"{InvocationVariable}_tmp"),
+                                null,
+                                EqualsValueClause(ParseExpression($"&{Argument.MarshalledArgument.Name}"))
+                            )
+                        ])
+                    ),
+                    ParseStatementWithLeadingLineFeed($"{InvocationVariable} = {InvocationVariable}_tmp;")
+                )
+            ]
+        );
 #endif
 }

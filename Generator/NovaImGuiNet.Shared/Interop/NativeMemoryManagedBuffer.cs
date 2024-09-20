@@ -9,20 +9,25 @@ public sealed class NativeMemoryManagedBuffer : IDisposable {
     private IntPtr _memory;
     private UIntPtr _allocatedByteCount;
 
-    public IntPtr Memory => _memory;
+    public IntPtr Memory {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _memory;
+    }
 
-    public UIntPtr AllocatedByteCount => _allocatedByteCount;
+    public UIntPtr AllocatedByteCount {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _allocatedByteCount;
+    }
 
     public NativeMemoryManagedBuffer(nuint initialSize) {
         SetSize(initialSize);
     }
 
-    public IntPtr EnsureSize(nuint byteCount) {
+    public void EnsureSize(nuint byteCount) {
         if (_allocatedByteCount >= byteCount)
-            return _memory;
+            return;
 
         SetSize(byteCount);
-        return _memory;
     }
 
     public override string ToString() {
