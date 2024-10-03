@@ -1,6 +1,11 @@
 ﻿global using System.Runtime.InteropServices;
 global using System.Runtime.CompilerServices;
 global using NovaImGuiNet.Interop;
+
+#if !NOVA_IMGUI_SHARED
+global using Utf8BytesStringWriter = Utf8StringInterpolation.Utf8StringWriter<System.Buffers.ArrayBufferWriter<byte>>;
+#endif
+
 global using size_t = nint;
 global using int32_t = System.Int32;
 global using uint32_t = System.UInt32;

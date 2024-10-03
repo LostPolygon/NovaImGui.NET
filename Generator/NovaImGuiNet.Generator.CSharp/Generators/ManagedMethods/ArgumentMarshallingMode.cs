@@ -15,6 +15,7 @@ public enum ArgumentMarshallingMode {
     StringBytePointer,
     StringReadOnlyByteSpan,
     StringReadOnlyCharSpan,
+    StringUtf8BytesStringWriter,
     StringManaged,
 
     // Delegates

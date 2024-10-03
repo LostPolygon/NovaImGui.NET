@@ -338,6 +338,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 switch (marshallingMode) {
                     case ArgumentMarshallingMode.StringReadOnlyByteSpan or
                         ArgumentMarshallingMode.StringReadOnlyCharSpan or
+                        ArgumentMarshallingMode.StringUtf8BytesStringWriter or
                         ArgumentMarshallingMode.StringManaged: {
                         bool isPrimaryArgument = marshallingMode == ArgumentMarshallingMode.StringReadOnlyCharSpan;
                         potentiallyAmbiguousArguments.Add((argIndex, argument, isPrimaryArgument));
@@ -469,8 +470,21 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         Function nativeFunction,
         string nativeFunctionsClassName
     ) {
+        static string FormatInvocationArgument(FunctionArgument argument) {
+            string result = argument.Name;
+            result = argument.PassType switch {
+                FunctionArgumentPassType.Normal => "",
+                FunctionArgumentPassType.Ref => "ref ",
+                FunctionArgumentPassType.Out => "out ",
+                FunctionArgumentPassType.In => "in ",
+                _ => throw new ArgumentOutOfRangeException()
+            } + result;
+
+            return result;
+        }
+
         string invocationValuesFormatted =
-            String.Join(", ", managedMethod.Arguments.Select(x => x.Name));
+            String.Join(", ", managedMethod.Arguments.Select(FormatInvocationArgument));
 
         string invocation =
             managedMethod.IsConstructor ?
@@ -569,6 +583,20 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             managedMethod.Conditionals = [
                 ..managedMethod.Conditionals,
                 new Conditional("NET6_0_OR_GREATER")
+            ];
+        }
+
+        // Only enable Utf8BytesStringWriter if a conditional flag is set
+        bool anyUtf8BytesStringWriterSignatureArguments =
+            signatureArguments
+                .Any(arg =>
+                    arg.Type.ExpandTypedef().Value == KnownEntities.Utf8BytesStringWriter
+                );
+
+        if (anyUtf8BytesStringWriterSignatureArguments) {
+            managedMethod.Conditionals = [
+                ..managedMethod.Conditionals,
+                new Conditional("USE_UTF8_STRING_WRITER")
             ];
         }
 
@@ -740,6 +768,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan, StringBeginEndPairMode.BeginOnly);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.StringUtf8BytesStringWriter, StringBeginEndPairMode.BeginOnly);
                 AddVariant(ArgumentMarshallingMode.StringManaged, StringBeginEndPairMode.BeginOnly);
             } else if (isStringBeginEndPairEnd) {
                 AddVariant(ArgumentMarshallingMode.StringBytePointer, StringBeginEndPairMode.End);
@@ -748,6 +777,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 AddVariant(ArgumentMarshallingMode.StringBytePointer);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan);
+                AddVariant(ArgumentMarshallingMode.StringUtf8BytesStringWriter);
                 AddVariant(ArgumentMarshallingMode.StringManaged);
             }
         } else if (description.IsPointer) {
@@ -901,6 +931,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     break;
                 case ArgumentMarshallingMode.StringReadOnlyCharSpan:
                     managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
+                    break;
+                case ArgumentMarshallingMode.StringUtf8BytesStringWriter:
+                    managedArgument.PassType = FunctionArgumentPassType.Ref;
+                    managedArgument.Type = KnownEntities.Utf8BytesStringWriter.AsEntityReference();
                     break;
                 case ArgumentMarshallingMode.StringManaged:
                     managedArgument.Type = KnownEntities.String.AsEntityReference();

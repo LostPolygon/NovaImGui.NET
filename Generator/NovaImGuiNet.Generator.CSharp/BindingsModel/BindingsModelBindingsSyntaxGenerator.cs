@@ -172,7 +172,7 @@ public class BindingsModelBindingsSyntaxGenerator {
                         Token(SyntaxKind.PartialKeyword)
                     )
                     .AddMembers(
-                        ParseMemberDeclaration($"public const string ImGuiDllName = \"{nativeLibraryName}\";")!,
+                        ParseMemberDeclaration($"public const string ImGuiDllName = \"{nativeLibraryName}\";\n")!,
                         ParseMemberDeclaration($"public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
                     )
                     .AddMembers(methodSyntaxes.ToArray());
@@ -408,10 +408,7 @@ public class BindingsModelBindingsSyntaxGenerator {
             }
 
             methodDeclarationSyntax =
-                MethodDeclaration(
-                        returnTypeSyntax,
-                        function.Name
-                    )
+                MethodDeclaration(returnTypeSyntax, function.Name)
                     .AddModifiers(modifiers.Select(Token).ToArray());
         }
 

@@ -9,6 +9,7 @@ public static class KnownEntities {
     public static readonly Pointer Utf8BytePointer = new Builtin("byte", typeof(byte), StorageClass.Const).AsPointer();
     public static readonly Builtin ReadOnlySpanByte = new("ReadOnlySpan<byte>", typeof(ReadOnlySpan<byte>), StorageClass.Const);
     public static readonly Builtin ReadOnlySpanChar = new("ReadOnlySpan<char>", typeof(ReadOnlySpan<char>), StorageClass.Const);
+    public static readonly Builtin Utf8BytesStringWriter = new("Utf8BytesStringWriter", null, StorageClass.NotSpecified);
     public static readonly Pointer VoidPointer = new Builtin("void", typeof(void), StorageClass.NotSpecified).AsPointer();
     public static readonly Pointer VoidVoidPointer = new Builtin("void", typeof(void), StorageClass.NotSpecified).AsPointer().AsPointer();
     public static readonly Pointer ConstVoidPointer = new Builtin("void", typeof(void), StorageClass.Const).AsPointer();

@@ -48,6 +48,13 @@ public class StringBytePointerArgumentMarshaller(MethodSignature methodSignature
                         $"{MarshalledArgumentType} {InvocationVariable} = " +
                         $"{pairBeginArgument.NativeArgument.Name}_in_native + {pairBeginArgument.NativeArgument.Name}_native_utf8_buffer_bytes_written;"
                     ];
+                case ArgumentMarshallingMode.StringUtf8BytesStringWriter:
+                    // See also: StringUtf8BytesStringWriterArgumentMarshaller
+                    // -1 to ignore the zero terminator
+                    return [
+                        $"{MarshalledArgumentType} {InvocationVariable} = " +
+                        $"{pairBeginArgument.NativeArgument.Name}_in_native + {pairBeginArgument.NativeArgument.Name}_in_native_span.Length - 1;"
+                    ];
                 default:
                     throw new ArgumentOutOfRangeException(
                         $"Unexpected pairBeginArgument.MarshallingVariant.ArgumentMarshallingMode: " +

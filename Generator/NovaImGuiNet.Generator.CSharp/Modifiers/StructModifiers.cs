@@ -405,7 +405,7 @@ public static class StructModifiers {
                     break;
                 }
 
-                // Find first found ImVector type and fudge it a bit
+                // Find first ImVector type and fudge it a bit
                 Struct childWindowsFieldNewType = model.Structs.First(x => x.Value.Name == "ImVector").Value;
                 childWindowsFieldNewType = childWindowsFieldNewType with {
                     GenericArguments = [
