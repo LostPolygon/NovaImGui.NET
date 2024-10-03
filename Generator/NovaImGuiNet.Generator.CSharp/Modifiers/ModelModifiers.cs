@@ -165,7 +165,9 @@ public static class ModelModifiers {
 
                 string newDelegateName =
                     "ImGui" +
-                    function.Name.RemovePrefix("ImGui_") +
+                    function.Name
+                        .RemovePrefix("ImGui_")
+                        .RemovePrefix("ImGui") +
                     argument.Name.SnakeCaseToCamelCase().ToPascalCase();
 
                 Delegate newDelegate = argumentTypeDelegate with {

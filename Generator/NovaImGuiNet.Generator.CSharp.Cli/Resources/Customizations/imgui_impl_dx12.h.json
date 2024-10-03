@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_dx12.h",
+  "native_library_name": "dcimgui",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.DirectX12",
   "constants_class_name": "ImGuiDirectX12Constants",

@@ -197,11 +197,9 @@ public partial class BindingsModel {
             IReadOnlyList<Conditional> conditionals,
             SourceLocation? sourceLocation,
             bool isInternal,
-            bool byValue,
             IReadOnlyList<IEntityReference> genericArguments,
             IReadOnlyList<IEntity> children
         ) : base(comments, conditionals, sourceLocation, isInternal) {
-            ByValue = byValue;
             GenericArguments = genericArguments;
             Children.AddRange(children);
         }

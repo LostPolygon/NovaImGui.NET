@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_sdl2.h",
+  "native_library_name": "dcimgui.sdl2",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.Sdl2",
   "constants_class_name": "ImGuiSdl2Constants",

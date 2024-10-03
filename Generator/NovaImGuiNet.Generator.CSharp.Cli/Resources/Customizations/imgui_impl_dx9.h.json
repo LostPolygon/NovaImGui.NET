@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_dx9.h",
+  "native_library_name": "dcimgui",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.DirectX9",
   "constants_class_name": "ImGuiDirectX9Constants",

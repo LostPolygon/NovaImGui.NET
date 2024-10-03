@@ -120,6 +120,7 @@ public record MetadataModel(
         bool IsInternal,
         Struct.StructKind Kind,
         bool ByValue,
+        bool HasPlacementConstructor,
         IReadOnlyList<Field> Fields,
         IReadOnlyList<IEntityReference<Delegate>> Delegates,
         IReadOnlyList<IEntityReference<Function>> Functions

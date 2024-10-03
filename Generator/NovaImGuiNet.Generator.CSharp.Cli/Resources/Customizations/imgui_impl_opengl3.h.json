@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_opengl3.h",
+  "native_library_name": "dcimgui",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.OpenGL3",
   "constants_class_name": "ImGuiOpenGL3Constants",

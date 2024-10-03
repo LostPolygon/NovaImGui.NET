@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "implot.h",
+  "native_library_name": "dbimplot",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.ImPlot",
   "native_functions_class_name": "ImPlotNative",

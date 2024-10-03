@@ -1,0 +1,9 @@
+{
+  "original_header_file_name": "imgui_freetype.h",
+  "native_library_name": "dcimgui.freetype",
+  "root_namespace": "NovaImGuiNet",
+  "namespace": "NovaImGuiNet.FreeType",
+  "constants_class_name": "ImGuiFreeTypeConstants",
+  "native_functions_class_name": "ImGuiFreeTypeNative",
+  "native_functions_managed_wrapper_class_name": "ImGuiFreeType"
+}

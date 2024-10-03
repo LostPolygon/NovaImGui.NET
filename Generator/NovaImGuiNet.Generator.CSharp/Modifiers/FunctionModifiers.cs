@@ -137,7 +137,6 @@ public static class FunctionModifiers {
                         Kind = Struct.StructKind.Struct,
                         Name = imVecName,
                         Namespace = context.RootNamespace,
-                        ByValue = true,
                         NoEmit = true
                     }.AsEntityReference(),
                     false,

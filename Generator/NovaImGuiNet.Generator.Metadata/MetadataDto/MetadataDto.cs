@@ -53,6 +53,7 @@ public record MetadataDto(
         public Field[] Fields { get; init; }
         public StructKind Kind { get; init; }
         public bool ByValue { get; init; }
+        public bool HasPlacementConstructor { get; init; }
         public bool ForwardDeclaration { get; init; }
         public bool IsAnonymous { get; init; }
 

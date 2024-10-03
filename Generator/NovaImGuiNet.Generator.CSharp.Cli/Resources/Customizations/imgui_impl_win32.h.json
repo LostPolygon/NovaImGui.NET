@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_win32.h",
+  "native_library_name": "dcimgui",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.Win32",
   "constants_class_name": "ImGuiWin32Constants",

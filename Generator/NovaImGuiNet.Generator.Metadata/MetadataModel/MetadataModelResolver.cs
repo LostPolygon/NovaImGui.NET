@@ -250,6 +250,7 @@ public partial class MetadataModelResolver {
                         _ => throw new ArgumentOutOfRangeException($"Unexpected kind {dto.Kind}")
                     },
                     dto.ByValue,
+                    dto.HasPlacementConstructor,
                     dto.Fields.Select(MapField).ToArray(),
                     structDelegates.ToArray(),
                     []

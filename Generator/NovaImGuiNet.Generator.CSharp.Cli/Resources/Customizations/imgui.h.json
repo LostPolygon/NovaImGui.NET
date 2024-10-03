@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui.h",
+  "native_library_name": "dcimgui",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet",
   "constants_class_name": "ImGuiConstants",
@@ -123,10 +124,6 @@
     {
       "native_function": "ImGui_DebugLogUnformatted",
       "managed_method_alias": "DebugLog"
-    },
-    {
-      "native_function": "ImGuiSelectionBasicStorage_ImGuiSelectionBasicStorage",
-      "managed_method_alias": "Create"
     }
   ]
 }

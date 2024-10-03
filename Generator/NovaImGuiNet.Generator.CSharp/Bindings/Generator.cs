@@ -24,6 +24,7 @@ public class Generator {
         MetadataDto metadataDto;
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
             string[] loadedFiles = [
+                "Resources/cimgui/cimgui_freetype.json",
                 // NOTE: SDL2 and SDL3 need to be processed separately because of identical type names
                 "Resources/cimgui/cimgui_impl_sdlrenderer2.json",
                 "Resources/cimgui/cimgui_impl_sdl2.json",

@@ -136,6 +136,10 @@ public class BindingsModelCSharpTransformer {
             AddIntPtrAccessorPropertyForPointerFields
         );
 
+        using (Operation("Generating delegates for inline function definitions in function arguments")) {
+            ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Model);
+        }
+
         using (Operation("Prettifying delegate and delegate argument names")) {
             Model.Typedefs
                 .Where(x => x.Reference.ExpandAllTypedefsAndPointers<Delegate>() != null)
@@ -151,10 +155,6 @@ public class BindingsModelCSharpTransformer {
 
                     delegateType.Value.Name = delegateReference.Value.Name;
                 });
-        }
-
-        using (Operation("Generating delegates for inline function definitions in function arguments")) {
-            ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Model);
         }
 
         Transform(

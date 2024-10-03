@@ -492,9 +492,10 @@ public static class StructModifiers {
         return structure;
     }
 
-    public static Delegate PrettifyDelegateName(Delegate @delegate) {
-        @delegate.Name = @delegate.Name.RemoveSuffix("Fn") + "Delegate";
-        return @delegate;
+    public static Delegate PrettifyDelegateName(Delegate dlgt) {
+        return dlgt with {
+            Name = dlgt.Name.RemoveSuffix("Fn").RemoveSuffix("Func") + "Delegate"
+        };
     }
 
     private static Field FixMissingFieldArrayNumericBounds(

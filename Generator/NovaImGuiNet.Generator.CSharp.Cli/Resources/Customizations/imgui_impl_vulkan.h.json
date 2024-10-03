@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_vulkan.h",
+  "native_library_name": "dcimgui",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.Vulkan",
   "constants_class_name": "ImGuiVulkanConstants",

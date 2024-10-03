@@ -1,5 +1,6 @@
 {
   "original_header_file_name": "imgui_impl_sdlrenderer3.h",
+  "native_library_name": "dcimgui.sdl3",
   "root_namespace": "NovaImGuiNet",
   "namespace": "NovaImGuiNet.Backends.Sdl3Renderer",
   "constants_class_name": "ImGuiSdl3RendererConstants",

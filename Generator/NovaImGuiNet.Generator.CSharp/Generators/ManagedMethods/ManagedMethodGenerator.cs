@@ -207,8 +207,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         NativeFunctionReturnTypeMarshallingVariant[] nativeReturnTypeMarshallingVariants =
             ResolveNativeReturnTypeMarshallingVariants(nativeFunctionReturnTypeDescription);
 
-        // FIXME: account for more than one return type variant
-
         // Each method with each return type variant needs to have a different name
         Debug.Assert(
             nativeReturnTypeMarshallingVariants.DistinctBy(v => v.ManagedMethodNameSuffix).Count() ==

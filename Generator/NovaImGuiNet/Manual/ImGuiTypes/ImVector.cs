@@ -4,7 +4,7 @@ using System.Collections;
 
 namespace NovaImGuiNet;
 
-public unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> where T : unmanaged {
+public unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>>, IDisposable where T : unmanaged {
     public int Size;
     public int Capacity;
     public T* Data;
@@ -15,13 +15,17 @@ public unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> where T : u
 
     public ref T this[int index] => ref Unsafe.AsRef<T>((void*) AddressAt(index));
 
-    public ImVector(ImVector<T> vector) {
+    public ImVector() {
+        this = NativeConstruct();
+    }
+
+    public ImVector(ImVector<T> vector) : this() {
         Size = vector.Size;
         Capacity = vector.Capacity;
         Data = vector.Data;
     }
 
-    public ImVector(int size, int capacity, T* data) {
+    public ImVector(int size, int capacity, T* data) : this() {
         Size = size;
         Capacity = capacity;
         Data = data;
@@ -36,6 +40,10 @@ public unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>> where T : u
         }
 
         return (IntPtr) (&Data[index]);
+    }
+
+    public void Dispose() {
+        NativeDestroy(ref this);
     }
 
     public static ImVector<T> NativeConstruct() {

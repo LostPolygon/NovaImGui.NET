@@ -2,6 +2,7 @@ namespace NovaImGuiNet.Generator.CSharp;
 
 public record BindingsFileCustomizations {
     public string OriginalHeaderFileName { get; init; } = null!;
+    public string NativeLibraryName { get; init; } = null!;
 
     public string RootNamespace { get; init; } = null!;
     public string Namespace { get; init; } = null!;

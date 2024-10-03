@@ -47,7 +47,6 @@ public partial class BindingsModelFromMetadataResolver {
             Map(metadata.Conditionals),
             Map(metadata.SourceLocation),
             metadata.IsInternal,
-            metadata.ByValue,
             [],
             [
                 //..metadata.Delegates.Select(ResolveEntity).Cast<BindingsModel.IEntityReference<BindingsModel.Delegate>>(),
