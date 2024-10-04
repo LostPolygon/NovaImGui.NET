@@ -98,7 +98,7 @@ public static unsafe class Utf8StringMarshallerV2 {
                 }
 
                 mustFreeResultPointer = false;
-                return (byte*) ThreadUtf8ConvertBuffer.Memory;
+                return (byte*) ThreadUtf8ConvertBuffer.MemoryPtr;
             }
 
             // If the data size exceeds all limits,

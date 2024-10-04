@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis.CSharp;
+
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
 public class StringUtf8BytesStringWriterArgumentMarshaller(MethodSignature methodSignature, ManagedMethodArgument argument)
@@ -9,14 +11,17 @@ public class StringUtf8BytesStringWriterArgumentMarshaller(MethodSignature metho
         return new ArgumentMarshallerOutput(
             InvocationVariable,
             [
-                // FIXME: this is broken and doesn't really work. Zero terminator needs to be added after every string,
-                // however this approach will only add it after the last string.
-                $"{Argument.MarshalledArgument.Name}.AppendUtf8(\"\\0\"u8);", // append zero-terminator
+                // Only append zero-terminator if the argument is not a part of begin-end pair
+                //Argument.MarshallingVariant.StringBeginEndPairMode == StringBeginEndPairMode.None ?
+                //    $"{Argument.MarshalledArgument.Name}.Utf8StringWriter.AppendUtf8(\"\\0\"u8);" :
+                //    SyntaxFactory.Comment(""),
 
-                $"{Argument.MarshalledArgument.Name}.Flush();",
-                $"ReadOnlySpan<byte> {InternalVar("_in_native_span")} = {Argument.MarshalledArgument.Name}.GetBufferWriter().WrittenSpan;",
+                //$"{Argument.MarshalledArgument.Name}.Flush();",
+                //$"ReadOnlySpan<byte> {InternalVar("_in_native_span")} = {Argument.MarshalledArgument.Name}.GetBufferWriter().WrittenSpan;",
+                $"ReadOnlySpan<byte> {InternalVar("_in_native_span")} = {Argument.MarshalledArgument.Name}.WrittenSpan;",
                 $"{NativeArgumentType} {InvocationVariable} = InteropUtility.SpanToPointer({InternalVar("_in_native_span")});"
-            ]
+            ],
+            [$"{Argument.MarshalledArgument.Name}.Free();"]
         );
     }
 }

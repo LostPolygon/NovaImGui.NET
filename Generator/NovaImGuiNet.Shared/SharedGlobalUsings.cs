@@ -3,7 +3,7 @@ global using System.Runtime.CompilerServices;
 global using NovaImGuiNet.Interop;
 
 #if !NOVA_IMGUI_SHARED
-global using Utf8BytesStringWriter = Utf8StringInterpolation.Utf8StringWriter<System.Buffers.ArrayBufferWriter<byte>>;
+global using Utf8BytesStringWriter = NovaImGuiNet.Interop.ImGuiUtf8StringWriter;
 #endif
 
 global using size_t = nint;

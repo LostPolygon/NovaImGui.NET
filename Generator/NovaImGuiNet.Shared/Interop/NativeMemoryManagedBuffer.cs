@@ -3,15 +3,15 @@ using System.Diagnostics;
 namespace NovaImGuiNet.Interop;
 
 /// <summary>
-/// Managed wrapper for an growth-only managed memory buffer.
+/// Managed wrapper for a growth-only managed memory buffer.
 /// </summary>
 public sealed class NativeMemoryManagedBuffer : IDisposable {
-    private IntPtr _memory;
+    private IntPtr _memoryPtr;
     private UIntPtr _allocatedByteCount;
 
-    public IntPtr Memory {
+    public IntPtr MemoryPtr {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _memory;
+        get => _memoryPtr;
     }
 
     public UIntPtr AllocatedByteCount {
@@ -31,7 +31,7 @@ public sealed class NativeMemoryManagedBuffer : IDisposable {
     }
 
     public override string ToString() {
-        return $"{nameof(Memory)}: 0x{Memory:x8}, {nameof(AllocatedByteCount)}: {AllocatedByteCount}";
+        return $"{nameof(MemoryPtr)}: 0x{MemoryPtr:x8}, {nameof(AllocatedByteCount)}: {AllocatedByteCount}";
     }
 
     private IntPtr SetSize(nuint byteCount) {
@@ -40,16 +40,16 @@ public sealed class NativeMemoryManagedBuffer : IDisposable {
 
         Debug.Assert(_allocatedByteCount != byteCount);
         _allocatedByteCount = byteCount;
-        _memory = InteropUtility.NativeMemoryReallocate(_memory, byteCount);
+        _memoryPtr = InteropUtility.NativeMemoryReallocate(_memoryPtr, byteCount);
 
-        return _memory;
+        return _memoryPtr;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Free() {
-        if (_memory != IntPtr.Zero) {
-            InteropUtility.NativeMemoryFree(_memory);
-            _memory = IntPtr.Zero;
+        if (_memoryPtr != IntPtr.Zero) {
+            InteropUtility.NativeMemoryFree(_memoryPtr);
+            _memoryPtr = IntPtr.Zero;
         }
     }
 

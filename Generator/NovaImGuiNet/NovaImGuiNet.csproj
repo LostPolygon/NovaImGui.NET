@@ -4,7 +4,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>annotations</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <DefineConstants>IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN; _USE_UTF8_STRING_WRITER</DefineConstants>
+        <DefineConstants>IMGUI_HAS_DOCK; IMGUI_BACKEND_HAS_WINDOWS_H; NOVA_IMGUI_NET_MAIN; USE_UTF8_STRING_WRITER</DefineConstants>
         <LangVersion>12</LangVersion>
         <TargetFramework>net8.0</TargetFramework>
         <NoWarn>$(NoWarn);CS1587;CS1591</NoWarn>

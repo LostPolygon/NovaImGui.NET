@@ -390,8 +390,52 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     }
 
     private List<MethodArgumentOverloadRaw> FilterRawMethodArgumentOverloads(List<MethodArgumentOverloadRaw> overloads) {
-        List<MethodArgumentOverloadRaw> newOverloads = [];
+        List<MethodArgumentOverloadRaw> filteredOverloads = [];
         foreach (MethodArgumentOverloadRaw overload in overloads) {
+            if (!CheckStringBeginEndPair(overload))
+                continue;
+
+            if (!CheckUtf8StringWriter(overload))
+                continue;
+
+            filteredOverloads.Add(overload);
+        }
+
+        return filteredOverloads;
+
+        bool CheckUtf8StringWriter(MethodArgumentOverloadRaw overload) {
+            return true;
+            int utf8BytesStringWriterSignatureArgumentsCount =
+                overload.Arguments
+                    .Count(arg => arg.ArgumentMarshallingMode == ArgumentMarshallingMode.StringUtf8BytesStringWriter);
+
+            if (utf8BytesStringWriterSignatureArgumentsCount == 0)
+                return true;
+
+            // Only keep a single overload per position,
+            // because Utf8StringWriter can't handle more than one Utf8StringWriter argument per method
+            // because it uses a shared buffer instance
+            if (utf8BytesStringWriterSignatureArgumentsCount > 1)
+                return false;
+
+            (int Index, NativeFunctionArgumentMarshallingVariant Item) firstUtf8BytesStringWriterArgumentAcrossAllOverloads =
+                overloads
+                    .Select(o =>
+                        o.Arguments
+                            .Index()
+                            .FirstOrDefault(
+                                argWithIndex =>
+                                    argWithIndex.Item.ArgumentMarshallingMode == ArgumentMarshallingMode.StringUtf8BytesStringWriter
+                            )
+                    )
+                    .MinBy(argWithIndex => argWithIndex.Index);
+
+            return
+                overload.Arguments[firstUtf8BytesStringWriterArgumentAcrossAllOverloads.Index].ArgumentMarshallingMode ==
+                ArgumentMarshallingMode.StringUtf8BytesStringWriter;
+        }
+
+        bool CheckStringBeginEndPair(MethodArgumentOverloadRaw overload) {
             (int Index, NativeFunctionArgumentMarshallingVariant Item) stringBeginEndPairBeginWithIndex =
                 overload.Arguments
                     .Index()
@@ -419,13 +463,11 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     );
 
                 if (!isValidStringBeginEndPair)
-                    continue;
+                    return false;
             }
 
-            newOverloads.Add(overload);
+            return true;
         }
-
-        return newOverloads;
     }
 
     private static Struct CreateImGuiManagedMethodsStruct(string targetNamespace, string structName) {
@@ -933,7 +975,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
                     break;
                 case ArgumentMarshallingMode.StringUtf8BytesStringWriter:
-                    managedArgument.PassType = FunctionArgumentPassType.Ref;
+                    managedArgument.PassType = FunctionArgumentPassType.In;
                     managedArgument.Type = KnownEntities.Utf8BytesStringWriter.AsEntityReference();
                     break;
                 case ArgumentMarshallingMode.StringManaged:
