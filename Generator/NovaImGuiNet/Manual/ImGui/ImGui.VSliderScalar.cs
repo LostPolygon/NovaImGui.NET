@@ -15,8 +15,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return VSliderScalar(label, size, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool VSliderScalar<T>(
@@ -29,8 +28,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return VSliderScalar(label, size, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool VSliderScalar<T>(
@@ -43,8 +41,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return VSliderScalar(label, size, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool VSliderScalar<T>(
@@ -55,8 +52,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return VSliderScalar(label, size, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
+        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     public static bool VSliderScalar<T>(
@@ -67,8 +63,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return VSliderScalar(label, size, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
+        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     #endregion

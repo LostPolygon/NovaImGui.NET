@@ -14,8 +14,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
     public static bool InputScalar<T>(
@@ -27,8 +26,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
     public static bool InputScalar<T>(
@@ -40,8 +38,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
     public static bool InputScalar<T>(
@@ -51,8 +48,7 @@ public static unsafe partial class ImGui {
         T stepFast = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast));
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast));
     }
 
     public static bool InputScalar<T>(
@@ -62,8 +58,7 @@ public static unsafe partial class ImGui {
         T stepFast = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast));
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast));
     }
 
     #endregion
@@ -79,8 +74,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
     public static bool InputScalarN<T>(
@@ -92,8 +86,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
     public static bool InputScalarN<T>(
@@ -105,8 +98,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
     public static bool InputScalarN<T>(
@@ -116,8 +108,7 @@ public static unsafe partial class ImGui {
         T stepFast = default
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast));
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast));
     }
 
     public static bool InputScalarN<T>(
@@ -127,8 +118,7 @@ public static unsafe partial class ImGui {
         T stepFast = default
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return InputScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast));
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast));
     }
 
     #endregion

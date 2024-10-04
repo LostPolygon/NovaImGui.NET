@@ -14,8 +14,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool SliderScalar<T>(
@@ -27,8 +26,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool SliderScalar<T>(
@@ -40,8 +38,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool SliderScalar<T>(
@@ -51,8 +48,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     public static bool SliderScalar<T>(
@@ -62,8 +58,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalar(label, dataType, (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     #endregion
@@ -79,8 +74,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool SliderScalarN<T>(
@@ -92,8 +86,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool SliderScalarN<T>(
@@ -105,8 +98,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max), format, flags);
     }
 
     public static bool SliderScalarN<T>(
@@ -116,8 +108,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max));
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     public static bool SliderScalarN<T>(
@@ -127,8 +118,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = InteropUtility.SpanToPointer<T>(data);
-        ImGuiDataType dataType = GetImGuiDataType<T>();
-        return SliderScalarN(label, dataType, (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max));
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     #endregion
