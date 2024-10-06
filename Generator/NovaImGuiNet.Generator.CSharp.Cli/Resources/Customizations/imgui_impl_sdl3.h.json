@@ -12,7 +12,16 @@
   "no_emit_managed_methods_for_native_functions": [
     "cImGui_ImplSDL3_SetGamepadMode"
   ],
-  "external_types": [
-    "SDL_Event"
+  "make_pointers_to_structs_opaque": [
+    "SDL_Event",
+    "SDL_Renderer",
+    "SDL_Window",
+    "SDL_Gamepad"
+  ],
+  "no_emit_structs": [
+    "SDL_Event",
+    "SDL_Renderer",
+    "SDL_Window",
+    "SDL_Gamepad"
   ]
 }

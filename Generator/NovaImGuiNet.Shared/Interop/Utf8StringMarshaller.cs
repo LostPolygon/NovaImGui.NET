@@ -34,7 +34,15 @@ public static unsafe class Utf8StringMarshaller {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static byte* GetUtf8Buffer(
+    public static int ConvertUtf16SpanToNullTerminatedUtf8Span(ReadOnlySpan<char> chars, Span<byte> bytes) {
+        int utf8BytesWritten = Encoding.UTF8.GetBytes(chars, bytes);
+        bytes[utf8BytesWritten] = 0;
+
+        return utf8BytesWritten;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Span<byte> GetUtf8Buffer(
         Span<byte> utf8Buffer,
         int utf8ByteCount,
         ref byte* heapUtf8Pointer,
@@ -43,8 +51,7 @@ public static unsafe class Utf8StringMarshaller {
         // Check if the stack-allocated buffer is enough
         bool isStackBufferEnough = utf8ByteCount <= utf8Buffer.Length;
         if (isStackBufferEnough) {
-            byte* utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
-            return utf8Pointer;
+            return utf8Buffer;
         }
 
         // If the stack-allocated buffer is not enough,
@@ -62,7 +69,7 @@ public static unsafe class Utf8StringMarshaller {
                 ThreadUtf8ConvertBuffer.EnsureSize((nuint) utf8ByteCount);
             }
 
-            return (byte*) ThreadUtf8ConvertBuffer.MemoryPtr;
+            return new Span<byte>((byte*) ThreadUtf8ConvertBuffer.MemoryPtr, (int) ThreadUtf8ConvertBuffer.AllocatedByteCount);
         }
 
         // If the data size exceeds both previous limits,
@@ -73,7 +80,7 @@ public static unsafe class Utf8StringMarshaller {
         /*utf8ByteCount = Encoding.UTF8.GetByteCount(utf16) + 1;*/
 
         heapUtf8Pointer = (byte*) InteropUtility.NativeMemoryAllocate((UIntPtr) utf8ByteCount);
-        return heapUtf8Pointer;
+        return new Span<byte>(heapUtf8Pointer, utf8ByteCount);
     }
 
     public ref struct ManagedToUnmanagedIn {
@@ -91,12 +98,16 @@ public static unsafe class Utf8StringMarshaller {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte* ConvertToNative(Span<byte> utf8Buffer, out int utf8BytesWritten) {
+            return InteropUtility.SpanToPointer<byte>(ConvertToNativeSpan(utf8Buffer, out utf8BytesWritten));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<byte> ConvertToNativeSpan(Span<byte> utf8Buffer, out int utf8BytesWritten) {
             // Must be explicitly 0 so pointer arithmetic works out even if we return a null pointer
             utf8BytesWritten = 0;
 
             ReadOnlySpan<char> utf16 = _charSpan;
-            char* utf16Pointer = InteropUtility.SpanToPointer(utf16);
-            if (utf16Pointer == null)
+            if (Unsafe.IsNullRef(ref MemoryMarshal.GetReference(utf16)))
                 return null;
 
             int utf8MaxBytes = EstimateNullTerminatedUtf8StringByteCount(utf16.Length);
@@ -104,17 +115,14 @@ public static unsafe class Utf8StringMarshaller {
             // FIXME: disabled as it will break if more than one string method argument needs this
             bool allowUseLongTermBuffer = false;
 
-            byte* utf8Pointer = GetUtf8Buffer(utf8Buffer, utf8MaxBytes, ref _heapUtf8Pointer, allowUseLongTermBuffer);
+            Span<byte> utf8 = GetUtf8Buffer(utf8Buffer, utf8MaxBytes, ref _heapUtf8Pointer, allowUseLongTermBuffer);
 
             // Using utf8MaxByteCount is fine here because by this point
             // it's guaranteed the buffer won't be overrun
-            utf8BytesWritten = ConvertUtf16PointerToNullTerminatedUtf8Pointer(
-                utf16Pointer,
-                utf16.Length,
-                utf8Pointer,
-                utf8MaxBytes
-            );
-            return utf8Pointer;
+            utf8BytesWritten = ConvertUtf16SpanToNullTerminatedUtf8Span(utf16, utf8);
+            #pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+            return utf8;
+            #pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

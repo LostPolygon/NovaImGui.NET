@@ -2,6 +2,11 @@
 
 public static unsafe class InteropUtility {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static T* RefInToPointer<T>(in T value) where T : unmanaged {
+        return (T*) Unsafe.AsPointer(ref Unsafe.AsRef(in value));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T* SpanToPointer<T>(ReadOnlySpan<T> span) where T : unmanaged {
         return (T*) Unsafe.AsPointer(ref MemoryMarshal.GetReference(span));
     }

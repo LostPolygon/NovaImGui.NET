@@ -1,0 +1,97 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    (string Type, string? Conditional)[] Arg2Types = GenericString;
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+using static InteropUtility;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        foreach (var arg2 in Arg2Types) {
+            StartConditional(arg1.Conditional, arg2.Conditional);
+#>
+    public static bool InputScalar<T>(
+        <#= arg1.Type #> label,
+        ref T data,
+        in T step,
+        in T stepFast,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast), format, flags);
+    }
+
+    public static bool InputScalarN<T>(
+        <#= arg1.Type #> label,
+        Span<T> data,
+        in T step,
+        in T stepFast,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast), format, flags);
+    }
+
+    public static bool InputScalar<T>(
+        <#= arg1.Type #> label,
+        ref T data,
+        T* step,
+        T* stepFast,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+    }
+
+    public static bool InputScalarN<T>(
+        <#= arg1.Type #> label,
+        Span<T> data,
+        T* step,
+        T* stepFast,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+    }
+
+<#
+            EndConditional(arg1.Conditional, arg2.Conditional);
+#>
+<#
+        }
+#>
+    /*public static bool InputScalar<T>(
+        <#= arg1.Type #> label,
+        ref T data,
+        in T step = default,
+        in T stepFast = default
+    ) where T : unmanaged {
+        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast));
+    }
+
+    public static bool InputScalarN<T>(
+        <#= arg1.Type #> label,
+        Span<T> data,
+        in T step = default,
+        in T stepFast = default
+    ) where T : unmanaged {
+        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast));
+    }*/
+
+<#
+    }
+#>
+}

@@ -104,8 +104,6 @@ public static class StructModifiers {
             if (field.Type.Value is not Delegate fieldTypeDelegate)
                 return [field];
 
-            // FIXME: move IntPtr field generation from outside BindingsModelCodeGenerator
-            // to a modifier
             PropertyDeclarationSyntax intPtrProperty =
                 CreateIntPtrAccessorPropertyForField(
                     field.BaseName,
@@ -140,20 +138,76 @@ public static class StructModifiers {
         return structure;
     }
 
-    public static Struct AddIntPtrAccessorPropertyForPointerFields(Struct structure) {
+    public static Struct AddPointerWrapperAccessorPropertyForPointerFields(Struct structure, BindingsContext context) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
             if (field.Type.Value is not Pointer fieldTypePointer ||
-                fieldTypePointer.IsVoidPointer()) // void* is replaced with IntPtr
+                fieldTypePointer.IsVoidPointer()) // void* is replaced with IntPtr elsewhere
                 return [field];
 
-            PropertyDeclarationSyntax intPtrProperty =
-                CreateIntPtrAccessorPropertyForField(
-                    field.BaseName,
-                    field.Name,
-                    FormatType(fieldTypePointer)
-                );
+            BindingsFileCustomizations customizations =
+                context.Customizations.RequireCustomizationByNamespace(structure.Namespace);
 
-            MemberDeclarationSyntaxEntity intPtrPropertyEntity = new(intPtrProperty, field);
+            string fieldValueType = FormatType(fieldTypePointer.ValueType.Value);
+
+            // Promote using the Pointer<T> property over raw pointer field
+            string propertyName = field.Name;
+
+            if (field.NamePrefix == null) {
+                field.NamePrefix = "_";
+            } else {
+                if (Char.IsNumber(propertyName[^1])) {
+                    propertyName += "_";
+                }
+
+                propertyName += "Pointer";
+            }
+
+            bool treatAsNonNullDefinition =
+                customizations.TreatFieldsAsNonNull
+                    .FirstOrDefault(x => x.Struct == structure.Name && x.Field == field.BaseName) != null;
+
+            // If we know the field is never null, then generate a ref property instead
+            PropertyDeclarationSyntax wrapperProperty;
+            if (treatAsNonNullDefinition) {
+                var propertyGetLambda = ArrowExpressionClause(ParseExpression($"ref *{field.Name}"));
+
+                wrapperProperty =
+                    PropertyDeclaration(
+                            RefType(ParseTypeName(fieldValueType)),
+                            propertyName
+                        )
+                        .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                        .AddAccessorListAccessors(
+                            AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                .WithExpressionBody(propertyGetLambda)
+                                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                                .WithLeadingTrivia(CarriageReturnLineFeed)
+                                .WithTrailingTrivia(LineFeed)
+                        );
+            } else {
+                var propertyGetLambda = ArrowExpressionClause(ParseExpression($"(Pointer<{fieldValueType}>) {field.Name}"));
+                var propertySetLambda = ArrowExpressionClause(ParseExpression($"{field.Name} = value.Ptr"));
+
+                wrapperProperty =
+                    PropertyDeclaration(
+                            ParseTypeName($"Pointer<{fieldValueType}>"),
+                            propertyName
+                        )
+                        .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                        .AddAccessorListAccessors(
+                            AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                .WithExpressionBody(propertyGetLambda)
+                                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                                .WithLeadingTrivia(CarriageReturnLineFeed)
+                                .WithTrailingTrivia(LineFeed),
+                            AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                                .WithExpressionBody(propertySetLambda)
+                                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                                .WithTrailingTrivia(LineFeed)
+                        );
+            }
+
+            MemberDeclarationSyntaxEntity intPtrPropertyEntity = new(wrapperProperty, field);
             return [intPtrPropertyEntity, field];
         });
         return structure;
@@ -572,7 +626,8 @@ public static class StructModifiers {
                         }
 
                         return field with {
-                            BaseName = $"{field.Name}_{index}",
+                            BaseName = field.Name,
+                            NamePrefix = $"_{index}",
                             Type = arrayElementTypeReference,
                             Comments = fieldComments,
                             IsExplodedFixedSizeArrayField = true
@@ -703,13 +758,8 @@ public static class StructModifiers {
         string fieldName,
         string fieldType
     ) {
-        var propertyGetLambda = ArrowExpressionClause(
-            ParseExpression($"(IntPtr) {fieldName}")
-        );
-
-        var propertySetLambda = ArrowExpressionClause(
-            ParseExpression($"{fieldName} = ({fieldType}) value")
-        );
+        var propertyGetLambda = ArrowExpressionClause(ParseExpression($"(IntPtr) {fieldName}"));
+        var propertySetLambda = ArrowExpressionClause(ParseExpression($"{fieldName} = ({fieldType}) value"));
 
         if (Char.IsNumber(propertyName[^1])) {
             propertyName += "_";

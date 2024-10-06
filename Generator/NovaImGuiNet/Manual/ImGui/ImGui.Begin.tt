@@ -1,0 +1,37 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        StartConditional(arg1.Conditional);
+#>
+    /// <summary>
+    ///   Windows
+    ///   - Begin() = push window to the stack and start appending to it. End() = pop window from the stack.
+    ///   - Passing &#39;bool* p_open != NULL&#39; shows a window-closing widget in the upper-right corner of the window,
+    ///   which clicking will set the boolean to false when clicked.
+    ///   - You may append multiple times to the same window during the same frame by calling Begin()/End() pairs multiple times.
+    ///   Some information such as &#39;flags&#39; or &#39;p_open&#39; will only be considered by the first call to Begin().
+    ///   - Begin() return false to indicate the window is collapsed or fully clipped, so you may early out and omit submitting
+    ///   anything to the window. Always call a matching End() for each Begin() call, regardless of its return value!
+    ///   [Important: due to legacy reason, Begin/End and BeginChild/EndChild are inconsistent with all other functions
+    ///   such as BeginMenu/EndMenu, BeginPopup/EndPopup, etc. where the EndXXX call should only be called if the corresponding
+    ///   BeginXXX function returned true. Begin and BeginChild are the only odd ones out. Will be fixed in a future update.]
+    ///   - Note that the bottom of window stack always contains a window called &quot;Debug&quot;.
+    /// </summary>
+    public static bool Begin(<#= arg1.Type #> name, ImGuiWindowFlags flags = ImGuiWindowFlags.None) =>
+        Begin(name, null, flags);
+
+<#
+        EndConditional(arg1.Conditional);
+    }
+#>
+}

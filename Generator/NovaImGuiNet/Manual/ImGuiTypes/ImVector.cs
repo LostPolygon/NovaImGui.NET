@@ -13,7 +13,7 @@ public unsafe struct ImVector<T> : IList<T>, IEquatable<ImVector<T>>, IDisposabl
 
     public Span<T> AsSpan() => new(Data, Size);
 
-    public ref T this[int index] => ref Unsafe.AsRef<T>((void*) AddressAt(index));
+    public ref T this[int index] => ref *(T*) AddressAt(index);
 
     public ImVector() {
         this = NativeConstruct();

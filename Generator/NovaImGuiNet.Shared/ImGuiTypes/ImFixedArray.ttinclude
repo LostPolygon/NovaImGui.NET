@@ -112,11 +112,11 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
 #>
     public void Deconstruct(<#= String.Join(", ", Enumerable.Range(1, tupleSize).Select(index => $"out T value{index}")) #>) {
 <#
-   for (int index = 1; index <= tupleSize; index++) {
+       for (int index = 1; index <= tupleSize; index++) {
 #>
         value<#= index #> = Value<#= index #>;
 <#
-   }
+       }
 #>
     }
 

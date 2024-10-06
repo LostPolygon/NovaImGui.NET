@@ -338,7 +338,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 switch (marshallingMode) {
                     case ArgumentMarshallingMode.StringReadOnlyByteSpan or
                         ArgumentMarshallingMode.StringReadOnlyCharSpan or
-                        ArgumentMarshallingMode.StringUtf8BytesStringWriter or
+                        ArgumentMarshallingMode.StringImGuiUtf8StringWriter or
                         ArgumentMarshallingMode.StringManaged: {
                         bool isPrimaryArgument = marshallingMode == ArgumentMarshallingMode.StringReadOnlyCharSpan;
                         potentiallyAmbiguousArguments.Add((argIndex, argument, isPrimaryArgument));
@@ -405,34 +405,34 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         bool CheckUtf8StringWriter(MethodArgumentOverloadRaw overload) {
             return true;
-            int utf8BytesStringWriterSignatureArgumentsCount =
+            int utf8StringWriterSignatureArgumentsCount =
                 overload.Arguments
-                    .Count(arg => arg.ArgumentMarshallingMode == ArgumentMarshallingMode.StringUtf8BytesStringWriter);
+                    .Count(arg => arg.ArgumentMarshallingMode == ArgumentMarshallingMode.StringImGuiUtf8StringWriter);
 
-            if (utf8BytesStringWriterSignatureArgumentsCount == 0)
+            if (utf8StringWriterSignatureArgumentsCount == 0)
                 return true;
 
             // Only keep a single overload per position,
             // because Utf8StringWriter can't handle more than one Utf8StringWriter argument per method
             // because it uses a shared buffer instance
-            if (utf8BytesStringWriterSignatureArgumentsCount > 1)
+            if (utf8StringWriterSignatureArgumentsCount > 1)
                 return false;
 
-            (int Index, NativeFunctionArgumentMarshallingVariant Item) firstUtf8BytesStringWriterArgumentAcrossAllOverloads =
+            (int Index, NativeFunctionArgumentMarshallingVariant Item) firstUtf8StringWriterArgumentAcrossAllOverloads =
                 overloads
                     .Select(o =>
                         o.Arguments
                             .Index()
                             .FirstOrDefault(
                                 argWithIndex =>
-                                    argWithIndex.Item.ArgumentMarshallingMode == ArgumentMarshallingMode.StringUtf8BytesStringWriter
+                                    argWithIndex.Item.ArgumentMarshallingMode == ArgumentMarshallingMode.StringImGuiUtf8StringWriter
                             )
                     )
                     .MinBy(argWithIndex => argWithIndex.Index);
 
             return
-                overload.Arguments[firstUtf8BytesStringWriterArgumentAcrossAllOverloads.Index].ArgumentMarshallingMode ==
-                ArgumentMarshallingMode.StringUtf8BytesStringWriter;
+                overload.Arguments[firstUtf8StringWriterArgumentAcrossAllOverloads.Index].ArgumentMarshallingMode ==
+                ArgumentMarshallingMode.StringImGuiUtf8StringWriter;
         }
 
         bool CheckStringBeginEndPair(MethodArgumentOverloadRaw overload) {
@@ -628,14 +628,14 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             ];
         }
 
-        // Only enable Utf8BytesStringWriter if a conditional flag is set
-        bool anyUtf8BytesStringWriterSignatureArguments =
+        // Only enable Utf8StringWriter if a conditional flag is set
+        bool anyUtf8StringWriterSignatureArguments =
             signatureArguments
                 .Any(arg =>
-                    arg.Type.ExpandTypedef().Value == KnownEntities.Utf8BytesStringWriter
+                    arg.Type.ExpandTypedef().Value == KnownEntities.ImGuiUtf8StringWriter
                 );
 
-        if (anyUtf8BytesStringWriterSignatureArguments) {
+        if (anyUtf8StringWriterSignatureArguments) {
             managedMethod.Conditionals = [
                 ..managedMethod.Conditionals,
                 new Conditional("USE_UTF8_STRING_WRITER")
@@ -732,23 +732,17 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
     private static NativeFunctionReturnTypeMarshallingVariant[] ResolveNativeReturnTypeMarshallingVariants(
         NativeFunctionReturnTypeDescription description
     ) {
-        NativeFunctionReturnTypeMarshallingVariant voidVariant = new(
-            description.ReturnType,
-            ReturnTypeMarshallingMode.Void,
-            null
-        );
-
         if (description.IsVoid)
-            return [voidVariant];
-
-        NativeFunctionReturnTypeMarshallingVariant ntsVariant = new(
-            description.ReturnType,
-            ReturnTypeMarshallingMode.NullTerminatedString,
-            null
-        );
+            return [new(description.ReturnType, ReturnTypeMarshallingMode.Void, null)];
 
         if (description.IsString)
-            return [ntsVariant];
+            return [
+                new(
+                    description.ReturnType,
+                    ReturnTypeMarshallingMode.NullTerminatedString,
+                    null
+                )
+            ];
 
         NativeFunctionReturnTypeMarshallingVariant passthroughVariant = new(
             description.ReturnType,
@@ -756,19 +750,29 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             null
         );
 
-        if (description is { IsPointer: true, IsKnownNonNull: true }) {
-            NativeFunctionReturnTypeMarshallingVariant refVariant = new(
-                description.ReturnType,
-                ReturnTypeMarshallingMode.Ref,
-                null
-            );
+        NativeFunctionReturnTypeMarshallingVariant pointerWrapperVariant = new(
+            description.ReturnType,
+            ReturnTypeMarshallingMode.PointerWrapper,
+            null
+        );
 
-            // FIXME: this shouldn't be done here
-            passthroughVariant = passthroughVariant with {
-                ManagedMethodNameSuffix = "Pointer"
-            };
+        if (description is { IsPointer: true }) {
+            if (description.IsKnownNonNull) {
+                NativeFunctionReturnTypeMarshallingVariant refVariant = new(
+                    description.ReturnType,
+                    ReturnTypeMarshallingMode.Ref,
+                    null
+                );
 
-            return [refVariant, passthroughVariant];
+                // FIXME: this shouldn't be done here
+                pointerWrapperVariant = pointerWrapperVariant with {
+                    ManagedMethodNameSuffix = "Pointer"
+                };
+
+                return [refVariant, pointerWrapperVariant];
+            } else {
+                return [pointerWrapperVariant];
+            }
         }
 
         return [passthroughVariant];
@@ -810,7 +814,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan, StringBeginEndPairMode.BeginOnly);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan, StringBeginEndPairMode.BeginOnly);
-                AddVariant(ArgumentMarshallingMode.StringUtf8BytesStringWriter, StringBeginEndPairMode.BeginOnly);
+                AddVariant(ArgumentMarshallingMode.StringImGuiUtf8StringWriter, StringBeginEndPairMode.BeginOnly);
                 AddVariant(ArgumentMarshallingMode.StringManaged, StringBeginEndPairMode.BeginOnly);
             } else if (isStringBeginEndPairEnd) {
                 AddVariant(ArgumentMarshallingMode.StringBytePointer, StringBeginEndPairMode.End);
@@ -819,7 +823,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 AddVariant(ArgumentMarshallingMode.StringBytePointer);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan);
-                AddVariant(ArgumentMarshallingMode.StringUtf8BytesStringWriter);
+                AddVariant(ArgumentMarshallingMode.StringImGuiUtf8StringWriter);
                 AddVariant(ArgumentMarshallingMode.StringManaged);
             }
         } else if (description.IsPointer) {
@@ -902,8 +906,22 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             case ReturnTypeMarshallingMode.NullTerminatedString:
                 returnType = new Builtin("NullTerminatedString", null, StorageClass.NotSpecified);
                 break;
-            case ReturnTypeMarshallingMode.Ref:
-                Pointer? returnTypePointer = returnType as Pointer;
+            case ReturnTypeMarshallingMode.PointerWrapper: {
+                Pointer? returnTypePointer = returnType.AsEntityReference().ExpandTypedef().Value as Pointer;
+                Debug.Assert(returnTypePointer != null);
+
+                // Uglyness to handle void**
+                if (returnTypePointer.ValueType.Value.IsVoidPointer()) {
+                    returnTypePointer = returnTypePointer with {
+                        ValueType = KnownEntities.IntPtr.AsEntityReference()
+                    };
+                }
+
+                returnType = new Builtin($"Pointer<{CSharpCodeGenerationUtility.FormatType(returnTypePointer.ValueType.Value)}>", null, StorageClass.NotSpecified);
+                break;
+            }
+            case ReturnTypeMarshallingMode.Ref: {
+                Pointer? returnTypePointer = returnType.AsEntityReference().ExpandTypedef().Value as Pointer;
                 Debug.Assert(returnTypePointer != null);
 
                 // Uglyness to handle void**
@@ -917,6 +935,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                     PointerType = BindingsModel.PointerType.ManagedRef
                 };
                 break;
+            }
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -974,9 +993,9 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 case ArgumentMarshallingMode.StringReadOnlyCharSpan:
                     managedArgument.Type = KnownEntities.ReadOnlySpanChar.AsEntityReference();
                     break;
-                case ArgumentMarshallingMode.StringUtf8BytesStringWriter:
+                case ArgumentMarshallingMode.StringImGuiUtf8StringWriter:
                     managedArgument.PassType = FunctionArgumentPassType.In;
-                    managedArgument.Type = KnownEntities.Utf8BytesStringWriter.AsEntityReference();
+                    managedArgument.Type = KnownEntities.ImGuiUtf8StringWriter.AsEntityReference();
                     break;
                 case ArgumentMarshallingMode.StringManaged:
                     managedArgument.Type = KnownEntities.String.AsEntityReference();

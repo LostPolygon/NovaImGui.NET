@@ -116,14 +116,6 @@ public class BindingsModelCSharpTransformer {
             AddNullTerminatedStringPropertyForConstCharPointerFields
         );
 
-        if (Context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes) {
-            Transform(
-                "Creating Span accessor properties for fixed size array fields with primitive types",
-                Model.Structs,
-                CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes
-            );
-        }
-
         Transform(
             "Converting void* fields to IntPtr",
             Model.Structs,
@@ -131,10 +123,18 @@ public class BindingsModelCSharpTransformer {
         );
 
         Transform(
-            "Adding IntPtr properties to fields of non-void pointer types",
+            "Adding pointer wrapper properties to fields of non-void pointer types",
             Model.Structs,
-            AddIntPtrAccessorPropertyForPointerFields
+            structure => AddPointerWrapperAccessorPropertyForPointerFields(structure, Context)
         );
+
+        if (Context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes) {
+            Transform(
+                "Creating Span accessor properties for fixed size array fields with primitive types",
+                Model.Structs,
+                CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes
+            );
+        }
 
         using (Operation("Generating delegates for inline function definitions in function arguments")) {
             ModelModifiers.GenerateDelegatesForInlineFunctionArguments(Model);

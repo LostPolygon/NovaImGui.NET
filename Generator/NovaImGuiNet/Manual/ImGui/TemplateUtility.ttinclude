@@ -1,0 +1,31 @@
+<#@ import namespace="System.Linq" #>
+<#
+#nullable enable
+    (string Type, string? Conditional)[] GenericString = [
+        ("byte*", null), 
+        ("ReadOnlySpan<byte>", null), 
+        ("ReadOnlySpan<char>", null), 
+        ("string", "NETSTANDARD2_0"),
+        ("in ImGuiUtf8StringWriter", "USE_UTF8_STRING_WRITER"),
+        ];
+
+    void StartConditional(params string?[] conditionals) {
+        string[] validConditionals = conditionals.Where(x => x != null).Distinct().ToArray();
+        if (validConditionals.Length == 0)
+            return;
+
+        if (validConditionals.Length == 1) {
+            WriteLine($"#if {validConditionals[0]}");
+        } else {
+            WriteLine($"#if {String.Join(" && ", validConditionals.Select(c => $"({c})"))}");
+        }
+    }
+
+    void EndConditional(params string?[] conditionals) {
+        string[] validConditionals = conditionals.Where(x => x != null).ToArray();
+        if (validConditionals.Length == 0)
+            return;
+
+        WriteLine("#endif");
+    }
+#>

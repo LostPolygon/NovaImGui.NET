@@ -1,0 +1,35 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    (string Type, string Invocation, string? Conditional)[] Arg2Types = [
+        ("ImVec4*", "col", null), 
+        ("ref ImVec4", "ref col", null)
+        ];
+    (string Type, string Invocation, string? Conditional)[] Arg4Types = [
+        ("[ImGuiDefaultValue(\"default\")] ImVec4*", "refCol", null), 
+        ("ref ImVec4", "ref refCol", null)
+        ];
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        foreach (var arg2 in Arg2Types) {
+            foreach (var arg4 in Arg4Types) {
+                StartConditional(arg1.Conditional);
+#>
+    public static bool ColorPicker4(<#= arg1.Type #> label, <#= arg2.Type #> col, ImGuiColorEditFlags flags, <#= arg4.Type #> refCol) =>
+        ColorPicker4(label, <#= arg2.Invocation #>, flags, <#= arg4.Invocation #>);
+
+<#
+                EndConditional(arg1.Conditional);
+            }
+        }
+    }
+#>
+}

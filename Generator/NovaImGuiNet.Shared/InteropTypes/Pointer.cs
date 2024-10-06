@@ -20,6 +20,16 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public IntPtr IntPtr => (IntPtr) Ptr;
 
+    public bool IsNull {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Ptr == null;
+    }
+
+    public Pointer<T> this[int index] {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Ptr + index * sizeof(T);
+    }
+
     public ref T Value {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get {
@@ -30,6 +40,9 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
             return ref *Ptr;
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ref T GetRefUnsafe() => ref *Ptr;
 
     public override string ToString() {
         return IntPtr != IntPtr.Zero ? $"0x{IntPtr:x8}" : "null";

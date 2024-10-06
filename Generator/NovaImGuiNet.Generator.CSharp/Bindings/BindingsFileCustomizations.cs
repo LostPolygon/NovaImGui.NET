@@ -19,6 +19,7 @@ public record BindingsFileCustomizations {
     public IReadOnlyList<TreatTypeAsHandle> GenerateHandleTypes { get; init; } = [];
     public IReadOnlyList<ManagedMethodAliasDefinition> GenerateManagedMethodAliases { get; init; } = [];
     public IReadOnlyList<string> TreatNativeFunctionReturnValueAsNonNull { get; init; } = [];
+    public IReadOnlyList<TreatFieldAsNonNullDefinition> TreatFieldsAsNonNull { get; init; } = [];
     public IReadOnlyList<string> ExternalTypes { get; init; } = [];
 
     public record NativeFunctionIdentifier {
@@ -38,5 +39,10 @@ public record BindingsFileCustomizations {
     public record ManagedMethodAliasDefinition {
         public string NativeFunction { get; init; } = null!;
         public string ManagedMethodAlias { get; init; } = null!;
+    }
+
+    public record TreatFieldAsNonNullDefinition {
+        public string Struct { get; init; } = null!;
+        public string Field { get; init; } = null!;
     }
 }

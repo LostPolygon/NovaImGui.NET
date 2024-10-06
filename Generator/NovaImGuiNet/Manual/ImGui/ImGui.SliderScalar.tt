@@ -1,0 +1,96 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    (string Type, string? Conditional)[] Arg2Types = GenericString;
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+using static InteropUtility;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        foreach (var arg2 in Arg2Types) {
+            StartConditional(arg1.Conditional, arg2.Conditional);
+#>
+    public static bool SliderScalar<T>(
+        <#= arg1.Type #> label,
+        ref T data,
+        in T min,
+        in T max,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiSliderFlags flags = ImGuiSliderFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max), format, flags);
+    }
+
+    public static bool SliderScalarN<T>(
+        <#= arg1.Type #> label,
+        Span<T> data,
+        in T min,
+        in T max,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiSliderFlags flags = ImGuiSliderFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max), format, flags);
+    }
+
+    public static bool SliderScalar<T>(
+        <#= arg1.Type #> label,
+        ref T data,
+        T* min,
+        T* max,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiSliderFlags flags = ImGuiSliderFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) min, (IntPtr) max, format, flags);
+    }
+
+    public static bool SliderScalarN<T>(
+        <#= arg1.Type #> label,
+        Span<T> data,
+        T* min,
+        T* max,
+        <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
+        ImGuiSliderFlags flags = ImGuiSliderFlags.None
+    ) where T : unmanaged {
+        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) min, (IntPtr) max, format, flags);
+    }
+
+<#
+            EndConditional(arg1.Conditional, arg2.Conditional);
+#>
+<#
+        }
+#>
+    /*public static bool SliderScalar<T>(
+        <#= arg1.Type #> label,
+        ref T data,
+        T min = default,
+        T max = default
+    ) where T : unmanaged {
+        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max));
+    }
+
+    public static bool SliderScalarN<T>(
+        <#= arg1.Type #> label,
+        Span<T> data,
+        T min = default,
+        T max = default
+    ) where T : unmanaged {
+        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max));
+    }*/
+<#
+    }
+#>
+}

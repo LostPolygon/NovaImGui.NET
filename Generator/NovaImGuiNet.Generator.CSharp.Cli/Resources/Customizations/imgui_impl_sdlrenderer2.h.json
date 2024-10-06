@@ -10,6 +10,15 @@
     "cImGui_ImplSDLRenderer2_"
   ],
   "make_pointers_to_structs_opaque": [
-    "SDL_Event"
+    "SDL_Event",
+    "SDL_Renderer",
+    "SDL_Window",
+    "_SDL_GameController"
+  ],
+  "no_emit_structs": [
+    "SDL_Event",
+    "SDL_Renderer",
+    "SDL_Window",
+    "_SDL_GameController"
   ]
 }

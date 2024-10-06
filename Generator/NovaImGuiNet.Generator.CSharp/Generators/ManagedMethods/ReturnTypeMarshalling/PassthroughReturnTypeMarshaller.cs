@@ -32,6 +32,7 @@ public class PassthroughReturnTypeMarshaller : ReturnTypeMarshaller {
                 MethodSignature.Arguments.All(arg =>
                     arg.MarshallingVariant.ArgumentMarshallingMode is not (
                         ArgumentMarshallingMode.StringReadOnlyCharSpan or
+                        ArgumentMarshallingMode.StringImGuiUtf8StringWriter or
                         ArgumentMarshallingMode.Out or
                         ArgumentMarshallingMode.IntPtrOut
                         )

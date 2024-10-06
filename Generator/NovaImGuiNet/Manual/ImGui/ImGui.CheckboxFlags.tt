@@ -1,0 +1,42 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+#nullable enable
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        StartConditional(arg1.Conditional);
+#>
+    public static bool CheckboxFlags<TEnum>(<#= arg1.Type #> label, ref TEnum flags, TEnum flagsValue)
+        where TEnum : unmanaged, Enum {
+        Type underlyingType = Enum.GetUnderlyingType(typeof(TEnum));
+
+<#
+        foreach (var type in new [] { ("int", "Int"), ("uint", "Uint") }) {
+#>
+        if (underlyingType == typeof(<#= type.Item1 #>)) {
+            ref <#= type.Item1 #> flags<#= type.Item2 #> = ref Unsafe.As<TEnum, <#= type.Item1 #>>(ref flags);
+            <#= type.Item1 #> flagsValue<#= type.Item2 #> = Unsafe.As<TEnum, <#= type.Item1 #>>(ref flagsValue);
+            return CheckboxFlags(label, ref flags<#= type.Item2 #>, flagsValue<#= type.Item2 #>);
+        }
+
+<#
+        }
+#>
+        throw new InvalidCastException(
+            "Only enums with int and uint underlying types are supported, got type: " + underlyingType
+        );
+    }
+
+<#
+        EndConditional(arg1.Conditional);
+    }
+#>
+}

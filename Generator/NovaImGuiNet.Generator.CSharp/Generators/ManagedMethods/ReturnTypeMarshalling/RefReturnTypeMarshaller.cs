@@ -16,13 +16,21 @@ public class RefReturnTypeMarshaller : ReturnTypeMarshaller {
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateReturnStatements() {
         Debug.Assert(!NativeFunction.IsConstructor);
 
+        List<ManagedMethodArgumentMarshallerStatement> result = [
+            $"if ({ReturnVariableName} == null) {{\nInteropExceptions.ThrowReturnedNativePointerNull();\n}}"
+        ];
+
         // We need to remove the pointer from the returned type
         string returnTypeValue = FormatTypeDefault(
             MethodSignature.ReturnType.MarshalledReturnType.AsEntityReference().ExpandPointer().Value
         );
-        return [
-            $"if ({ReturnVariableName} == null) {{\nInteropExceptions.ThrowReturnedNativePointerNull();\n}}",
-            $"return ref Unsafe.AsRef<{returnTypeValue}>({ReturnVariableName});"
-        ];
+
+        if (returnTypeValue != "IntPtr") {
+            result.Add($"return ref *{ReturnVariableName};");
+        } else {
+            result.Add($"return ref Unsafe.AsRef<{returnTypeValue}>({ReturnVariableName});");
+        }
+
+        return result;
     }
 }

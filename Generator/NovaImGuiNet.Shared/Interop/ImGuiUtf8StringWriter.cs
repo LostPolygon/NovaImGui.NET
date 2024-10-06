@@ -4,23 +4,15 @@ namespace NovaImGuiNet.Interop;
 
 [InterpolatedStringHandler]
 public unsafe ref struct ImGuiUtf8StringWriter {
-    public readonly int LiteralLength;
-    public readonly int FormattedCount;
-
-    public ReadOnlySpan<byte> WrittenSpan;
-    internal Utf8StringWriter<OptimizedBufferWriter<byte>> Utf8StringWriter;
-
+    private Utf8StringWriter<OptimizedBufferWriter<byte>> _utf8StringWriter;
     private fixed byte _stackBuffer[Utf8StringMarshaller.StackAllocMaxSize];
-    private int _literalLengthCurrent;
-    private int _formattedCountCurrent;
-
-    public bool IsCompleted => LiteralLength == _literalLengthCurrent && FormattedCount == _formattedCountCurrent;
+    private bool _hasFinalWrittenSpan;
+    private ReadOnlySpan<byte> _finalWrittenSpan;
+    private bool _isFinalWrittenSpanNullTerminated;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ImGuiUtf8StringWriter(int literalLength, int formattedCount, IFormatProvider? formatProvider = null) {
-        LiteralLength = literalLength;
-        FormattedCount = formattedCount;
-        Utf8StringWriter = new Utf8StringWriter<OptimizedBufferWriter<byte>>(
+        _utf8StringWriter = new Utf8StringWriter<OptimizedBufferWriter<byte>>(
             literalLength,
             formattedCount,
             new OptimizedBufferWriter<byte>(
@@ -33,46 +25,64 @@ public unsafe ref struct ImGuiUtf8StringWriter {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Free() {
-        Utf8StringWriter.GetBufferWriter().Free();
+        _utf8StringWriter.GetBufferWriter().Free();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Flush() {
-        Utf8StringWriter.Flush();
+        _utf8StringWriter.Flush();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal OptimizedBufferWriter<byte> GetBufferWriter() {
-        return Utf8StringWriter.GetBufferWriter();
+        return _utf8StringWriter.GetBufferWriter();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ReadOnlySpan<byte> GetFinalSpan() {
-        return Utf8StringWriter.GetBufferWriter().WrittenSpan;
+    public ReadOnlySpan<byte> GetFinalWrittenSpan() {
+        if (_hasFinalWrittenSpan)
+            return _finalWrittenSpan;
+
+        return GetFinalWrittenSpanCore(false);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ReadOnlySpan<byte> GetFinalNullTerminatedWrittenSpan() {
+        if (_hasFinalWrittenSpan) {
+            return _finalWrittenSpan;
+        }
+
+        _utf8StringWriter.AppendUtf8("\0"u8);
+        return GetFinalWrittenSpanCore(true);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AppendFormatted<T>(T value, int alignment = 0, string? format = null) {
-        Utf8StringWriter.AppendFormatted(value, alignment, format);
-        _formattedCountCurrent++;
-        CheckIsCompletedAndFinalize();
+        _utf8StringWriter.AppendFormatted(value, alignment, format);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AppendLiteral(string s) {
-        Utf8StringWriter.AppendFormatted(s.AsSpan());
-        _literalLengthCurrent += s.Length;
-        CheckIsCompletedAndFinalize();
+        _utf8StringWriter.AppendFormatted(s.AsSpan());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckIsCompletedAndFinalize() {
-        if (!IsCompleted)
-            return;
+    private ReadOnlySpan<byte> GetFinalWrittenSpanCore(bool nullTerminated) {
+        _utf8StringWriter.Flush();
+        ReadOnlySpan<byte> finalWrittenSpan = _utf8StringWriter.GetBufferWriter().WrittenSpan;
+        _finalWrittenSpan = finalWrittenSpan;
+        _hasFinalWrittenSpan = true;
+        _isFinalWrittenSpanNullTerminated = nullTerminated;
+        return finalWrittenSpan;
+    }
 
-        // TODO: don't add zero-terminator if allowed
-        Utf8StringWriter.AppendUtf8("\0"u8);
-        Utf8StringWriter.Flush();
-        WrittenSpan = Utf8StringWriter.GetBufferWriter().WrittenSpan;
+    // Unsafe.AsRef doesn't work with ref structs because generics don't support those
+    // Instead, emit our own non-generic version
+    // https://github.com/dotnet/runtime/issues/68709
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref ImGuiUtf8StringWriter UnsafeAsRef(in ImGuiUtf8StringWriter source) {
+        InlineIL.IL.Emit.Ldarg_0();
+        InlineIL.IL.Emit.Ret();
+        throw InlineIL.IL.Unreachable();
     }
 }

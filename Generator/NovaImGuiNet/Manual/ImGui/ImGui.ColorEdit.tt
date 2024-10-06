@@ -1,0 +1,34 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    (string Type, string Invocation, string? Conditional)[] Arg2Types = [
+        ("ImVec4*", "(ImVec3*) col", null), 
+        ("ref ImVec4", "ref Unsafe.As<ImVec4, ImVec3>(ref col)", null)
+        ];
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        foreach (var arg2 in Arg2Types) {
+            StartConditional(arg1.Conditional);
+#>
+    ///<summary>
+    ///  Widgets: Color Editor/Picker (tip: the ColorEdit* functions have a little color square that can be left-clicked to open a picker, and right-clicked to open an option menu.)
+    ///  - Note that in C++ a &#39;float v[X]&#39; function argument is the _same_ as &#39;float* v&#39;, the array syntax is just a way to document the number of elements that are expected to be accessible.
+    ///  - You can pass the address of a first float element out of a contiguous structure, e.g. &amp;myvector.x
+    ///</summary>
+    public static bool ColorEdit3(<#= arg1.Type #> label, <#= arg2.Type #> col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None) =>
+        ColorEdit3(label, <#= arg2.Invocation #>, flags);
+
+<#
+            EndConditional(arg1.Conditional);
+        }
+    }
+#>
+}

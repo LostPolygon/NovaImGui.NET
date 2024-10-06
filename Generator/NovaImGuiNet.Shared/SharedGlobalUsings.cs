@@ -2,10 +2,6 @@
 global using System.Runtime.CompilerServices;
 global using NovaImGuiNet.Interop;
 
-#if !NOVA_IMGUI_SHARED
-global using Utf8BytesStringWriter = NovaImGuiNet.Interop.ImGuiUtf8StringWriter;
-#endif
-
 global using size_t = nint;
 global using int32_t = System.Int32;
 global using uint32_t = System.UInt32;

@@ -1,11 +1,30 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+#>
 #nullable enable
 
 namespace NovaImGuiNet;
 
 public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        StartConditional(arg1.Conditional);
+#>
     ///<summary>type is a user defined string of maximum 32 characters. Strings starting with &#39;_&#39; are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.</summary>
     public static bool SetDragDropPayload<TDataItem>(
-        ReadOnlySpan<byte> type,
+        <#= arg1.Type #> type,
+        TDataItem data,
+        ImGuiCond cond = ImGuiCond.None
+    ) where TDataItem : unmanaged {
+        return SetDragDropPayload(type, (IntPtr) (&data), sizeof(TDataItem), cond);
+    }
+
+    ///<summary>type is a user defined string of maximum 32 characters. Strings starting with &#39;_&#39; are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.</summary>
+    public static bool SetDragDropPayload<TDataItem>(
+        <#= arg1.Type #> type,
         ReadOnlySpan<TDataItem> data,
         ImGuiCond cond = ImGuiCond.None
     ) where TDataItem : unmanaged {
@@ -14,27 +33,8 @@ public static unsafe partial class ImGui {
         }
     }
 
-    ///<summary>type is a user defined string of maximum 32 characters. Strings starting with &#39;_&#39; are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.</summary>
-    public static bool SetDragDropPayload<TDataItem>(
-        ReadOnlySpan<char> type,
-        ReadOnlySpan<TDataItem> data,
-        ImGuiCond cond = ImGuiCond.None
-    ) where TDataItem : unmanaged {
-        fixed (TDataItem* dataPtr = data) {
-            return SetDragDropPayload(type, (IntPtr) dataPtr, data.Length * sizeof(TDataItem), cond);
-        }
+<#
+        EndConditional(arg1.Conditional);
     }
-
-#if NETSTANDARD2_0
-    ///<summary>type is a user defined string of maximum 32 characters. Strings starting with &#39;_&#39; are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.</summary>
-    public static bool SetDragDropPayload<TDataItem>(
-        string type,
-        ReadOnlySpan<TDataItem> data,
-        ImGuiCond cond = ImGuiCond.None
-    ) where TDataItem : unmanaged {
-        fixed (TDataItem* dataPtr = data) {
-            return SetDragDropPayload(type, (IntPtr) dataPtr, data.Length * sizeof(TDataItem), cond);
-        }
-    }
-#endif
+#>
 }

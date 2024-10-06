@@ -1,0 +1,34 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+    (string Type, string? Conditional)[] Arg1Types = GenericString;
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        StartConditional(arg1.Conditional);
+#>
+    public static bool RadioButton<TEnum>(<#= arg1.Type #> label, ref TEnum v, TEnum vButton)
+        where TEnum : unmanaged, Enum {
+        Type underlyingType = Enum.GetUnderlyingType(typeof(TEnum));
+
+        if (underlyingType == typeof(int)) {
+            ref int vInt = ref Unsafe.As<TEnum, int>(ref v);
+            int vButtonInt = Unsafe.As<TEnum, int>(ref vButton);
+            return RadioButton(label, ref vInt, vButtonInt);
+        }
+
+        InteropExceptions.ThrowUnsupportedEnumUnderlyingType<TEnum>();
+        return false;
+    }
+
+<#
+        EndConditional(arg1.Conditional);
+    }
+#>
+}

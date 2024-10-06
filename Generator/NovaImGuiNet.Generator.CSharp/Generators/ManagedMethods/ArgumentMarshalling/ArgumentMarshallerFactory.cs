@@ -12,7 +12,7 @@ public static class ArgumentMarshallerFactory {
             StringBytePointer => new StringBytePointerArgumentMarshaller(methodSignature, argument),
             StringReadOnlyByteSpan => new StringReadOnlyByteSpanArgumentMarshaller(methodSignature, argument),
             StringReadOnlyCharSpan or StringManaged => new StringReadOnlyCharSpanArgumentMarshaller(methodSignature, argument),
-            StringUtf8BytesStringWriter => new StringUtf8BytesStringWriterArgumentMarshaller(methodSignature, argument),
+            StringImGuiUtf8StringWriter => new StringImGuiUtf8StringWriterArgumentMarshaller(methodSignature, argument),
             Ref => new PointerRefArgumentMarshaller(methodSignature, argument),
             Out => new PointerOutArgumentMarshaller(methodSignature, argument),
             IntPtr => new PointerIntPtrArgumentMarshaller(methodSignature, argument),
