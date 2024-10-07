@@ -668,7 +668,7 @@ public class BindingsModelBindingsSyntaxGenerator {
             // Equals(T other) and GetHashCode() manually someday
             structMembers.AddRange([
                 ParseMemberDeclaration($"public bool Equals({entity.Name} other) => base.Equals(other);\n"),
-                ParseMemberDeclaration($"public bool Equals(in {entity.Name} other) => Unsafe.AreSame(in this, in other) || Equals(other);\n"),
+                ParseMemberDeclaration($"public bool Equals(in {entity.Name} other) => UnsafeUtility.AreSame(in this, in other) || Equals(other);\n"),
 
                 ParseMemberDeclaration($"public override int GetHashCode() => base.GetHashCode();\n"),
                 ParseMemberDeclaration($"public override bool Equals(object obj) => base.Equals(obj);\n"),

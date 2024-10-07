@@ -8,8 +8,8 @@ public unsafe class InteropTests {
         ReadOnlySpan<char> emptyStringSpan = "".AsSpan();
         ReadOnlySpan<char> emptyCharSpan = default;
 
-        char* emptyStringSpanPtr = InteropUtility.SpanToPointer(emptyStringSpan);
-        char* emptyCharSpanPtr = InteropUtility.SpanToPointer(emptyCharSpan);
+        char* emptyStringSpanPtr = UnsafeUtility.SpanToPointer(emptyStringSpan);
+        char* emptyCharSpanPtr = UnsafeUtility.SpanToPointer(emptyCharSpan);
 
         Assert.That((IntPtr) emptyStringSpanPtr, Is.Not.EqualTo(IntPtr.Zero));
         Assert.That((IntPtr) emptyCharSpanPtr, Is.EqualTo(IntPtr.Zero));

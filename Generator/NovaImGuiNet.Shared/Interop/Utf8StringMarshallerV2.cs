@@ -45,7 +45,7 @@ public static unsafe class Utf8StringMarshallerV2 {
             utf8BytesWritten = 0;
             mustFreeResultPointer = false;
 
-            char* utf16Pointer = InteropUtility.SpanToPointer(utf16);
+            char* utf16Pointer = UnsafeUtility.SpanToPointer(utf16);
             if (utf16Pointer == null)
                 return null;
 
@@ -78,7 +78,7 @@ public static unsafe class Utf8StringMarshallerV2 {
             // Check if the stack-allocated buffer is enough
             bool isStackBufferEnough = utf8ByteCount <= utf8Buffer.Length;
             if (isStackBufferEnough) {
-                byte* utf8Pointer = InteropUtility.SpanToPointer<byte>(utf8Buffer);
+                byte* utf8Pointer = UnsafeUtility.SpanToPointer<byte>(utf8Buffer);
                 mustFreeResultPointer = false;
                 return utf8Pointer;
             }

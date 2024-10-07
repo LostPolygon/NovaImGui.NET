@@ -9,7 +9,7 @@
 
 namespace NovaImGuiNet;
 
-using static InteropUtility;
+using static UnsafeUtility;
 
 public static unsafe partial class ImGui {
 <#
@@ -37,7 +37,7 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
-        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        T* dataPtr = SpanToPointer<T>(data);
         return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast), format, flags);
     }
 
@@ -61,7 +61,7 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
-        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        T* dataPtr = SpanToPointer<T>(data);
         return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
     }
 
@@ -87,7 +87,7 @@ public static unsafe partial class ImGui {
         in T step = default,
         in T stepFast = default
     ) where T : unmanaged {
-        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        T* dataPtr = SpanToPointer<T>(data);
         return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast));
     }*/
 

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using NovaImGuiNet.Internal;
+using NovaImGuiNet.Interop;
 
 namespace NovaImGuiNet.Tests;
 
@@ -21,6 +22,8 @@ public unsafe class StructLayoutTests {
         Assert.That(Marshal.SizeOf<ImGuiIO>(), Is.EqualTo(14616));
         Assert.That(sizeof(ImGuiIO), Is.EqualTo(14616));
 
+        Assert.That(sizeof(ImGuiUtf8StringWriter), Is.GreaterThanOrEqualTo(Utf8StringMarshaller.StackAllocMaxSize));
+
         //Assert.That(Marshal.SizeOf<ImGuiDockNode>(), Is.EqualTo(208));
         //Assert.That(sizeof(ImGuiDockNode), Is.EqualTo(208));
     }
@@ -28,12 +31,12 @@ public unsafe class StructLayoutTests {
     [Test]
     public void ImGUIIO_Layout() {
         Type type = typeof(ImGuiIO);
-        Console.Write($"sizeof({nameof(ImGuiIO)}): {sizeof(ImGuiIO)}");
+        Console.WriteLine($"sizeof({nameof(ImGuiIO)}): {sizeof(ImGuiIO)}");
         FieldInfo[] fieldInfos = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         for (int index = 0; index < fieldInfos.Length; index++) {
             FieldInfo fieldInfo = fieldInfos[index];
             IntPtr fieldOffset = Marshal.OffsetOf(type, fieldInfo.Name);
-            Console.WriteLine($"[{index + 1}] {fieldInfo.Name}, offset {fieldOffset} (0x{fieldOffset.ToInt32():x8})");
+            Console.WriteLine($"[{index + 1}] {fieldInfo.Name}, offset {fieldOffset} (0x{fieldOffset.ToInt32():x4})");
         }
     }
 

@@ -9,7 +9,7 @@
 
 namespace NovaImGuiNet;
 
-using static InteropUtility;
+using static UnsafeUtility;
 
 public static unsafe partial class ImGui {
 <#
@@ -37,7 +37,7 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        T* dataPtr = SpanToPointer<T>(data);
         return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max), format, flags);
     }
 
@@ -61,7 +61,7 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        T* dataPtr = SpanToPointer<T>(data);
         return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) min, (IntPtr) max, format, flags);
     }
 
@@ -87,7 +87,7 @@ public static unsafe partial class ImGui {
         T min = default,
         T max = default
     ) where T : unmanaged {
-        T* dataPtr = InteropUtility.SpanToPointer<T>(data);
+        T* dataPtr = SpanToPointer<T>(data);
         return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max));
     }*/
 <#

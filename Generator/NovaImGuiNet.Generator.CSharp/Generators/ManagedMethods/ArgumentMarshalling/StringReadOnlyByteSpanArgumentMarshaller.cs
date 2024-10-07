@@ -23,7 +23,7 @@ public class StringReadOnlyByteSpanArgumentMarshaller(MethodSignature methodSign
 
         return new ArgumentMarshallerOutput(
             InvocationVariable,
-            [$"{NativeArgumentType} {InvocationVariable} = InteropUtility.SpanToPointer({value});"]
+            [$"{NativeArgumentType} {InvocationVariable} = UnsafeUtility.SpanToPointer({value});"]
         );
     }
 }

@@ -51,9 +51,9 @@ public readonly unsafe struct NullTerminatedString : IEquatable<NullTerminatedSt
 
     public static implicit operator string?(NullTerminatedString nts) => nts.ToString();
 
-    public static implicit operator ReadOnlySpan<byte>(NullTerminatedString nts) => nts.AsReadOnlyUtf8ByteSpan();
-
     public static implicit operator byte*(NullTerminatedString nts) => nts.Data;
 
     public static implicit operator IntPtr(NullTerminatedString nts) => (IntPtr) nts.Data;
+
+    public static implicit operator ReadOnlySpan<byte>(NullTerminatedString nts) => nts.AsReadOnlyUtf8ByteSpan();
 }

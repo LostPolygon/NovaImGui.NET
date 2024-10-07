@@ -3,6 +3,12 @@ using System.Diagnostics;
 
 namespace NovaImGuiNet.Interop;
 
+#if !NET6_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER
+using abfns = NovaImGuiNet.Interop;
+#else
+using abfns = System.Buffers;
+#endif
+
 /// <summary>
 /// Uses a small buffer (presumably stackalloc-ed) before switching to an ArrayBufferWriter.
 /// </summary>
@@ -11,7 +17,7 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
     private readonly byte* _buffer;
     private readonly int _bufferSize;
     private int _index;
-    private ArrayBufferWriter<T>? _arrayBufferWriter;
+    private abfns::ArrayBufferWriter<T>? _arrayBufferWriter;
 
     /// <summary>
     /// Returns the data written to the underlying buffer so far, as a <see cref="ReadOnlySpan{T}"/>.

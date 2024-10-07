@@ -21,7 +21,7 @@ public class StringBytePointerArgumentMarshaller(MethodSignature methodSignature
         Debug.Assert(Argument.MarshalledArgument.DefaultValue != null);
         string defaultValue = Argument.MarshalledArgument.DefaultValue;
         if (!KnownEntities.NullishValues.Contains(defaultValue)) {
-            return [$"{NativeArgumentType} {InvocationVariable} = InteropUtility.SpanToPointer({defaultValue}u8);"];
+            return [$"{NativeArgumentType} {InvocationVariable} = UnsafeUtility.SpanToPointer({defaultValue}u8);"];
         } else {
             value = defaultValue;
         }

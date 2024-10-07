@@ -35,7 +35,16 @@ public static unsafe class Utf8StringMarshaller {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int ConvertUtf16SpanToNullTerminatedUtf8Span(ReadOnlySpan<char> chars, Span<byte> bytes) {
+#if NETSTANDARD2_0
+        int utf8BytesWritten = Encoding.UTF8.GetBytes(
+            UnsafeUtility.SpanToPointer(chars),
+            chars.Length,
+            UnsafeUtility.SpanToPointer(bytes),
+            bytes.Length
+        );
+#else
         int utf8BytesWritten = Encoding.UTF8.GetBytes(chars, bytes);
+#endif
         bytes[utf8BytesWritten] = 0;
 
         return utf8BytesWritten;
@@ -98,7 +107,7 @@ public static unsafe class Utf8StringMarshaller {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte* ConvertToNative(Span<byte> utf8Buffer, out int utf8BytesWritten) {
-            return InteropUtility.SpanToPointer<byte>(ConvertToNativeSpan(utf8Buffer, out utf8BytesWritten));
+            return UnsafeUtility.SpanToPointer<byte>(ConvertToNativeSpan(utf8Buffer, out utf8BytesWritten));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -107,7 +116,7 @@ public static unsafe class Utf8StringMarshaller {
             utf8BytesWritten = 0;
 
             ReadOnlySpan<char> utf16 = _charSpan;
-            if (Unsafe.IsNullRef(ref MemoryMarshal.GetReference(utf16)))
+            if (UnsafeUtility.SpanToPointer(utf16) == null)
                 return null;
 
             int utf8MaxBytes = EstimateNullTerminatedUtf8StringByteCount(utf16.Length);
