@@ -10,7 +10,7 @@ public class PassthroughReturnTypeMarshaller : ReturnTypeMarshaller {
 
         return [
             $"{NativeReturnType} {ReturnVariableName};",
-            $"{ReturnVariableName} = {NativeFunctionInvocation};"
+            $"{ReturnVariableName} = ({NativeReturnType}) {NativeFunctionInvocation};"
         ];
     }
 

@@ -29,6 +29,10 @@ public abstract class ArgumentMarshaller : IArgumentMarshaller {
 
     protected string InternalVar(string suffix) => Argument.NativeArgument.Name + suffix;
 
+    protected string CastPointerToIntPtr() {
+        return CastPointerToIntPtr(Argument.MarshalledArgument.Type.Value);
+    }
+
     protected static string FormatTypeDefault(IEntity entity) {
         FormatTypeOptions varTypeFormatOptions = new() {
             ExpandTypedefs = false,
@@ -45,5 +49,12 @@ public abstract class ArgumentMarshaller : IArgumentMarshaller {
             throw new ArgumentException(callerArgumentExpressionAttribute, nameof(text));
 
         return text;
+    }
+
+    protected static string CastPointerToIntPtr(Entity entity) {
+        if (entity is not Pointer pointer)
+            return "";
+
+        return "(IntPtr) ";
     }
 }

@@ -4,7 +4,7 @@ public class PointerIntPtrOutArgumentMarshaller(MethodSignature methodSignature,
     : ArgumentMarshaller(methodSignature, argument) {
     public override ArgumentMarshallerOutput Marshall() =>
         new(
-            InvocationVariable,
+            $"(IntPtr) {InvocationVariable}",
             [
                 $"void* {InternalVar("_out_native")};",
                 $"void** {InvocationVariable} = &{InternalVar("_out_native")};"

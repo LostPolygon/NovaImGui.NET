@@ -4,9 +4,9 @@ using System.Diagnostics;
 namespace NovaImGuiNet.Interop;
 
 #if !NET6_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER
-using abfns = NovaImGuiNet.Interop;
+using ABWNS = NovaImGuiNet.Interop;
 #else
-using abfns = System.Buffers;
+using ABWNS = System.Buffers;
 #endif
 
 /// <summary>
@@ -17,7 +17,7 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
     private readonly byte* _buffer;
     private readonly int _bufferSize;
     private int _index;
-    private abfns::ArrayBufferWriter<T>? _arrayBufferWriter;
+    private ABWNS::ArrayBufferWriter<T>? _arrayBufferWriter;
 
     /// <summary>
     /// Returns the data written to the underlying buffer so far, as a <see cref="ReadOnlySpan{T}"/>.
@@ -41,7 +41,7 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
         }
 
         Debug.Assert(count >= 0, "count >= 0");
-        Debug.Assert(_index <= _bufferSize - count, $"_index > _bufferSize - count, buffer size is {_bufferSize}");
+        Debug.Assert(_index <= _bufferSize - count, "_index > _bufferSize - count");
 
         _index += count;
     }
@@ -69,7 +69,7 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
 
         Span<T> result = arrayBufferWriter.GetSpan(sizeHint);
 
-        // Copy from provided buffer to ArrayBufferWriter
+        // Copy from existing buffer to ArrayBufferWriter
         if (_index != 0) {
             arrayBufferWriter.Advance(_index);
             new ReadOnlySpan<T>(_buffer, _index).CopyTo(result);

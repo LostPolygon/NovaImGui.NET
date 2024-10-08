@@ -9,7 +9,7 @@ public class PointerWrapperReturnTypeMarshaller : ReturnTypeMarshaller {
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateInvokeStatements() {
         return [
             $"{NativeReturnType} {ReturnVariableName};",
-            $"{ReturnVariableName} = {NativeFunctionInvocation};"
+            $"{ReturnVariableName} = ({NativeReturnType}) {NativeFunctionInvocation};"
         ];
     }
 

@@ -276,7 +276,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         }
 #endif
 
-        string nativeFunctionsClassName = bindingsFileCustomizations.NativeFunctionsClassName;
+        string nativeFunctionsClassName = bindingsFileCustomizations.GetNativeFunctionsRawPointersClassName();
 
         List<Function> managedMethods = [];
         foreach (MethodSignature methodSignature in methodSignatures) {

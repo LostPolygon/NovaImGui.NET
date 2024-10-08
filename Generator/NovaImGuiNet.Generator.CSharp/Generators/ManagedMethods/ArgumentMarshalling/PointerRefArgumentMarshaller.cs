@@ -23,7 +23,7 @@ public class PointerRefArgumentMarshaller(MethodSignature methodSignature, Manag
 #if !USE_UNSAFE_AS_POINTER
     public override ArgumentMarshallerOutput Marshall() =>
         new(
-            InvocationVariable,
+            $"(IntPtr) {InvocationVariable}",
             [
                 $"{MarshalledArgumentType}* {InvocationVariable};",
                 FixedStatement(

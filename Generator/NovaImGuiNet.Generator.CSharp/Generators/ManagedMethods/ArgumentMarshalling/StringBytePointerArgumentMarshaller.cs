@@ -7,11 +7,14 @@ public class StringBytePointerArgumentMarshaller(MethodSignature methodSignature
     : ArgumentMarshaller(methodSignature, argument) {
     public override ArgumentMarshallerOutput Marshall() {
         if (Argument.IsPartOfDeclaration) {
-            return new ArgumentMarshallerOutput(Argument.MarshalledArgument.Name, []);
+            return new ArgumentMarshallerOutput(
+                $"(IntPtr) {Argument.MarshalledArgument.Name}",
+                []
+            );
         }
 
         return new ArgumentMarshallerOutput(
-            InvocationVariable,
+            $"(IntPtr) {InvocationVariable}",
             CreateDefaultValueMarshallStatements()
         );
     }

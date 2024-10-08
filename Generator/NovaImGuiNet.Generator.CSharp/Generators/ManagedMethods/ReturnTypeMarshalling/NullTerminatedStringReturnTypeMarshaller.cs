@@ -11,7 +11,7 @@ public class NullTerminatedStringReturnTypeMarshaller : ReturnTypeMarshaller {
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateInvokeStatements() {
         return [
             $"{NativeReturnType} {InternalVar("value")};",
-            $"{InternalVar("value")} = {NativeFunctionInvocation};"
+            $"{InternalVar("value")} = ({NativeReturnType}) {NativeFunctionInvocation};"
         ];
     }
 

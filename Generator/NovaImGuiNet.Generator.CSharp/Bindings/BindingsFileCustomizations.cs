@@ -8,6 +8,7 @@ public record BindingsFileCustomizations {
     public string Namespace { get; init; } = null!;
     public string ConstantsClassName { get; init; } = null!;
     public string NativeFunctionsClassName { get; init; } = null!;
+    public string NativeFunctionsRawPointersClassName { get; init; } = null!;
     public string NativeFunctionsManagedWrapperClassName { get; init; } = null!;
 
     public IReadOnlyList<string> FunctionsNoPermutations { get; init; } = [];
@@ -21,6 +22,8 @@ public record BindingsFileCustomizations {
     public IReadOnlyList<string> TreatNativeFunctionReturnValueAsNonNull { get; init; } = [];
     public IReadOnlyList<TreatFieldAsNonNullDefinition> TreatFieldsAsNonNull { get; init; } = [];
     public IReadOnlyList<string> ExternalTypes { get; init; } = [];
+
+    public string GetNativeFunctionsRawPointersClassName() => NativeFunctionsRawPointersClassName ?? NativeFunctionsClassName + "Raw";
 
     public record NativeFunctionIdentifier {
         public string? Struct { get; init; }

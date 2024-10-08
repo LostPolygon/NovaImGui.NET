@@ -53,7 +53,7 @@ public class StringReadOnlyCharSpanArgumentMarshaller(MethodSignature methodSign
         }
 
         return new ArgumentMarshallerOutput(
-            InvocationVariable,
+            $"(IntPtr) {InvocationVariable}",
             [
                 $"scoped Utf8StringMarshaller.ManagedToUnmanagedIn {InternalVar("_native_marshaller")} = new({value});",
                 $"Span<byte> {InternalVar("_native_utf8_buffer")} = stackalloc byte[Utf8StringMarshaller.StackAllocMaxSize];",

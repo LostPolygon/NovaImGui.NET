@@ -17,7 +17,7 @@ public class PointerOutArgumentMarshaller(MethodSignature methodSignature, Manag
 #if !USE_UNSAFE_AS_POINTER
     public override ArgumentMarshallerOutput Marshall() =>
         new(
-            $"&{InvocationVariable}",
+            $"(IntPtr) (&{InvocationVariable})",
             [
                 // TODO: ImFontGlyphRangesBuilder.BuildRanges crashes if ranges are not zero-initialized,
                 // but check if there's an automated way to skip the zero-initialization

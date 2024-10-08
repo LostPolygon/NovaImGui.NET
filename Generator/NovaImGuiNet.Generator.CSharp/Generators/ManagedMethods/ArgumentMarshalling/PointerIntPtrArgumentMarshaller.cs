@@ -7,7 +7,7 @@ public class PointerIntPtrArgumentMarshaller(MethodSignature methodSignature, Ma
     public override ArgumentMarshallerOutput Marshall() {
         Debug.Assert(Argument.IsPartOfDeclaration);
         return new ArgumentMarshallerOutput(
-            $"({NativeArgumentType}) {Argument.MarshalledArgument.Name}",
+            $"(IntPtr) {Argument.MarshalledArgument.Name}",
             []
         );
     }

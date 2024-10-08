@@ -60,7 +60,17 @@ public class BindingsModelBindingsSyntaxGenerator {
         }
 
         AddTask(() => {
-            IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits = GenerateNativeFunctionBindingsClass();
+            IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits = GenerateNativeFunctionBindingsClass(false);
+            foreach (CompilationUnitWithFileInformation functionsCompilationUnit in functionsCompilationUnits) {
+                AddCompilationUnit(
+                    functionsCompilationUnit.File,
+                    functionsCompilationUnit.CompilationUnitSyntax
+                );
+            }
+        });
+
+        AddTask(() => {
+            IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits = GenerateNativeFunctionBindingsClass(true);
             foreach (CompilationUnitWithFileInformation functionsCompilationUnit in functionsCompilationUnits) {
                 AddCompilationUnit(
                     functionsCompilationUnit.File,
@@ -136,7 +146,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         return compilationUnits.ToArray();
     }
 
-    private IEnumerable<CompilationUnitWithFileInformation> GenerateNativeFunctionBindingsClass() {
+    private IEnumerable<CompilationUnitWithFileInformation> GenerateNativeFunctionBindingsClass(bool useRawPointers) {
         IGrouping<string?, EntityReferenceWrapper<Function>>[] allNativeFunctionsByNamespace =
             BindingsModel
                 .GetAllFunctions()
@@ -153,7 +163,7 @@ public class BindingsModelBindingsSyntaxGenerator {
             List<MemberDeclarationSyntax> methodSyntaxes = [];
             foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
                 Function apiModelFunction = functionReference.Value;
-                methodSyntaxes.AddRange(GenerateNativeFunctionDeclaration(apiModelFunction));
+                methodSyntaxes.AddRange(GenerateNativeFunctionDeclaration(apiModelFunction, useRawPointers));
             }
 
             BindingsFileCustomizations customizations =
@@ -162,6 +172,10 @@ public class BindingsModelBindingsSyntaxGenerator {
 
             string targetClassName = customizations.NativeFunctionsClassName;
             string nativeLibraryName = customizations.NativeLibraryName;
+
+            if (useRawPointers) {
+                targetClassName = customizations.GetNativeFunctionsRawPointersClassName();
+            }
 
             ClassDeclarationSyntax classDeclaration =
                 ClassDeclaration(Identifier(targetClassName))
@@ -248,7 +262,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         return (globalUsingsCompilationUnits, delegatesCompilationUnits);
     }
 
-    private IReadOnlyList<BaseMethodDeclarationSyntax> GenerateNativeFunctionDeclaration(Function function) {
+    private IReadOnlyList<BaseMethodDeclarationSyntax> GenerateNativeFunctionDeclaration(Function function, bool useRawPointers) {
         IEntityReference[] allChildTypes = function.GetReferencedTypes([]).ToArray();
         IEntityReference[] callbacks = [
             ..allChildTypes.Where(x => x.Value is Delegate),
@@ -330,6 +344,29 @@ public class BindingsModelBindingsSyntaxGenerator {
                 function = function with {
                     Arguments = newArguments
                 };
+            }
+
+            if (useRawPointers) {
+                List<FunctionArgument> newArguments =
+                    function.Arguments
+                        .Select(arg => {
+                            if (arg.Type.ExpandTypedef().Value is not Pointer)
+                                return arg;
+
+                            arg = arg with { Type = KnownEntities.IntPtr.AsEntityReference() };
+                            return arg;
+                        })
+                        .ToList();
+
+                function = function with {
+                    Arguments = newArguments
+                };
+
+                if (function.ReturnType.ExpandTypedef().Value is Pointer) {
+                    function = function with {
+                        ReturnType = KnownEntities.IntPtr.AsEntityReference()
+                    };
+                }
             }
 
             BaseMethodDeclarationSyntax methodSyntax =

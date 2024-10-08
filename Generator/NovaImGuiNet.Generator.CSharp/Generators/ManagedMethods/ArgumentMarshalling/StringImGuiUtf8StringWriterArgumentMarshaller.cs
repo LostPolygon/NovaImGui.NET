@@ -8,7 +8,7 @@ public class StringImGuiUtf8StringWriterArgumentMarshaller(MethodSignature metho
 
         bool needsNullTerminator = Argument.MarshallingVariant.StringBeginEndPairMode == StringBeginEndPairMode.None;
         return new ArgumentMarshallerOutput(
-            InvocationVariable,
+            $"(IntPtr) {InvocationVariable}",
             [
                 $"ref ImGuiUtf8StringWriter {InternalVar("_ref")} = ref ImGuiUtf8StringWriter.UnsafeAsRef({Argument.MarshalledArgument.Name});",
 

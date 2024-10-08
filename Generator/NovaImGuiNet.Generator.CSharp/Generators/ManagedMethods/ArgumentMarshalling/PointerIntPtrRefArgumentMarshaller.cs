@@ -7,7 +7,7 @@ public class PointerIntPtrRefArgumentMarshaller(MethodSignature methodSignature,
     public override ArgumentMarshallerOutput Marshall() {
         Debug.Assert(Argument.IsPartOfDeclaration);
         return new ArgumentMarshallerOutput(
-            InvocationVariable,
+            $"(IntPtr) {InvocationVariable}",
             [
                 $"{NativeArgumentType} {InvocationVariable} = " +
                 $"({NativeArgumentType}) Unsafe.AsPointer(ref {Argument.MarshalledArgument.Name});"
