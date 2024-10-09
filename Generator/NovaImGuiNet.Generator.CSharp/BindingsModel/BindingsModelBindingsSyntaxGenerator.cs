@@ -186,8 +186,12 @@ public class BindingsModelBindingsSyntaxGenerator {
                         Token(SyntaxKind.PartialKeyword)
                     )
                     .AddMembers(
-                        ParseMemberDeclaration($"public const string ImGuiDllName = \"{nativeLibraryName}\";\n")!,
-                        ParseMemberDeclaration($"public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
+                        ParseMemberDeclaration($"public const string ImGuiDllName = \"{nativeLibraryName}\";\n"),
+                        ApplyConditionals(
+                            ParseMemberDeclaration("public const string ImGuiDllName = \"__Internal\";\n"),
+                            [new Conditional("NOVA_STATIC_LINK")]
+                        ),
+                        ParseMemberDeclaration("public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
                     )
                     .AddMembers(methodSyntaxes.ToArray());
 

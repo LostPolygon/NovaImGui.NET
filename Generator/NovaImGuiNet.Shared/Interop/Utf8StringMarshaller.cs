@@ -15,7 +15,7 @@ public static unsafe class Utf8StringMarshaller {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int EstimateNullTerminatedUtf8StringByteCount(int charCount) {
-        // This pretty much always overestimates the size,
+        // This always overestimates the size,
         // but saves on a relatively expensive call to Encoding.UTF8.GetByteCount
 
         //https://github.com/dotnet/runtime/blob/54280788590d6012758302d4056aa45720133be2/src/libraries/System.Private.CoreLib/src/System/Text/UTF8Encoding.cs#L845
@@ -107,7 +107,7 @@ public static unsafe class Utf8StringMarshaller {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte* ConvertToNative(Span<byte> utf8Buffer, out int utf8BytesWritten) {
-            return UnsafeUtility.SpanToPointer<byte>(ConvertToNativeSpan(utf8Buffer, out utf8BytesWritten));
+            return UnsafeUtility.SpanToPointer(ConvertToNativeSpan(utf8Buffer, out utf8BytesWritten));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -122,6 +122,7 @@ public static unsafe class Utf8StringMarshaller {
             int utf8MaxBytes = EstimateNullTerminatedUtf8StringByteCount(utf16.Length);
 
             // FIXME: disabled as it will break if more than one string method argument needs this
+            // TODO: we should replace this with NativeMemoryBufferWriterPool...
             bool allowUseLongTermBuffer = false;
 
             Span<byte> utf8 = GetUtf8Buffer(utf8Buffer, utf8MaxBytes, ref _heapUtf8Pointer, allowUseLongTermBuffer);

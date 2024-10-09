@@ -140,7 +140,8 @@ public static class StructModifiers {
 
     public static Struct AddPointerWrapperAccessorPropertyForPointerFields(Struct structure, BindingsContext context) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
-            if (field.Type.Value is not Pointer fieldTypePointer ||
+            if (field.IsExplodedFixedSizeArrayField ||
+                field.Type.Value is not Pointer fieldTypePointer ||
                 fieldTypePointer.IsVoidPointer()) // void* is replaced with IntPtr elsewhere
                 return [field];
 
@@ -150,7 +151,7 @@ public static class StructModifiers {
             string fieldValueType = FormatType(fieldTypePointer.ValueType.Value);
 
             // Promote using the Pointer<T> property over raw pointer field
-            string propertyName = field.Name;
+            string propertyName = field.BaseName;
 
             if (field.NamePrefix == null) {
                 field.NamePrefix = "_";
@@ -592,7 +593,7 @@ public static class StructModifiers {
     // so we explode them into a field per array element
     private static IReadOnlyList<IEntity> ProcessFixedSizeArrayField(
         Struct structure,
-        Field field,
+        Field initialField,
         Array fieldTypeArray,
         bool explodePrimitiveTypes,
         bool createSpanAccessorForPrimitiveTypes
@@ -603,11 +604,11 @@ public static class StructModifiers {
 
         // Nothing to do, nothing to check
         if (isPrimitive && !explodePrimitiveTypes && !createSpanAccessorForPrimitiveTypes && arrayBoundsValue == null)
-            return [field];
+            return [initialField];
 
         if (arrayBoundsValue == null)
             throw new Exception(
-                $"Failed to determine numeric array bounds for field {structure.Name}.{field.Name} " +
+                $"Failed to determine numeric array bounds for field {structure.Name}.{initialField.Name} " +
                 $"(expression {fieldTypeArray.ArrayBounds})"
             );
 
@@ -618,16 +619,15 @@ public static class StructModifiers {
                 Enumerable
                     .Range(0, (int) arrayBoundsValue.Value)
                     .Select(index => {
-                        Comments fieldComments = field.Comments;
+                        Comments fieldComments = initialField.Comments;
                         if (index == 0) {
                             fieldComments = fieldComments.WithAddedNotes(
-                                $"{field.Name} [total {arrayBoundsValue.Value} elements ({fieldTypeArray.ArrayBounds})]"
+                                $"{initialField.Name} [total {arrayBoundsValue.Value} elements ({fieldTypeArray.ArrayBounds})]"
                             );
                         }
 
-                        return field with {
-                            BaseName = field.Name,
-                            NamePrefix = $"_{index}",
+                        return initialField with {
+                            BaseName = $"{initialField.Name}_{index}",
                             Type = arrayElementTypeReference,
                             Comments = fieldComments,
                             IsExplodedFixedSizeArrayField = true
@@ -635,18 +635,18 @@ public static class StructModifiers {
                     })
                     .ToList();
         } else {
-            fields = [field];
+            fields = [initialField];
         }
 
         if (isPrimitive && !createSpanAccessorForPrimitiveTypes)
             return fields;
 
-        string propertyName = field.BaseName;
+        string propertyName = initialField.BaseName;
         if (isPrimitive) {
-            if (field.NamePrefix == null) {
+            if (initialField.NamePrefix == null) {
                 // Rename the base field as otherwise the Span accessor would be named the same.
                 // The expectation is that the Span accessor would be the preferred way.
-                field.NamePrefix = "_";
+                initialField.NamePrefix = "_";
             } else {
                 propertyName += "Span";
             }
@@ -655,14 +655,14 @@ public static class StructModifiers {
         PropertyDeclarationSyntax spanAccessorProperty =
             CreateFixedSizeArrayFieldSpanAccessorProperty(
                 propertyName,
-                field.Name,
+                initialField.Name,
                 arrayElementType,
                 arrayBoundsValue.Value,
                 !isPrimitive,
-                field.Name
+                initialField.Name
             );
 
-        return [new MemberDeclarationSyntaxEntity(spanAccessorProperty, field), ..fields];
+        return [new MemberDeclarationSyntaxEntity(spanAccessorProperty, initialField), ..fields];
     }
 
     private static PropertyDeclarationSyntax CreateFixedSizeArrayFieldSpanAccessorProperty(

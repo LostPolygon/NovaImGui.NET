@@ -3,28 +3,22 @@ using System.Diagnostics;
 
 namespace NovaImGuiNet.Interop;
 
-#if !NET6_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER
-using ABWNS = NovaImGuiNet.Interop;
-#else
-using ABWNS = System.Buffers;
-#endif
-
 /// <summary>
-/// Uses a small buffer (presumably stackalloc-ed) before switching to an ArrayBufferWriter.
+/// Uses a small provided buffer (presumably stackalloc-ed) before switching to an NativeBufferWriter.
 /// </summary>
 /// <typeparam name="T"></typeparam>
 internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unmanaged {
     private readonly byte* _buffer;
     private readonly int _bufferSize;
     private int _index;
-    private ABWNS::ArrayBufferWriter<T>? _arrayBufferWriter;
+    private NativeMemoryBufferWriter<T>? _bufferWriter;
 
     /// <summary>
     /// Returns the data written to the underlying buffer so far, as a <see cref="ReadOnlySpan{T}"/>.
     /// </summary>
     public ReadOnlySpan<T> WrittenSpan {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _arrayBufferWriter != null ? _arrayBufferWriter.WrittenSpan : new(_buffer, _index);
+        get => _bufferWriter != null ? _bufferWriter.WrittenSpan : new(_buffer, _index);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,8 +29,8 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Advance(int count) {
-        if (_arrayBufferWriter != null) {
-            _arrayBufferWriter.Advance(count);
+        if (_bufferWriter != null) {
+            _bufferWriter.Advance(count);
             return;
         }
 
@@ -52,37 +46,37 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Span<T> GetSpan(int sizeHint = 0) {
-        if (_arrayBufferWriter != null)
-            return _arrayBufferWriter.GetSpan(sizeHint);
+        if (_bufferWriter != null)
+            return _bufferWriter.GetSpan(sizeHint);
 
         if (sizeHint > _bufferSize) {
-            return SwitchToArrayBufferWriter(sizeHint);
+            return SwitchToNativeBufferWriter(sizeHint);
         }
 
         return new Span<T>(_buffer + _index, Utf8StringMarshaller.StackAllocMaxSize - _index);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Free() {
+        if (_bufferWriter != null) {
+            NativeMemoryBufferWriterPool<T>.Return(_bufferWriter);
+        }
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private Span<T> SwitchToArrayBufferWriter(int sizeHint) {
-        ArrayBufferWriter<T> arrayBufferWriter = ArrayBufferWriterPool<T>.Rent(sizeHint);
-        _arrayBufferWriter = arrayBufferWriter;
+    private Span<T> SwitchToNativeBufferWriter(int sizeHint) {
+        NativeMemoryBufferWriter<T> nativeMemoryBufferWriter = NativeMemoryBufferWriterPool<T>.Rent(sizeHint);
+        _bufferWriter = nativeMemoryBufferWriter;
 
-        Span<T> result = arrayBufferWriter.GetSpan(sizeHint);
+        Span<T> result = nativeMemoryBufferWriter.GetSpan(sizeHint);
 
-        // Copy from existing buffer to ArrayBufferWriter
+        // Copy from existing buffer to NativeBufferWriter
         if (_index != 0) {
-            arrayBufferWriter.Advance(_index);
+            nativeMemoryBufferWriter.Advance(_index);
             new ReadOnlySpan<T>(_buffer, _index).CopyTo(result);
             return result[_index..];
         }
 
         return result;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Free() {
-        if (_arrayBufferWriter != null) {
-            ArrayBufferWriterPool<T>.Return(_arrayBufferWriter);
-        }
     }
 }

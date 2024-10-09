@@ -1,4 +1,4 @@
-﻿#if !NET6_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER
+﻿#define DISABLE_SAFETY
 using System.Buffers;
 using System.Diagnostics;
 
@@ -8,50 +8,50 @@ namespace NovaImGuiNet.Interop;
 /// Represents a heap-based, array-backed output sink into which <typeparamref name="T"/> data can be written.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
+public sealed unsafe class NativeMemoryBufferWriter<T> : IBufferWriter<T>, IDisposable {
+#if DEBUG
     // Copy of Array.MaxLength.
     // Used by projects targeting .NET Framework.
     private const int ArrayMaxLength = 0x7FFFFFC7;
 
     private const int DefaultInitialBufferSize = 256;
+#endif
 
-    private T[] _buffer;
+    private IntPtr _buffer;
+    private int _bufferSizeBytes;
     private int _index;
 
     /// <summary>
-    /// Creates an instance of an <see cref="ArrayBufferWriter{T}"/>, in which data can be written to,
-    /// with the default initial capacity.
-    /// </summary>
-    public ArrayBufferWriter() {
-        _buffer = Array.Empty<T>();
-        _index = 0;
-    }
-
-    /// <summary>
-    /// Creates an instance of an <see cref="ArrayBufferWriter{T}"/>, in which data can be written to,
+    /// Creates an instance of an <see cref="NativeMemoryBufferWriter{T}"/>, in which data can be written to,
     /// with an initial capacity specified.
     /// </summary>
     /// <param name="initialCapacity">The minimum capacity with which to initialize the underlying buffer.</param>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="initialCapacity"/> is not positive (i.e. less than or equal to 0).
     /// </exception>
-    public ArrayBufferWriter(int initialCapacity) {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public NativeMemoryBufferWriter(int initialCapacity) {
+#if !DISABLE_SAFETY
         if (initialCapacity <= 0)
             throw new ArgumentException(null, nameof(initialCapacity));
+#endif
 
-        _buffer = new T[initialCapacity];
+        _buffer = InteropUtility.NativeMemoryAllocate((nuint) initialCapacity);
+        _bufferSizeBytes = initialCapacity;
         _index = 0;
     }
 
-    /// <summary>
-    /// Returns the data written to the underlying buffer so far, as a <see cref="ReadOnlyMemory{T}"/>.
-    /// </summary>
-    public ReadOnlyMemory<T> WrittenMemory => _buffer.AsMemory(0, _index);
+    public IntPtr Buffer => _buffer;
+
+    public int BufferSizeBytes => _bufferSizeBytes;
 
     /// <summary>
     /// Returns the data written to the underlying buffer so far, as a <see cref="ReadOnlySpan{T}"/>.
     /// </summary>
-    public ReadOnlySpan<T> WrittenSpan => _buffer.AsSpan(0, _index);
+    public ReadOnlySpan<T> WrittenSpan {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => new Span<T>((void*) _buffer, _index);
+    }
 
     /// <summary>
     /// Returns the amount of data written to the underlying buffer so far.
@@ -61,19 +61,22 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
     /// <summary>
     /// Returns the total amount of space within the underlying buffer.
     /// </summary>
-    public int Capacity => _buffer.Length;
+    public int Capacity => _bufferSizeBytes;
 
     /// <summary>
     /// Returns the amount of space available that can still be written into without forcing the underlying buffer to grow.
     /// </summary>
-    public int FreeCapacity => _buffer.Length - _index;
+    public int FreeCapacity {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _bufferSizeBytes - _index * Marshal.SizeOf<T>();
+    }
 
     /// <summary>
     /// Clears the data written to the underlying buffer.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// You must reset or clear the <see cref="ArrayBufferWriter{T}"/> before trying to re-use it.
+    /// You must reset or clear the <see cref="NativeMemoryBufferWriter{T}"/> before trying to re-use it.
     /// </para>
     /// <para>
     /// The <see cref="ResetWrittenCount"/> method is faster since it only sets to zero the writer's index
@@ -82,8 +85,8 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
     /// </remarks>
     /// <seealso cref="ResetWrittenCount"/>
     public void Clear() {
-        Debug.Assert(_buffer.Length >= _index);
-        _buffer.AsSpan(0, _index).Clear();
+        Debug.Assert(_bufferSizeBytes >= _index);
+        new Span<T>((void*) _buffer, _index).Clear();
         _index = 0;
     }
 
@@ -92,13 +95,14 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
     /// </summary>
     /// <remarks>
     /// <para>
-    /// You must reset or clear the <see cref="ArrayBufferWriter{T}"/> before trying to re-use it.
+    /// You must reset or clear the <see cref="NativeMemoryBufferWriter{T}"/> before trying to re-use it.
     /// </para>
     /// <para>
     /// If you reset the writer using the <see cref="ResetWrittenCount"/> method, the underlying buffer will not be cleared.
     /// </para>
     /// </remarks>
     /// <seealso cref="Clear"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ResetWrittenCount() => _index = 0;
 
     /// <summary>
@@ -113,12 +117,15 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
     /// <remarks>
     /// You must request a new buffer after calling Advance to continue writing more data and cannot write to a previously acquired buffer.
     /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Advance(int count) {
+#if !DISABLE_SAFETY
         if (count < 0)
             throw new ArgumentException(null, nameof(count));
 
-        if (_index > _buffer.Length - count)
-            ThrowInvalidOperationException_AdvancedTooFar(_buffer.Length);
+        if (_index > _bufferSizeBytes - count)
+            ThrowInvalidOperationException_AdvancedTooFar(_bufferSizeBytes);
+#endif
 
         _index += count;
     }
@@ -148,9 +155,7 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
     /// </para>
     /// </remarks>
     public Memory<T> GetMemory(int sizeHint = 0) {
-        CheckAndResizeBuffer(sizeHint);
-        Debug.Assert(_buffer.Length > _index);
-        return _buffer.AsMemory(_index);
+        throw new NotSupportedException();
     }
 
     /// <summary>
@@ -177,32 +182,38 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
     /// If you clear the writer using the <see cref="Clear"/> method, this method will return a <see cref="Span{T}"/> with its content zeroed.
     /// </para>
     /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Span<T> GetSpan(int sizeHint = 0) {
         CheckAndResizeBuffer(sizeHint);
-        Debug.Assert(_buffer.Length > _index);
-        return _buffer.AsSpan(_index);
+        Debug.Assert(_bufferSizeBytes > _index);
+        return new Span<T>((void*) _buffer, _bufferSizeBytes).Slice(_index * Marshal.SizeOf<T>());
     }
 
     private void CheckAndResizeBuffer(int sizeHint) {
+#if !DISABLE_SAFETY
         if (sizeHint < 0)
             throw new ArgumentException(nameof(sizeHint));
 
         if (sizeHint == 0) {
             sizeHint = 1;
         }
+#endif
 
         if (sizeHint > FreeCapacity) {
-            int currentLength = _buffer.Length;
+            int currentLength = _bufferSizeBytes;
 
             // Attempt to grow by the larger of the sizeHint and double the current size.
             int growBy = Math.Max(sizeHint, currentLength);
 
+#if !DISABLE_SAFETY
             if (currentLength == 0) {
                 growBy = Math.Max(growBy, DefaultInitialBufferSize);
             }
+#endif
 
             int newSize = currentLength + growBy;
 
+#if DEBUG
             if ((uint) newSize > int.MaxValue) {
                 // Attempt to grow to ArrayMaxLength.
                 uint needed = (uint) (currentLength - FreeCapacity + sizeHint);
@@ -214,11 +225,29 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
 
                 newSize = ArrayMaxLength;
             }
+#endif
 
-            Array.Resize(ref _buffer, newSize);
+            _buffer = InteropUtility.NativeMemoryReallocate(_buffer, (nuint) newSize);
+            _bufferSizeBytes = newSize;
         }
 
         Debug.Assert(FreeCapacity > 0 && FreeCapacity >= sizeHint);
+    }
+
+    private void ReleaseUnmanagedResources() {
+        if (_buffer != IntPtr.Zero) {
+            InteropUtility.NativeMemoryFree(_buffer);
+            _buffer = IntPtr.Zero;
+        }
+    }
+
+    public void Dispose() {
+        ReleaseUnmanagedResources();
+        GC.SuppressFinalize(this);
+    }
+
+    ~NativeMemoryBufferWriter() {
+        ReleaseUnmanagedResources();
     }
 
     private static void ThrowInvalidOperationException_AdvancedTooFar(int capacity) {
@@ -229,4 +258,3 @@ public sealed class ArrayBufferWriter<T> : IBufferWriter<T> {
         throw new OutOfMemoryException();
     }
 }
-#endif

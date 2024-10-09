@@ -43,7 +43,7 @@ public unsafe ref struct ImGuiUtf8StringWriter {
         if (_hasFinalWrittenSpan)
             return _finalWrittenSpan;
 
-        return GetFinalWrittenSpanCore(false);
+        return GetFinalWrittenSpanCore(ref _utf8StringWriter, false);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -52,8 +52,9 @@ public unsafe ref struct ImGuiUtf8StringWriter {
             return _finalWrittenSpan;
         }
 
-        _utf8StringWriter.AppendUtf8("\0"u8);
-        return GetFinalWrittenSpanCore(true);
+        ref Utf8StringWriter<OptimizedBufferWriter<byte>> utf8StringWriter = ref _utf8StringWriter;
+        utf8StringWriter.AppendUtf8("\0"u8);
+        return GetFinalWrittenSpanCore(ref utf8StringWriter, true);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,9 +68,12 @@ public unsafe ref struct ImGuiUtf8StringWriter {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ReadOnlySpan<byte> GetFinalWrittenSpanCore(bool nullTerminated) {
-        _utf8StringWriter.Flush();
-        ReadOnlySpan<byte> finalWrittenSpan = _utf8StringWriter.GetBufferWriter().WrittenSpan;
+    private ReadOnlySpan<byte> GetFinalWrittenSpanCore(
+        scoped ref Utf8StringWriter<OptimizedBufferWriter<byte>> utf8StringWriter,
+        bool nullTerminated
+    ) {
+        utf8StringWriter.Flush();
+        ReadOnlySpan<byte> finalWrittenSpan = utf8StringWriter.GetBufferWriter().WrittenSpan;
         _finalWrittenSpan = finalWrittenSpan;
         _hasFinalWrittenSpan = true;
         _isFinalWrittenSpanNullTerminated = nullTerminated;
