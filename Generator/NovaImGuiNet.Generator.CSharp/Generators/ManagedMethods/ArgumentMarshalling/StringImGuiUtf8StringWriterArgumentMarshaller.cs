@@ -10,7 +10,7 @@ public class StringImGuiUtf8StringWriterArgumentMarshaller(MethodSignature metho
         return new ArgumentMarshallerOutput(
             $"(IntPtr) {InvocationVariable}",
             [
-                $"ref ImGuiUtf8StringWriter {InternalVar("_ref")} = ref ImGuiUtf8StringWriter.UnsafeAsRef({Argument.MarshalledArgument.Name});",
+                $"ref ImGuiUtf8StringWriter {InternalVar("_ref")} = ref ImGuiUtf8StringWriter.UnsafeAsRef(in {Argument.MarshalledArgument.Name});",
 
                 $"ReadOnlySpan<byte> {InternalVar("_ref_span")} = " +
                 $"{InternalVar("_ref")}.{(needsNullTerminator ? "GetFinalNullTerminatedWrittenSpan" : "GetFinalWrittenSpan")}();",

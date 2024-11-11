@@ -42,7 +42,7 @@ public abstract class ArgumentMarshaller : IArgumentMarshaller {
     }
 
     protected static string RequireNonNull(
-        string text,
+        string? text,
         [CallerArgumentExpression(nameof(text))] string callerArgumentExpressionAttribute = ""
     ) {
         if (String.IsNullOrWhiteSpace(text))

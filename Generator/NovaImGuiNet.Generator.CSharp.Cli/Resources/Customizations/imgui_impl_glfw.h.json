@@ -8,5 +8,13 @@
   "native_functions_managed_wrapper_class_name": "ImGuiGlfw",
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplGlfw_"
+  ],
+  "make_pointers_to_structs_opaque": [
+    "GLFWmonitor",
+    "GLFWwindow"
+  ],
+  "no_emit_structs": [
+    "GLFWmonitor",
+    "GLFWwindow"
   ]
 }

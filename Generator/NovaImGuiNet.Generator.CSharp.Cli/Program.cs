@@ -25,13 +25,14 @@ string outputPath = args[0];
 
 CodeFormatMode codeFormatMode = CodeFormatMode.Fancy;
 bool generateXmlDocs = true;
-#if true || DEBUG
-//codeFormatMode = CodeFormatMode.Basic;
+#if DEBUG
+codeFormatMode = CodeFormatMode.Basic;
 //generateXmlDocs = false;
 #endif
 
 BindingsGenerationOptions bindingsGenerationOptions = new() {
     CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes = true,
+    GenerateManagedStringFunctionArguments = true,
     GenerateXmlDocumentationComments = generateXmlDocs,
     CodeFormatMode = codeFormatMode
 };

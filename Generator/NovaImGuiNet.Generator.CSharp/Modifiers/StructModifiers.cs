@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using NovaImGuiNet.Generator.Metadata;
+using OneOf;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
@@ -104,36 +105,22 @@ public static class StructModifiers {
             if (field.Type.Value is not Delegate fieldTypeDelegate)
                 return [field];
 
-            PropertyDeclarationSyntax intPtrProperty =
-                CreateIntPtrAccessorPropertyForField(
+            PropertyDeclarationSyntax delegateProperty =
+                CreateUnmanagedDelegateAccessorPropertyForField(
                     field.BaseName,
                     field.Name,
                     FormatUnmanagedFunctionPointer(fieldTypeDelegate)
                 );
 
-            PropertyDeclarationSyntax intPtrLegacyProperty =
-                CreateIntPtrAccessorPropertyForField(
-                    field.BaseName,
-                    field.Name,
-                    "IntPtr"
-                );
+            MemberDeclarationSyntaxEntity delegatePropertyEntity = new(delegateProperty, field) {
+                Conditionals = [
+                    new Conditional("NET6_0_OR_GREATER"),
+                    ..field.Conditionals
+                ]
+            };
 
-            MemberDeclarationSyntaxEntity intPtrPropertyEntity =
-                new(intPtrProperty, field) {
-                    Conditionals = [
-                        ..field.Conditionals,
-                        new Conditional("!NETSTANDARD2_0_OR_GREATER")
-                    ]
-                };
-            MemberDeclarationSyntaxEntity intPtrLegacyPropertyEntity =
-                new(intPtrLegacyProperty, field) {
-                    Conditionals = [
-                        ..field.Conditionals,
-                        new Conditional("NETSTANDARD2_0_OR_GREATER")
-                    ]
-                };
-
-            return [intPtrPropertyEntity, intPtrLegacyPropertyEntity, field];
+            field.Type = KnownEntities.IntPtr.AsEntityReference();
+            return [delegatePropertyEntity, field];
         });
         return structure;
     }
@@ -146,7 +133,7 @@ public static class StructModifiers {
                 return [field];
 
             BindingsFileCustomizations customizations =
-                context.Customizations.RequireCustomizationByNamespace(structure.Namespace);
+                context.Customizations.RequireCustomizationByNamespace(structure.Namespace!);
 
             string fieldValueType = FormatType(fieldTypePointer.ValueType.Value);
 
@@ -178,15 +165,12 @@ public static class StructModifiers {
                             propertyName
                         )
                         .AddModifiers(Token(SyntaxKind.PublicKeyword))
-                        .AddAccessorListAccessors(
-                            AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                                .WithExpressionBody(propertyGetLambda)
-                                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                                .WithLeadingTrivia(CarriageReturnLineFeed)
-                                .WithTrailingTrivia(LineFeed)
-                        );
+                        .WithExpressionBody(propertyGetLambda)
+                        .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                        .WithLeadingTrivia(CarriageReturnLineFeed)
+                        .WithTrailingTrivia(LineFeed);
             } else {
-                var propertyGetLambda = ArrowExpressionClause(ParseExpression($"(Pointer<{fieldValueType}>) {field.Name}"));
+                var propertyGetLambda = ArrowExpressionClause(ParseExpression($"new Pointer<{fieldValueType}>({field.Name})"));
                 var propertySetLambda = ArrowExpressionClause(ParseExpression($"{field.Name} = value.Ptr"));
 
                 wrapperProperty =
@@ -269,13 +253,10 @@ public static class StructModifiers {
                         propertyName
                     )
                     .AddModifiers(Token(SyntaxKind.PublicKeyword))
-                    .AddAccessorListAccessors(
-                        AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                            .WithExpressionBody(propertyGetLambda)
-                            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                            .WithLeadingTrivia(CarriageReturnLineFeed)
-                            .WithTrailingTrivia(LineFeed)
-                    );
+                    .WithExpressionBody(propertyGetLambda)
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                    .WithLeadingTrivia(CarriageReturnLineFeed)
+                    .WithTrailingTrivia(LineFeed);
 
             MemberDeclarationSyntaxEntity ntsPropertyEntity = new(ntsProperty, field);
             return [ntsPropertyEntity, field];
@@ -679,12 +660,13 @@ public static class StructModifiers {
                 new FormatTypeOptions { UsePointerWrapper = true }
             );
 
-        string pointerVariableName = $"{fieldName.ToCamelCase()}Pointer";
-
-        StatementSyntax getBody;
+        OneOf<StatementSyntax, ArrowExpressionClauseSyntax> getBody;
         if (asPointerToExplodedField) {
+            string pointerVariableName = $"{fieldName.ToCamelCase()}Pointer";
+
             // TODO: use MemoryMarshal.CreateSpan whenever possible
             // public Span<ImGuiKeyData> KeysData => MemoryMarshal.CreateSpan(ref KeysData_0, 652);
+#if false
             getBody =
                 FixedStatement(
                     VariableDeclaration(
@@ -703,24 +685,16 @@ public static class StructModifiers {
                         ParseExpression($"new Span<{arrayElementTypeFormatted}>({pointerVariableName}, {arrayBoundsValue})")
                     )
                 );
+#else
+            getBody =
+                ArrowExpressionClause(
+                    ParseExpression($"UnsafeUtility.CreateSpan(ref {fieldName}_0, {arrayBoundsValue})")
+                );
+#endif
         } else {
             getBody =
-                FixedStatement(
-                    VariableDeclaration(
-                        ParseTypeName("void*"),
-                        SeparatedList<VariableDeclaratorSyntax>(
-                            new SyntaxNodeOrTokenList(
-                                VariableDeclarator(
-                                    Identifier(pointerVariableName),
-                                    default,
-                                    EqualsValueClause(ParseExpression(primitiveFieldName))
-                                )
-                            )
-                        )
-                    ),
-                    ReturnStatement(
-                        ParseExpression($"new Span<{arrayElementTypeFormatted}>({pointerVariableName}, {arrayBoundsValue})")
-                    )
+                ArrowExpressionClause(
+                    ParseExpression($"UnsafeUtility.CreateSpan(ref {fieldName}[0], {arrayBoundsValue})")
                 );
         }
 
@@ -729,13 +703,26 @@ public static class StructModifiers {
                     ParseTypeName($"Span<{arrayElementTypeFormatted}>"),
                     propertyName
                 )
-                .AddModifiers(Token(SyntaxKind.PublicKeyword))
-                .AddAccessorListAccessors(
-                    AccessorDeclaration(
-                        SyntaxKind.GetAccessorDeclaration,
-                        Block(getBody)
-                    )
-                );
+                .AddModifiers(Token(SyntaxKind.PublicKeyword));
+
+        getBody.Switch(
+            statementSyntax => {
+                spanAccessorProperty =
+                    spanAccessorProperty
+                        .AddAccessorListAccessors(
+                            AccessorDeclaration(
+                                SyntaxKind.GetAccessorDeclaration,
+                                Block(statementSyntax)
+                            )
+                        );
+            },
+            arrowSyntax =>
+                spanAccessorProperty = spanAccessorProperty
+                    .WithExpressionBody(arrowSyntax)
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                    .WithLeadingTrivia(CarriageReturnLineFeed)
+                    .WithTrailingTrivia(LineFeed)
+        );
 
         return spanAccessorProperty;
     }
@@ -753,23 +740,23 @@ public static class StructModifiers {
         return true;
     }
 
-    private static PropertyDeclarationSyntax CreateIntPtrAccessorPropertyForField(
+    private static PropertyDeclarationSyntax CreateUnmanagedDelegateAccessorPropertyForField(
         string propertyName,
         string fieldName,
         string fieldType
     ) {
-        var propertyGetLambda = ArrowExpressionClause(ParseExpression($"(IntPtr) {fieldName}"));
-        var propertySetLambda = ArrowExpressionClause(ParseExpression($"{fieldName} = ({fieldType}) value"));
+        var propertyGetLambda = ArrowExpressionClause(ParseExpression($"({fieldType}) {fieldName}"));
+        var propertySetLambda = ArrowExpressionClause(ParseExpression($"{fieldName} = (IntPtr) value"));
 
         if (Char.IsNumber(propertyName[^1])) {
             propertyName += "_";
         }
 
-        propertyName += "IntPtr";
+        propertyName += "Delegate";
 
-        PropertyDeclarationSyntax intPtrProperty =
+        PropertyDeclarationSyntax unmanagedDelegateProperty =
             PropertyDeclaration(
-                    ParseTypeName("IntPtr"),
+                    ParseTypeName(fieldType),
                     propertyName
                 )
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
@@ -785,7 +772,7 @@ public static class StructModifiers {
                         .WithTrailingTrivia(LineFeed)
                 );
 
-        return intPtrProperty;
+        return unmanagedDelegateProperty;
     }
 
     private static long? ResolveNumericArrayBoundsValue(Array fieldTypeArray, MetadataDto dto, BindingsModel model) {

@@ -1,39 +1,23 @@
 ﻿<#@ template language="C#" #>
 <#@ output extension=".g.cs" #><# #>
-namespace NovaImGuiNet {
 <#
-    foreach (string structName in (string[]) [
-        "ImGuiSizeCallbackData",
-        "ImGuiSelectionExternalStorage",
-        "ImGuiInputTextCallbackData",
-        "ImGuiIO",
-        "ImFontAtlas",
-        "ImGuiSelectionBasicStorage",
+    foreach ((string ns, string structName) in ((string ns, string structName)[]) [
+        ("NovaImGuiNet", "ImGuiSizeCallbackData"),
+        ("NovaImGuiNet", "ImGuiSelectionExternalStorage"),
+        ("NovaImGuiNet", "ImGuiInputTextCallbackData"),
+        ("NovaImGuiNet", "ImGuiIO"),
+        ("NovaImGuiNet", "ImFontAtlas"),
+        ("NovaImGuiNet", "ImGuiSelectionBasicStorage"),
+        ("NovaImGuiNet.Internal", "ImGuiSettingsHandler"),
+        ("NovaImGuiNet.Internal", "ImGuiContextHook"),
         ]) {
 #>
+namespace <#= ns #> {
     public partial struct <#= structName #> {
-        public Pointer<T> GetUserData<T>() where T : unmanaged =>
-            new Pointer<T>(UserData);
+        public Pointer<T> GetUserData<T>() where T : unmanaged => new Pointer<T>(UserData);
     }
-
-<#
-    }
-#>
 }
 
-namespace NovaImGuiNet.Internal {
-<#
-    foreach (string structName in (string[]) [
-        "ImGuiSettingsHandler",
-        "ImGuiContextHook",
-        ]) {
-#>
-    public partial struct <#= structName #> {
-        public Pointer<T> GetUserData<T>() where T : unmanaged =>
-            new Pointer<T>(UserData);
-    }
-
 <#
     }
 #>
-}

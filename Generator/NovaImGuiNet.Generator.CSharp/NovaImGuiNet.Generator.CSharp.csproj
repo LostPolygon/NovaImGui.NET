@@ -19,7 +19,7 @@
       <PackageReference Include="OneOf" Version="3.0.271" />
       <PackageReference Include="OneOf.SourceGenerator" Version="3.0.271" />
       <PackageReference Include="org.matheval" Version="1.0.0.3" />
-      <PackageReference Include="ThisAssembly" Version="1.5.1-alpha">
+      <PackageReference Include="ThisAssembly" Version="2.0.8">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>

@@ -176,7 +176,9 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             nativeArgumentDescriptions.Add(
                 new NativeFunctionArgumentDescription(nativeFunctionArgument, index) {
                     IsString = isString,
-                    IsPointer = !isString && nativeFunctionArgument.Type.ExpandTypedef().Value is Pointer,
+                    IsPointer =
+                        nativeFunctionArgument.Type.ExpandTypedef().Value is Pointer ||
+                        (nativeFunctionArgument.Type.Value is Builtin builtin && builtin.ManagedType == typeof(IntPtr)),
                     IsDelegate = nativeFunctionArgument.Type.ExpandAllTypedefsAndPointers().Value is Delegate,
                 }
             );
@@ -395,7 +397,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             if (!CheckStringBeginEndPair(overload))
                 continue;
 
-            if (!CheckUtf8StringWriter(overload))
+            if (!CheckManagedString(overload))
                 continue;
 
             filteredOverloads.Add(overload);
@@ -403,36 +405,27 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         return filteredOverloads;
 
-        bool CheckUtf8StringWriter(MethodArgumentOverloadRaw overload) {
-            return true;
-            int utf8StringWriterSignatureArgumentsCount =
+        bool CheckManagedString(MethodArgumentOverloadRaw overload) {
+            // Don't mix and match System.String with other string-ish types
+            // to reduce the overload count
+            int stringManagedArgCount =
                 overload.Arguments
-                    .Count(arg => arg.ArgumentMarshallingMode == ArgumentMarshallingMode.StringImGuiUtf8StringWriter);
+                    .Count(arg => arg.ArgumentMarshallingMode == ArgumentMarshallingMode.StringManaged);
 
-            if (utf8StringWriterSignatureArgumentsCount == 0)
-                return true;
+            int stringOtherArgCount =
+                overload.Arguments
+                    .Count(arg =>
+                        arg.ArgumentMarshallingMode is
+                            ArgumentMarshallingMode.StringBytePointer or
+                            ArgumentMarshallingMode.StringReadOnlyByteSpan or
+                            ArgumentMarshallingMode.StringReadOnlyCharSpan or
+                            ArgumentMarshallingMode.StringImGuiUtf8StringWriter
+                    );
 
-            // Only keep a single overload per position,
-            // because Utf8StringWriter can't handle more than one Utf8StringWriter argument per method
-            // because it uses a shared buffer instance
-            if (utf8StringWriterSignatureArgumentsCount > 1)
+            if (stringManagedArgCount >= 1 && stringOtherArgCount != 0)
                 return false;
 
-            (int Index, NativeFunctionArgumentMarshallingVariant Item) firstUtf8StringWriterArgumentAcrossAllOverloads =
-                overloads
-                    .Select(o =>
-                        o.Arguments
-                            .Index()
-                            .FirstOrDefault(
-                                argWithIndex =>
-                                    argWithIndex.Item.ArgumentMarshallingMode == ArgumentMarshallingMode.StringImGuiUtf8StringWriter
-                            )
-                    )
-                    .MinBy(argWithIndex => argWithIndex.Index);
-
-            return
-                overload.Arguments[firstUtf8StringWriterArgumentAcrossAllOverloads.Index].ArgumentMarshallingMode ==
-                ArgumentMarshallingMode.StringImGuiUtf8StringWriter;
+            return true;
         }
 
         bool CheckStringBeginEndPair(MethodArgumentOverloadRaw overload) {
@@ -570,7 +563,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         bodyBuilder.AppendRange(returnTypeMarshaller.CreateInvokeStatements());
 
-        foreach (ArgumentMarshallerOutput argumentMarshallerOutput in argumentMarshallerOutputs) {
+        foreach (ArgumentMarshallerOutput argumentMarshallerOutput in argumentMarshallerOutputs.Reverse()) {
             bodyBuilder.AppendRange(argumentMarshallerOutput.UnmarshallStatements);
         }
 
@@ -595,23 +588,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             IsNativeFunction = false
         };
 
-        // Only enable String arguments on .NET Standard 2.0,
-        // as newer NET versions can just use ReadOnlySpan<char>
-
-        bool anyStringsInSignatureArguments =
-            signatureArguments
-                .Any(arg =>
-                    arg.Type.ExpandPointer().Value is Builtin builtin &&
-                    builtin.ManagedType == typeof(string)
-                );
-
-        if (anyStringsInSignatureArguments) {
-            managedMethod.Conditionals = [
-                ..managedMethod.Conditionals,
-                new Conditional("NETSTANDARD2_0")
-            ];
-        }
-
         // Only enable function pointer arguments on .NET 6.0+,
         // as older versions don't support function pointer with
         // unmanaged calling conventions
@@ -625,20 +601,6 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             managedMethod.Conditionals = [
                 ..managedMethod.Conditionals,
                 new Conditional("NET6_0_OR_GREATER")
-            ];
-        }
-
-        // Only enable Utf8StringWriter if a conditional flag is set
-        bool anyUtf8StringWriterSignatureArguments =
-            signatureArguments
-                .Any(arg =>
-                    arg.Type.ExpandTypedef().Value == KnownEntities.ImGuiUtf8StringWriter
-                );
-
-        if (anyUtf8StringWriterSignatureArguments) {
-            managedMethod.Conditionals = [
-                ..managedMethod.Conditionals,
-                new Conditional("USE_UTF8_STRING_WRITER")
             ];
         }
 
@@ -778,7 +740,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         return [passthroughVariant];
     }
 
-    private static NativeFunctionArgumentMarshallingVariant[] ResolveNativeArgumentMarshallingVariants(
+    private NativeFunctionArgumentMarshallingVariant[] ResolveNativeArgumentMarshallingVariants(
         IReadOnlyList<NativeFunctionArgumentDescription> argumentDescriptions,
         int argumentIndex,
         bool forceBaseOnly
@@ -789,7 +751,8 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             description.Argument,
             description.ArgumentIndex,
             ArgumentMarshallingMode.Passthrough,
-            StringBeginEndPairMode.None
+            StringBeginEndPairMode.None,
+            ArrayPointerMode.None
         );
 
         if (description.Argument.IsInstancePointer || forceBaseOnly)
@@ -824,10 +787,15 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyByteSpan);
                 AddVariant(ArgumentMarshallingMode.StringReadOnlyCharSpan);
                 AddVariant(ArgumentMarshallingMode.StringImGuiUtf8StringWriter);
-                AddVariant(ArgumentMarshallingMode.StringManaged);
+                if (bindingsContext.Options.GenerateManagedStringFunctionArguments) {
+                    AddVariant(ArgumentMarshallingMode.StringManaged);
+                }
             }
         } else if (description.IsPointer) {
             AddVariant(ArgumentMarshallingMode.Passthrough);
+
+            bool isArrayDataPointer = IsArrayDataPointer(argumentIndex);
+            bool isArraySize = IsArrayDataPointer(argumentIndex - 1);
 
             bool isOutPointer = description.Argument.Name.Contains("out", StringComparison.OrdinalIgnoreCase);
             bool isVoidPointer = description.Argument.Type.Value.IsVoidPointer();
@@ -863,14 +831,16 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         void AddVariant(
             ArgumentMarshallingMode argumentMarshallingMode,
-            StringBeginEndPairMode stringBeginEndPairMode = StringBeginEndPairMode.None
+            StringBeginEndPairMode stringBeginEndPairMode = StringBeginEndPairMode.None,
+            ArrayPointerMode arrayPointerMode = ArrayPointerMode.None
         ) {
             variants.Add(
                 new NativeFunctionArgumentMarshallingVariant(
                     description.Argument,
                     description.ArgumentIndex,
                     argumentMarshallingMode,
-                    stringBeginEndPairMode
+                    stringBeginEndPairMode,
+                    arrayPointerMode
                 )
             );
         }
@@ -885,10 +855,33 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             if (!thisArg.IsString || !nextArg.IsString)
                 return false;
 
-            if (thisArg.Argument.Name + "_end" == nextArg.Argument.Name)
+            const string beginSuffix = "_begin";
+            const string endSuffix = "_end";
+            if (thisArg.Argument.Name + endSuffix == nextArg.Argument.Name)
                 return true;
 
-            if (thisArg.Argument.Name.RemoveSuffix("_begin") + "_end" == nextArg.Argument.Name)
+            if (thisArg.Argument.Name.RemoveSuffix(beginSuffix) + endSuffix == nextArg.Argument.Name)
+                return true;
+
+            return false;
+        }
+
+        bool IsArrayDataPointer(int argumentIndex) {
+            if (argumentDescriptions.Count <= argumentIndex + 1 || argumentIndex < 0)
+                return false;
+
+            NativeFunctionArgumentDescription dataPointerArg = argumentDescriptions[argumentIndex];
+            NativeFunctionArgumentDescription dataSizeArg = argumentDescriptions[argumentIndex + 1];
+
+            if (!dataPointerArg.IsPointer || dataSizeArg.Argument.Type.ExpandTypedef().Value is not Builtin)
+                return false;
+
+            const string sizeSuffix = "_size";
+            const string countSuffix = "_count";
+            if (dataPointerArg.Argument.Name + sizeSuffix == dataSizeArg.Argument.Name)
+                return true;
+
+            if (dataPointerArg.Argument.Name + countSuffix == dataSizeArg.Argument.Name)
                 return true;
 
             return false;
@@ -904,7 +897,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             case ReturnTypeMarshallingMode.Passthrough:
                 break;
             case ReturnTypeMarshallingMode.NullTerminatedString:
-                returnType = new Builtin("NullTerminatedString", null, StorageClass.NotSpecified);
+                returnType = KnownEntities.NullTerminatedString;
                 break;
             case ReturnTypeMarshallingMode.PointerWrapper: {
                 Pointer? returnTypePointer = returnType.AsEntityReference().ExpandTypedef().Value as Pointer;

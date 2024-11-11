@@ -14,6 +14,7 @@ public record BindingsFileCustomizations {
     public IReadOnlyList<string> FunctionsNoPermutations { get; init; } = [];
     public IReadOnlyList<NativeFunctionArgumentsIdentifier> TreatPointerArgumentsAsArrays { get; init; } = [];
     public IReadOnlyList<string> PrefixesRemovedFromManagedMethods { get; init; } = [];
+    public IReadOnlyList<string> PrefixesRemovedFromTypeNames { get; init; } = [];
     public IReadOnlyList<string> MakePointersToStructsOpaque { get; init; } = [];
     public IReadOnlyList<string> NoEmitManagedMethodsForNativeFunctions { get; init; } = [];
     public IReadOnlyList<string> NoEmitStructs { get; init; } = [];

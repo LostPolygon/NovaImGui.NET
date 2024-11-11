@@ -26,7 +26,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max), format, flags);
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max), format, flags);
     }
 
     public static bool SliderScalarN<T>(
@@ -38,7 +38,7 @@ public static unsafe partial class ImGui {
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
         T* dataPtr = SpanToPointer<T>(data);
-        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max), format, flags);
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max), format, flags);
     }
 
     public static bool SliderScalar<T>(
@@ -78,7 +78,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max));
+        return SliderScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max));
     }
 
     public static bool SliderScalarN<T>(
@@ -88,7 +88,7 @@ public static unsafe partial class ImGui {
         T max = default
     ) where T : unmanaged {
         T* dataPtr = SpanToPointer<T>(data);
-        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in min), (IntPtr) RefInToPointer(in max));
+        return SliderScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max));
     }*/
 <#
     }

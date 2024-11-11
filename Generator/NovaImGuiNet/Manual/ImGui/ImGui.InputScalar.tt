@@ -26,7 +26,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast), format, flags);
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast), format, flags);
     }
 
     public static bool InputScalarN<T>(
@@ -38,7 +38,7 @@ public static unsafe partial class ImGui {
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
         T* dataPtr = SpanToPointer<T>(data);
-        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast), format, flags);
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast), format, flags);
     }
 
     public static bool InputScalar<T>(
@@ -78,7 +78,7 @@ public static unsafe partial class ImGui {
         in T stepFast = default
     ) where T : unmanaged {
         T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast));
+        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast));
     }
 
     public static bool InputScalarN<T>(
@@ -88,7 +88,7 @@ public static unsafe partial class ImGui {
         in T stepFast = default
     ) where T : unmanaged {
         T* dataPtr = SpanToPointer<T>(data);
-        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) RefInToPointer(in step), (IntPtr) RefInToPointer(in stepFast));
+        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast));
     }*/
 
 <#

@@ -24,29 +24,29 @@ public class Generator {
         MetadataDto metadataDto;
         using (new TimedLoggedOperation(Log, "Parsing metadata")) {
             string[] loadedFiles = [
-                "Resources/cimgui/cimgui_freetype.json",
+                "Resources/dcimgui/dcimgui_freetype.json",
                 // NOTE: SDL2 and SDL3 need to be processed separately because of identical type names
-                "Resources/cimgui/cimgui_impl_sdlrenderer2.json",
-                "Resources/cimgui/cimgui_impl_sdl2.json",
+                "Resources/dcimgui/dcimgui_impl_sdlrenderer2.json",
+                "Resources/dcimgui/dcimgui_impl_sdl2.json",
 
-                //"Resources/cimgui/cimgui_impl_sdl3.json",
-                //"Resources/cimgui/cimgui_impl_sdlrenderer3.json",
+                //"Resources/dcimgui/dcimgui_impl_sdl3.json",
+                //"Resources/dcimgui/dcimgui_impl_sdlrenderer3.json",
 
-                "Resources/cimgui/cimgui_impl_dx9.json",
-                "Resources/cimgui/cimgui_impl_dx10.json",
-                "Resources/cimgui/cimgui_impl_dx11.json",
-                "Resources/cimgui/cimgui_impl_dx12.json",
-                "Resources/cimgui/cimgui_impl_win32.json",
-                "Resources/cimgui/cimgui_impl_glut.json",
-                "Resources/cimgui/cimgui_impl_glfw.json",
-                "Resources/cimgui/cimgui_impl_opengl2.json",
-                "Resources/cimgui/cimgui_impl_opengl3.json",
-                "Resources/cimgui/cimgui_impl_vulkan.json",
-                "Resources/cimgui/cimgui_imconfig.json",
-                "Resources/cimgui/cimgui.json",
-                "Resources/cimgui/cimgui_internal.json",
+                "Resources/dcimgui/dcimgui_impl_dx9.json",
+                "Resources/dcimgui/dcimgui_impl_dx10.json",
+                "Resources/dcimgui/dcimgui_impl_dx11.json",
+                "Resources/dcimgui/dcimgui_impl_dx12.json",
+                "Resources/dcimgui/dcimgui_impl_win32.json",
+                "Resources/dcimgui/dcimgui_impl_glut.json",
+                "Resources/dcimgui/dcimgui_impl_glfw.json",
+                "Resources/dcimgui/dcimgui_impl_opengl2.json",
+                "Resources/dcimgui/dcimgui_impl_opengl3.json",
+                "Resources/dcimgui/dcimgui_impl_vulkan.json",
+                "Resources/dcimgui/dcimgui_imconfig.json",
+                "Resources/dcimgui/dcimgui.json",
+                "Resources/dcimgui/dcimgui_internal.json",
 
-                //"Resources/cimgui/cimplot.json",
+                //"Resources/dcimgui/cimplot.json",
             ];
 
             Task<MetadataDto>[] tasks =

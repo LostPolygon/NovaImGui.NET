@@ -9,6 +9,9 @@
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplSDL2_"
   ],
+  "prefixes_removed_from_type_names": [
+    "ImGui_ImplSDL2_"
+  ],
   "no_emit_managed_methods_for_native_functions": [
     "cImGui_ImplSDL2_SetGamepadMode"
   ],

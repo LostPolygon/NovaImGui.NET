@@ -9,6 +9,7 @@ public unsafe class StructLayoutTests {
     [Test]
     public void SizeOf() {
         Assert.That(sizeof(bool), Is.EqualTo(1));
+        Assert.That(sizeof(Pointer<int>), Is.EqualTo(sizeof(IntPtr)));
 
         Assert.That(Marshal.SizeOf<ImGuiTableColumnSortSpecs>(), Is.EqualTo(12));
         Assert.That(sizeof(ImGuiTableColumnSortSpecs), Is.EqualTo(12));
@@ -22,6 +23,7 @@ public unsafe class StructLayoutTests {
         Assert.That(Marshal.SizeOf<ImGuiIO>(), Is.EqualTo(14616));
         Assert.That(sizeof(ImGuiIO), Is.EqualTo(14616));
 
+        #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
         Assert.That(sizeof(ImGuiUtf8StringWriter), Is.GreaterThanOrEqualTo(Utf8StringMarshaller.StackAllocMaxSize));
 
         //Assert.That(Marshal.SizeOf<ImGuiDockNode>(), Is.EqualTo(208));

@@ -4,9 +4,9 @@ using System.Collections;
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct ImSpan<T> : IEnumerable<T>, IEquatable<ImSpan<T>> where T : unmanaged, IEquatable<T> {
-    public readonly T* Data;
-    public readonly T* DataEnd;
+public unsafe struct ImSpan<T> : IEnumerable<T>, IEquatable<ImSpan<T>> where T : unmanaged, IEquatable<T> {
+    public T* Data;
+    public T* DataEnd;
 
     public IntPtr DataIntPtr => (IntPtr) Data;
 

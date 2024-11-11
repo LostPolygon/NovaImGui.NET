@@ -273,9 +273,15 @@ public class BindingsModelBindingsSyntaxGenerator {
             ..allChildTypes.Where(t => t.Value is Typedef { Type.Value: Delegate })
         ];
 
+        BaseMethodDeclarationSyntax managedMethodSyntaxRaw = Generate(function, false);
+        BaseMethodDeclarationSyntax managedMethodSyntax = ApplyCommonEntitySyntax(managedMethodSyntaxRaw, function);
         if (callbacks.Length != 0) {
-            BaseMethodDeclarationSyntax managedMethodSyntax = Generate(function, false);
-            BaseMethodDeclarationSyntax unmanagedMethodSyntax = Generate(function, true);
+            BaseMethodDeclarationSyntax unmanagedMethodSyntaxRaw = Generate(function, true);
+
+            if (managedMethodSyntaxRaw.IsEquivalentTo(unmanagedMethodSyntaxRaw))
+                return [managedMethodSyntax];
+
+            BaseMethodDeclarationSyntax unmanagedMethodSyntax = ApplyCommonEntitySyntax(unmanagedMethodSyntaxRaw, function);
             unmanagedMethodSyntax = ApplyConditionals(
                 unmanagedMethodSyntax,
                 [new Conditional("NET6_0_OR_GREATER")]
@@ -284,7 +290,7 @@ public class BindingsModelBindingsSyntaxGenerator {
             return [managedMethodSyntax, unmanagedMethodSyntax];
         }
 
-        return [Generate(function, false)];
+        return [managedMethodSyntax];
 
         // When delegatesAsFunctionPointers is true, generates delegates unmanaged function pointers
         // When delegatesAsFunctionPointers is false, generates delegates as IntPtr
@@ -416,7 +422,6 @@ public class BindingsModelBindingsSyntaxGenerator {
 
             methodSyntax = methodSyntax.AddLeadingTriviaToEnd(generatorTrivia);
 
-            methodSyntax = ApplyCommonEntitySyntax(methodSyntax, function);
             return methodSyntax;
         }
     }
@@ -437,7 +442,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         BaseMethodDeclarationSyntax methodDeclarationSyntax;
         if (function.IsConstructor && !isNativeMethod) {
             methodDeclarationSyntax =
-                ConstructorDeclaration(FormatType(function.OwnerStruct.Value))
+                ConstructorDeclaration(FormatType(function.OwnerStruct!.Value))
                     .AddModifiers(modifiers.Select(Token).ToArray());
         } else {
             // Ugliness for ref return support
@@ -675,21 +680,8 @@ public class BindingsModelBindingsSyntaxGenerator {
                     break;
                 }
                 case Field field: {
-                    FieldDeclarationSyntax fieldSyntax = GenerateField(entity, field, true);
-                    IEntityReference? fieldTypeDelegate = field.Type.ExpandAllTypedefsAndPointers<Delegate>();
-                    if (fieldTypeDelegate != null) {
-                        FieldDeclarationSyntax legacyFieldSyntax = GenerateField(entity, field, false);
-                        WrapInSelfExclusiveConditionals(
-                            ref legacyFieldSyntax,
-                            ref fieldSyntax,
-                            "NETSTANDARD2_0_OR_GREATER"
-                        );
-
-                        structMembers.Add(fieldSyntax);
-                        structMembers.Add(legacyFieldSyntax);
-                    } else {
-                        structMembers.Add(fieldSyntax);
-                    }
+                    FieldDeclarationSyntax fieldSyntax = GenerateField(entity, field);
+                    structMembers.Add(fieldSyntax);
 
                     break;
                 }
@@ -708,11 +700,11 @@ public class BindingsModelBindingsSyntaxGenerator {
             // FIXME: this is terrible for perf, we need to actually generate
             // Equals(T other) and GetHashCode() manually someday
             structMembers.AddRange([
-                ParseMemberDeclaration($"public bool Equals({entity.Name} other) => base.Equals(other);\n"),
-                ParseMemberDeclaration($"public bool Equals(in {entity.Name} other) => UnsafeUtility.AreSame(in this, in other) || Equals(other);\n"),
+                ParseMemberDeclaration($"public readonly bool Equals({entity.Name} other) => base.Equals(other);\n"),
+                ParseMemberDeclaration($"public readonly bool Equals(in {entity.Name} other) => UnsafeUtility.AreRefSame(in this, in other) || Equals(other);\n"),
 
-                ParseMemberDeclaration($"public override int GetHashCode() => base.GetHashCode();\n"),
-                ParseMemberDeclaration($"public override bool Equals(object obj) => base.Equals(obj);\n"),
+                ParseMemberDeclaration($"public readonly override int GetHashCode() => base.GetHashCode();\n"),
+                ParseMemberDeclaration($"public readonly override bool Equals(object obj) => base.Equals(obj);\n"),
 
                 ParseMemberDeclaration($"public static bool operator ==(in {entity.Name} left, in {entity.Name} right) => left.Equals(in right);\n"),
                 ParseMemberDeclaration($"public static bool operator !=(in {entity.Name} left, in {entity.Name} right) => !left.Equals(in right);\n"),
@@ -725,19 +717,14 @@ public class BindingsModelBindingsSyntaxGenerator {
         return structSyntax;
     }
 
-    private FieldDeclarationSyntax GenerateField(Struct entity, Field field, bool delegatesAsFunctionPointers) {
-        string fieldType;
-        if (delegatesAsFunctionPointers) {
-            fieldType = FormatType(
-                field.Type.Value,
-                new FormatTypeOptions {
-                    DelegatesAsFunctionPointers = true,
-                    ExpandTypedefs = false
-                }
-            );
-        } else {
-            fieldType = "IntPtr";
-        }
+    private FieldDeclarationSyntax GenerateField(Struct entity, Field field) {
+        string fieldType = FormatType(
+            field.Type.Value,
+            new FormatTypeOptions {
+                DelegatesAsFunctionPointers = true,
+                ExpandTypedefs = false
+            }
+        );
 
         string fieldName = field.Name;
 

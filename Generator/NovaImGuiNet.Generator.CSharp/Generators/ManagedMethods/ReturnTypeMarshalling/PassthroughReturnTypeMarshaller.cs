@@ -30,13 +30,15 @@ public class PassthroughReturnTypeMarshaller : ReturnTypeMarshaller {
             !NativeFunction.IsConstructor &&
             (MethodSignature.Arguments.Count == 0 ||
                 MethodSignature.Arguments.All(arg =>
-                    arg.MarshallingVariant.ArgumentMarshallingMode is not (
-                        ArgumentMarshallingMode.StringManaged or
-                        ArgumentMarshallingMode.StringReadOnlyCharSpan or
-                        ArgumentMarshallingMode.StringImGuiUtf8StringWriter or
-                        ArgumentMarshallingMode.Out or
-                        ArgumentMarshallingMode.IntPtrOut
-                        )
+                    arg.MarshallingVariant.ArgumentMarshallingMode is
+                        ArgumentMarshallingMode.Passthrough or
+                        ArgumentMarshallingMode.Ref or
+                        ArgumentMarshallingMode.IntPtr or
+                        ArgumentMarshallingMode.IntPtrRef or
+                        ArgumentMarshallingMode.StringBytePointer or
+                        ArgumentMarshallingMode.StringReadOnlyByteSpan or
+                        ArgumentMarshallingMode.DelegateFunctionPointer or
+                        ArgumentMarshallingMode.DelegateIntPtr
                 )
             );
     }

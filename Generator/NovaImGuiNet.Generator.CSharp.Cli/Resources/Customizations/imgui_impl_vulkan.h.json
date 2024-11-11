@@ -10,8 +10,13 @@
     "cImGui_ImplVulkan_",
     "cImGui_ImplVulkanH_"
   ],
+  "prefixes_removed_from_type_names": [
+    "ImGui_ImplVulkan_",
+    "ImGui_ImplVulkanH_"
+  ],
   "no_emit_managed_methods_for_native_functions": [
-    "cImGui_ImplVulkan_RenderDrawData"
+    "cImGui_ImplVulkan_RenderDrawData",
+    "cImGui_ImplVulkan_LoadFunctions"
   ],
   "generate_handle_types": [
     {

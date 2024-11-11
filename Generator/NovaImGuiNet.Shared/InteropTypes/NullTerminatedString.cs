@@ -43,7 +43,7 @@ public readonly unsafe struct NullTerminatedString : IEquatable<NullTerminatedSt
 
     public override bool Equals(object? obj) => obj is NullTerminatedString other && Equals(other);
 
-    public override int GetHashCode() => ((long) Data).GetHashCode();
+    public override int GetHashCode() => DataIntPtr.GetHashCode();
 
     public static bool operator ==(NullTerminatedString left, NullTerminatedString right) => left.Equals(right);
 

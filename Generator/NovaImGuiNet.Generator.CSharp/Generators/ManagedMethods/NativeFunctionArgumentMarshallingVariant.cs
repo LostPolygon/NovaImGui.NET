@@ -4,7 +4,8 @@ public record NativeFunctionArgumentMarshallingVariant(
     BindingsModel.FunctionArgument NativeFunctionArgument,
     int NativeFunctionArgumentIndex,
     ArgumentMarshallingMode ArgumentMarshallingMode,
-    StringBeginEndPairMode StringBeginEndPairMode
+    StringBeginEndPairMode StringBeginEndPairMode,
+    ArrayPointerMode ArrayPointerMode
 ) {
     public override string ToString() {
         List<string> elements = [];
@@ -15,6 +16,10 @@ public record NativeFunctionArgumentMarshallingVariant(
 
         if (StringBeginEndPairMode != StringBeginEndPairMode.None) {
             elements.Add($"BeginEndPair = {StringBeginEndPairMode}");
+        }
+
+        if (ArrayPointerMode != ArrayPointerMode.None) {
+            elements.Add($"ArrayPointer = {ArrayPointerMode}");
         }
 
         return $"{NativeFunctionArgument.Name} ({String.Join(", ", elements)})";

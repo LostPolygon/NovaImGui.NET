@@ -7,6 +7,7 @@ namespace NovaImGuiNet;
 /// since .NET doesn't support pointers as generic arguments.
 /// </summary>
 /// <typeparam name="T"></typeparam>
+[StructLayout(LayoutKind.Sequential)]
 public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     [DebuggerBrowsable(DebuggerBrowsableState.Collapsed)]
     public T* Ptr;
@@ -20,9 +21,9 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public IntPtr IntPtr => (IntPtr) Ptr;
 
-    public bool IsNull {
+    public bool HasValue {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Ptr == null;
+        get => Ptr != null;
     }
 
     public Pointer<T> this[int index] {
@@ -42,7 +43,7 @@ public unsafe struct Pointer<T> : IEquatable<Pointer<T>> where T : unmanaged {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref T GetRefUnsafe() => ref *Ptr;
+    public ref T GetValueUnsafe() => ref *Ptr;
 
     public override string ToString() {
         return IntPtr != IntPtr.Zero ? $"0x{IntPtr:x8}" : "null";

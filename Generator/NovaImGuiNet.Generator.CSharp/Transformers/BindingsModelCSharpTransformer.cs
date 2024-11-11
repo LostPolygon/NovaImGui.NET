@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Runtime.InteropServices.ComTypes;
+using Microsoft.Extensions.Logging;
 using MoreLinq.Extensions;
 using NovaImGuiNet.Generator.CSharp.ManagedMethods;
 using NovaImGuiNet.Generator.Metadata;
@@ -32,6 +33,22 @@ public class BindingsModelCSharpTransformer {
     public BindingsModel Transform() {
         using (Operation("Assigning namespaces")) {
             ModelModifiers.AssignNamespaces(Context, Model);
+        }
+
+        using (Operation("Removing prefixes from type names")) {
+            TopLevelEntity[] types = [
+                ..Model.Structs.Select(x => x.Value),
+                ..Model.Enums.Select(x => x.Value)
+            ];
+
+            foreach (TopLevelEntity type in types) {
+                BindingsFileCustomizations bindingsFileCustomizations =
+                    Context.Customizations.RequireCustomizationByNamespace(type.Namespace!);
+
+                foreach (string removedPrefix in bindingsFileCustomizations.PrefixesRemovedFromTypeNames) {
+                    type.Name = type.Name.RemovePrefix(removedPrefix);
+                }
+            }
         }
 
         using (Operation("Genericizing structs")) {
