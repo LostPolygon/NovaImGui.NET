@@ -9,8 +9,8 @@
         ("ref ImVec4", "ref col", null)
         ];
     (string Type, string Invocation, string? Conditional)[] Arg4Types = [
-        ("[ImGuiDefaultValue(\"default\")] ImVec4*", "refCol", null), 
-        ("ref ImVec4", "ref refCol", null)
+        ("[ImGuiDefaultValue(\"default\")] ImVec4*", "(float*) refCol", null), 
+        ("ref ImVec4", "ref Unsafe.As<ImVec4, float>(ref refCol)", null)
         ];
 #>
 #nullable enable

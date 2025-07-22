@@ -26,7 +26,7 @@ public static class CSharpCodeGenerationUtility {
                 string valueTypeFormatted = FormatType(pointer.ValueType.Value, options);
                 return options.UsePointerWrapper ? $"Pointer<{valueTypeFormatted}>" : $"{valueTypeFormatted}*";
             case Enum userEnum:
-                return userEnum.Name;
+                return options.FullyQualifiedTypes ? $"{userEnum.Namespace}.{userEnum.Name}" : userEnum.Name;
             case Function userFunction:
                 return FormatFunction(userFunction);
             case Struct userStruct: {

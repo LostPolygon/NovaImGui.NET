@@ -11,58 +11,74 @@ using static SyntaxFactoryCached;
 
 public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDto dto) {
     public IEnumerable<Struct> Generate() {
-        IEnumerable<IGrouping<string, MetadataDto.Define>> definesByFileNames =
-            dto.Defines
-                .GroupBy(x => x.SourceLocation.Filename);
-
-        foreach (IGrouping<string, MetadataDto.Define> definesByFileName in definesByFileNames) {
-            BindingsFileCustomizations fileCustomizations =
-                bindingsContext.Customizations.RequireCustomization(definesByFileName.Key);
-
-            Struct? constantsClass = GenerateForNamespace(
-                fileCustomizations.Namespace,
-                fileCustomizations.ConstantsClassName,
-                definesByFileName.ToArray()
+        return GenerateConstantsClassesData().Select(data => {
+            bindingsContext.NumericValueSubstitutions.AddRange(
+                data.Constants
+                    .Where(c => c.ValueInteger != null)
+                    .Select(c => new KeyValuePair<string, long>(c.DefineDto.Name, c.ValueInteger!.Value))
             );
 
-            if (constantsClass != null) {
-                yield return constantsClass;
-            }
+            return CreateConstantsClassStruct(data);
+        });
+    }
+
+    private IEnumerable<ConstantsClassData> GenerateConstantsClassesData() {
+        IEnumerable<IGrouping<string, MetadataDto.Define>> definesByFileNames =
+            dto.Defines.GroupBy(x => x.SourceLocation.Filename);
+
+        foreach (IGrouping<string, MetadataDto.Define> fileDefines in definesByFileNames) {
+            BindingsFileCustomizations fileCustomizations =
+                bindingsContext.Customizations.RequireCustomization(fileDefines.Key);
+
+            ParseDefinesResult parseDefinesResult = ParseDefines(fileDefines.ToArray());
+            if (parseDefinesResult.IsEmpty)
+                continue;
+
+            yield return new ConstantsClassData(
+                fileCustomizations.Namespace,
+                fileCustomizations.ConstantsClassName,
+                parseDefinesResult.Constants,
+                parseDefinesResult.FlagDefines
+            );
         }
     }
 
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="targetNamespace"></param>
-    /// <param name="className"></param>
+    private static Struct CreateConstantsClassStruct(ConstantsClassData classData) {
+        Struct structure = new() {
+            Kind = Struct.StructKind.StaticClass,
+            Name = classData.Name,
+            Namespace = classData.Namespace,
+            Comments = new Comments(["Dear ImGui compilation constants"], [], []),
+            IsSpecialTopLevel = true
+        };
+
+        structure.Children.AddRange(classData.Constants.Select(CreateConstantField));
+
+        if (classData.FlagDefines.Count != 0) {
+            FieldDeclarationSyntax fieldDeclarationSyntax = CreateFlagDefinesListFieldDeclaration(classData.FlagDefines);
+            structure.Children.Add(new MemberDeclarationSyntaxEntity(fieldDeclarationSyntax));
+        }
+
+        return structure;
+    }
+
     /// <param name="defineDtos"></param>
     /// <returns>null if the class has no members</returns>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
-    private Struct? GenerateForNamespace(
-        string targetNamespace,
-        string className,
-        IReadOnlyList<MetadataDto.Define> defineDtos
-    ) {
-        List<ParseDefineResult> constants = [];
+    private ParseDefinesResult ParseDefines(IReadOnlyList<MetadataDto.Define> defineDtos) {
+        List<ParsedDefine> constants = [];
         List<MetadataDto.Define> unparsedDefines = [];
-
-        // TODO: implement generating 'public static readonly IReadOnlyDictionary<string, string?> CompilerDefines = [];'
-        // ReSharper disable once CollectionNeverQueried.Local
         List<string> flagDefines = [];
 
         foreach (MetadataDto.Define defineDto in defineDtos) {
-            if (IsDefineSkipped(defineDto))
-                continue;
-
             if (defineDto.Content == null) {
                 flagDefines.Add(defineDto.Name);
                 continue;
             }
 
-            ParseDefineResult? parseDefineResult = ParseDefine(defineDto, false);
-            if (parseDefineResult != null) {
-                constants.Add(parseDefineResult);
+            ParsedDefine? parsedDefine = ParseDefine(defineDto, false);
+            if (parsedDefine != null) {
+                constants.Add(parsedDefine);
             } else {
                 unparsedDefines.Add(defineDto);
             }
@@ -71,69 +87,56 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
         foreach (MetadataDto.Define unparsedDefineDto in unparsedDefines) {
             // Try to match unparsed defines with existing parsed defines by name,
             // otherwise just add them as strings
-            ParseDefineResult? matchingValueConstant = constants.FirstOrDefault(c => c.DefineDto.Name == unparsedDefineDto.Content);
-            ParseDefineResult parsedDefine =
+            ParsedDefine? matchingValueConstant = constants.FirstOrDefault(c => c.DefineDto.Name == unparsedDefineDto.Content);
+            ParsedDefine parsedDefine =
                 matchingValueConstant != null ?
-                    new ParseDefineResult(unparsedDefineDto, matchingValueConstant.Type, matchingValueConstant.DefineDto.Name) :
-                    new ParseDefineResult(unparsedDefineDto, "string", $"\"{unparsedDefineDto.Content}\"");
+                    matchingValueConstant with { DefineDto = unparsedDefineDto, Value = matchingValueConstant.DefineDto.Name } :
+                    new ParsedDefine(unparsedDefineDto, "string", $"\"{unparsedDefineDto.Content}\"", null);
             constants.Add(parsedDefine);
         }
 
-        if (constants.Count == 0 && flagDefines.Count == 0)
-            return null;
-
-        Struct structure = new() {
-            Kind = Struct.StructKind.StaticClass,
-            Name = className,
-            Namespace = targetNamespace,
-            Comments = new Comments(["Dear ImGui compilation constants"], [], []),
-            IsSpecialTopLevel = true
-        };
-
-        structure.Children.AddRange(constants.Select(CreateConstantField));
-
-        if (flagDefines.Count != 0) {
-            FieldDeclarationSyntax fieldDeclarationSyntax = CreateFlagDefinesListFieldDeclaration(flagDefines);
-            structure.Children.Add(new MemberDeclarationSyntaxEntity(fieldDeclarationSyntax));
-        }
-
-        return structure;
+        return new ParseDefinesResult(constants, flagDefines);
     }
 
-    private static ParseDefineResult? ParseDefine(MetadataDto.Define defineDto, bool allowUnknownAsString) {
-        ExpressionSyntax expressionSyntax = ParseExpression(defineDto.Content);
+    private static ParsedDefine? ParseDefine(MetadataDto.Define defineDto, bool allowUnknownAsString) {
+        ExpressionSyntax expressionSyntax = ParseExpression(defineDto.Content!);
         switch (expressionSyntax) {
             case LiteralExpressionSyntax literalExpressionSyntax:
                 if (literalExpressionSyntax.Kind() is not (SyntaxKind.StringLiteralExpression or SyntaxKind.NumericLiteralExpression))
                     throw new ArgumentOutOfRangeException($"Unexpected literal expression kind: {expressionSyntax.Kind()}");
 
-                return new ParseDefineResult(
+                return new ParsedDefine(
                     defineDto,
                     GetBuiltinTypeAlias(literalExpressionSyntax.Token.Value!.GetType())!,
-                    literalExpressionSyntax.ToFullString()
+                    literalExpressionSyntax.ToFullString(),
+                    literalExpressionSyntax.Kind() == SyntaxKind.NumericLiteralExpression ?
+                        MathUtility.EvaluateExpressionAsLong(literalExpressionSyntax.ToFullString()) :
+                        null
                 );
             case PrefixUnaryExpressionSyntax prefixUnaryExpressionSyntax:
                 if (prefixUnaryExpressionSyntax.Operand is not LiteralExpressionSyntax operandLiteralExpression)
                     throw new ArgumentOutOfRangeException($"Unexpected operand expression kind: {prefixUnaryExpressionSyntax.Operand.Kind()}");
 
-                return new ParseDefineResult(
+                return new ParsedDefine(
                     defineDto,
                     GetBuiltinTypeAlias(operandLiteralExpression.Token.Value!.GetType())!,
-                    expressionSyntax.ToFullString()
+                    expressionSyntax.ToFullString(),
+                    MathUtility.EvaluateExpressionAsLong(expressionSyntax.ToFullString())
                 );
             default:
                 if (!allowUnknownAsString)
                     return null;
 
-                return new ParseDefineResult(
+                return new ParsedDefine(
                     defineDto,
                     "string",
-                    $"\"{defineDto.Content}\""
+                    $"\"{defineDto.Content}\"",
+                    null
                 );
         }
     }
 
-    private static FieldDeclarationSyntax CreateFlagDefinesListFieldDeclaration(List<string> flagDefines) {
+    private static FieldDeclarationSyntax CreateFlagDefinesListFieldDeclaration(IReadOnlyList<string> flagDefines) {
         VariableDeclaratorSyntax variableDeclaratorSyntax =
             VariableDeclarator("FlagCompilerDefines")
                 .WithInitializer(
@@ -158,25 +161,22 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
         return fieldDeclarationSyntax;
     }
 
-    private static Field CreateConstantField(ParseDefineResult? parseDefineResult) =>
+    private static Field CreateConstantField(ParsedDefine parsedDefine) =>
         new(
-            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parseDefineResult.DefineDto.Comments)),
-            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parseDefineResult.DefineDto.Conditionals)),
-            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parseDefineResult.DefineDto.SourceLocation)),
-            parseDefineResult.DefineDto.IsInternal,
+            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parsedDefine.DefineDto.Comments)),
+            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parsedDefine.DefineDto.Conditionals)),
+            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parsedDefine.DefineDto.SourceLocation)),
+            parsedDefine.DefineDto.IsInternal,
             true,
             null
         ) {
-            BaseName = parseDefineResult.DefineDto.Name,
-            Type = new Builtin(parseDefineResult.Type, null, StorageClass.NotSpecified).AsEntityReference(),
-            Value = parseDefineResult.Value
+            BaseName = parsedDefine.DefineDto.Name,
+            Type = new Builtin(parsedDefine.Type, null, StorageClass.NotSpecified).AsEntityReference(),
+            Value = parsedDefine.Value,
+            IsDisabled = IsDefineCompatibleWithCSharp(parsedDefine.DefineDto)
         };
 
-    private static bool IsDefineSkipped(MetadataDto.Define defineDto) {
-        // Those complex defines don't work in C# and don't make much sense there either
-        if (defineDto.Conditionals.Any(c => c.Expression.Contains("defined(_MSC_VER)")))
-            return true;
-
+    private static bool IsDefineCompatibleWithCSharp(MetadataDto.Define defineDto) {
         // In .NET, this should be a 'readonly static' field instead of a const switched by compiler defines,
         // but no one is going to miss this one when Environment.NewLine exists
         if (defineDto.Name == "IM_NEWLINE")
@@ -185,5 +185,18 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
         return false;
     }
 
-    private record ParseDefineResult(MetadataDto.Define DefineDto, string Type, string Value);
+    public record ConstantsClassData(
+        string Namespace,
+        string Name,
+        IReadOnlyList<ParsedDefine> Constants,
+        IReadOnlyList<string> FlagDefines
+    ) {
+        public bool IsEmpty => Constants.Count == 0 && FlagDefines.Count == 0;
+    }
+
+    public record ParsedDefine(MetadataDto.Define DefineDto, string Type, string Value, long? ValueInteger);
+
+    private record ParseDefinesResult(IReadOnlyList<ParsedDefine> Constants, IReadOnlyList<string> FlagDefines) {
+        public bool IsEmpty => Constants.Count == 0 && FlagDefines.Count == 0;
+    }
 }

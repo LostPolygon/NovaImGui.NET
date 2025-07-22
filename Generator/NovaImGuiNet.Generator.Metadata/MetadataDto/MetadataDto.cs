@@ -179,6 +179,7 @@ public record MetadataDto(
 
         public record TypeDescriptionPointer : TypeDescription, IHasStorageClasses {
             public bool IsNullable { get; init; }
+            public bool IsReference { get; init; }
             public TypeDescription InnerType { get; init; }
 
             public StorageClass[]? StorageClasses { get; init; }

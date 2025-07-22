@@ -42,7 +42,6 @@ public class Generator {
                 "Resources/dcimgui/dcimgui_impl_opengl2.json",
                 "Resources/dcimgui/dcimgui_impl_opengl3.json",
                 "Resources/dcimgui/dcimgui_impl_vulkan.json",
-                "Resources/dcimgui/dcimgui_imconfig.json",
 
                 // Important: dcimgui_internal.json must come before dcimgui.json
                 "Resources/dcimgui/dcimgui_internal.json",

@@ -132,7 +132,7 @@ public static class FunctionModifiers {
             argumentTypeArray.ArrayBoundsNumeric is >= 2 and <= 4;
         if (canBeConvertedToImVec) {
             string imVecName = $"ImVec{argumentTypeArray.ArrayBoundsNumeric}";
-            argument.Type.Value =
+            argument.Type =
                 new Pointer(
                     new Struct {
                         Kind = Struct.StructKind.Struct,
@@ -142,9 +142,9 @@ public static class FunctionModifiers {
                     }.AsEntityReference(),
                     false,
                     PointerType.Unmanaged
-                );
+                ).AsEntityReference();
         } else {
-            argument.Type.Value =
+            argument.Type =
                 new Pointer(
                     CreateImFixedArrayFromArray(
                         context.RootNamespace,
@@ -153,7 +153,7 @@ public static class FunctionModifiers {
                     ).AsEntityReference(),
                     false,
                     PointerType.Unmanaged
-                );
+                ).AsEntityReference();
         }
 
         return argument;

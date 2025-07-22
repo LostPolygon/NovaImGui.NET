@@ -85,7 +85,8 @@ public record MetadataModel(
 
     public record Pointer(
         IEntityReference ValueType,
-        bool IsNullable
+        bool IsNullable,
+        bool IsReference
     ) : Entity<Pointer>;
 
     public record Enum(

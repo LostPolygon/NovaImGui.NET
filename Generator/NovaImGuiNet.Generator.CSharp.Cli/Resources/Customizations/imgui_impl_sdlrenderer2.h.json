@@ -6,6 +6,9 @@
   "constants_class_name": "ImGuiSdl2RendererConstants",
   "native_functions_class_name": "ImGuiSdl2RendererNative",
   "native_functions_managed_wrapper_class_name": "ImGuiSdl2Renderer",
+  "prefixes_removed_from_type_names": [
+     "ImGui_ImplSDLRenderer2_" 
+  ],
   "prefixes_removed_from_managed_methods": [
     "cImGui_ImplSDLRenderer2_"
   ],

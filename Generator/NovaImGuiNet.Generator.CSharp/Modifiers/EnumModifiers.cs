@@ -68,16 +68,26 @@ public static class EnumModifiers {
         };
     }
 
+    public static void AddEnumMembersToNumericValueSubstitutionList(Enum enumeration, ValueSubstitutions<long> substitutions) {
+        List<KeyValuePair<string, long>> addedSubstitutions = [];
+        foreach (Enum.Member member in enumeration.Members) {
+            long? valueNumeric = member.ValueNumeric ?? MathUtility.EvaluateExpressionAsLong(member.Value);
+            if (valueNumeric == null)
+                continue;
+
+            member.ValueNumeric = valueNumeric;
+            string memberFullName = $"{enumeration.Name}.{member.Name}";
+            addedSubstitutions.Add(new KeyValuePair<string, long>(memberFullName, member.ValueNumeric.Value));
+        }
+
+        substitutions.AddRange(addedSubstitutions);
+    }
+
     private static string CleanupEnumIdentifier(string text, string? typeName, bool isValue = false) {
         if (typeName != null) {
             typeName = RemoveTrailingUnderscoresFromExpression(typeName);
             if (typeName.EndsWith("Private")) {
                 string nonPrivateTypeName = typeName.RemoveSuffix("Private");
-                if (false && isValue) {
-                    //text = RemoveTypeName(text, typeName);
-                    //text = text.Replace(nonPrivateTypeName + "_", nonPrivateTypeName + ".");
-                }
-
                 text = RemoveTypeName(text, nonPrivateTypeName);
             }
 

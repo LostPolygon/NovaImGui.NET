@@ -7,7 +7,11 @@
   "native_functions_class_name": "ImGuiInternalNative",
   "native_functions_managed_wrapper_class_name": "ImGuiInternal",
   "no_emit_structs": [
-    "ImStb_STB_TexteditState"
+    "ImStb_STB_TexteditState",
+    "stbrp_context_opaque",
+    "stbrp_node",
+    "stbrp_node_im",
+    "IMGUI_STB_NAMESPACEstbrp_node"
   ],
   "no_emit_managed_methods_for_native_functions": [
     // unformatted helpers for formatting functions make no sense

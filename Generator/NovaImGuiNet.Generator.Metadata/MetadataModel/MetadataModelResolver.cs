@@ -164,7 +164,8 @@ public partial class MetadataModelResolver {
             case MetadataDto.TypeValue.TypeDescriptionPointer typeDescriptionPointer:
                 return new MetadataModel.Pointer(
                     CreateOrResolveTypeDescription(typeDescriptionPointer.InnerType, null)!,
-                    typeDescriptionPointer.IsNullable
+                    typeDescriptionPointer.IsNullable,
+                    typeDescriptionPointer.IsReference
                 ).AsEntityReference();
             case MetadataDto.TypeValue.TypeDescriptionType typeDescriptionType:
                 Debug.Assert(typeDetails != null);
@@ -179,7 +180,9 @@ public partial class MetadataModelResolver {
                     (MetadataDto.TypeValue.TypeDetailsFunctionPointer) typeDetails
                 ).AsEntityReference();
             case MetadataDto.TypeValue.TypeDescriptionUser typeDescriptionUser:
-                DtoNameToDtoEntity.TryGetValue(typeDescriptionUser.Name, out object? userTypeDto);
+                string mangledName = typeDescriptionUser.Name;
+                mangledName = mangledName.Replace("::", "");
+                DtoNameToDtoEntity.TryGetValue(mangledName, out object? userTypeDto);
 
                 MetadataModel.IEntityReference user = userTypeDto switch {
                     MetadataDto.Enumeration enumerationDto => ResolveEnum(enumerationDto),

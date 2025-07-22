@@ -153,8 +153,16 @@ public class BindingsModelBindingsSyntaxGenerator {
                 .Where(t => !t.NoEmit)
                 .GroupBy(t => t.Namespace)
                 .Select(typedefsByNamespace => {
+                    BindingsFileCustomizations? customizations =
+                        typedefsByNamespace.Key != null ?
+                            BindingsContext.Customizations.RequireCustomizationByNamespace(typedefsByNamespace.Key) :
+                            null;
+
                     List<OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax>> typedefBindingsNamespace = [];
                     foreach (Typedef typedef in typedefsByNamespace) {
+                        if (customizations != null && TextMatchUtility.IsMatchAny(typedef.Name, customizations.NoEmitStructs))
+                            continue;
+
                         typedefBindingsNamespace.Add(GenerateBinding(typedef));
                     }
 
@@ -416,6 +424,10 @@ public class BindingsModelBindingsSyntaxGenerator {
         if (aliasedType.Value is Delegate userDelegate) {
             declarationSyntax = CreateDelegateDeclarationSyntax(userDelegate);
         } else {
+            /*if (entity.Name.Contains("ImGuiFreeTypeBuilderFlag")) {
+                Console.WriteLine(6);
+            }*/
+
             declarationSyntax =
                 UsingDirective(
                         NameEquals(entity.Name),

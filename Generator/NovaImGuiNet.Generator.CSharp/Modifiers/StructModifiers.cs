@@ -289,149 +289,32 @@ public static class StructModifiers {
         return field;
     }
 
-    public static Struct FixMissingFieldArrayNumericBounds(
-        Struct structure,
-        MetadataDto dto,
-        BindingsContext context,
-        BindingsModel model
-    ) {
-        structure.Children.UpdateInPlace<IEntity, Field>(field => {
-            if (field.Type.Value is not Array fieldTypeArray)
-                return field;
-
-            return FixMissingFieldArrayNumericBounds(
-                field,
-                fieldTypeArray,
-                context.Options.CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes,
-                dto,
-                model
-            );
-        });
-
-        return structure;
-    }
-
-    // FIXME: can at least some of those be automated?
     public static Struct PatchManualMissingFieldArrayNumericBounds(Struct structure, BindingsModel model) {
-        IReadOnlyList<Field> fields = structure.Children.OfType<Field>().ToList();
+        /*IReadOnlyList<Field> fields = structure.Children.OfType<Field>().ToList();
 
         switch (structure.Name) {
-            case "ImFont": {
-                Field used4kPagesMapField = fields.First(f => f.Name == "Used4kPagesMap");
-                Array fieldArrayType = (Array) used4kPagesMapField.Type.Value;
-
-                // ReSharper disable once InconsistentNaming
-#if IMGUI_USE_WCHAR32
-                const int IM_UNICODE_CODEPOINT_MAX = 0x10FFFF;
-#else
-                const int IM_UNICODE_CODEPOINT_MAX = 0xFFFF;
-#endif
-                fieldArrayType = fieldArrayType with {
-                    ArrayBoundsNumeric = (IM_UNICODE_CODEPOINT_MAX + 1) / 4096 / 8
-                };
-                used4kPagesMapField.Type.Value = fieldArrayType;
-                break;
-            }
-            case "ImFontAtlas": {
-                Field texUvLinesField = fields.First(f => f.Name == "TexUvLines");
-                Array fieldArrayType = (Array) texUvLinesField.Type.Value;
-
-                // ReSharper disable once InconsistentNaming
-                const uint IM_DRAWLIST_TEX_LINES_WIDTH_MAX = 63;
-                fieldArrayType = fieldArrayType with {
-                    ArrayBoundsNumeric = IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 1
-                };
-                texUvLinesField.Type.Value = fieldArrayType;
-                break;
-            }
-            case "ImGuiStyle": {
-                Field colorsField = fields.First(f => f.Name == "Colors");
-                Array fieldArrayType = (Array) colorsField.Type.Value;
-
-                Enum.Member imgGuiColCount =
-                    model.Enums
-                        .Select(e => e.Value)
-                        .First(e => e.Name == "ImGuiCol")
-                        .Members
-                        .First(m => m.Name == "COUNT");
-                fieldArrayType = fieldArrayType with {
-                    ArrayBoundsNumeric = imgGuiColCount.ValueNumeric
-                };
-                colorsField.Type.Value = fieldArrayType;
-                break;
-            }
-            case "ImGuiIO": {
-                // When ImGuiKey.KeysData_SIZE = COUNT
-                Field keysDataCountFieldOld = fields.First(f => f.Name == "KeysData");
-                Field keysDataCountField = keysDataCountFieldOld with { };
-
-                Array keysDataCountFieldArrayType = (Array) keysDataCountField.Type.Value;
-
-                Enum.Member imgGuiColCount =
-                    model.Enums
-                        .Select(e => e.Value)
-                        .First(e => e.Name == "ImGuiKey")
-                        .Members
-                        .First(m => m.Name == "COUNT");
-                keysDataCountFieldArrayType = keysDataCountFieldArrayType with {
-                    ArrayBoundsNumeric = imgGuiColCount.ValueNumeric
-                };
-                keysDataCountField = keysDataCountField with {
-                    Type = keysDataCountFieldArrayType.AsEntityReference(),
-                    Conditionals = [
-                        ..keysDataCountField.Conditionals,
-                        new("ifndef", "IMGUI_DISABLE_OBSOLETE_KEYIO")
-                    ]
-                };
-
-                // When ImGuiKey.KeysData_SIZE = NamedKey_COUNT
-                Field keysDataNamedKeyCountField = keysDataCountFieldOld with { };
-
-                Array keysDataNamedKeyCountFieldArrayType = (Array) keysDataNamedKeyCountField.Type.Value;
-
-                Enum.Member imgGuiColNamedKeyCount =
-                    model.Enums
-                        .Select(e => e.Value)
-                        .First(e => e.Name == "ImGuiKey")
-                        .Members
-                        .First(m => m.Name == "NamedKey_COUNT");
-                keysDataNamedKeyCountFieldArrayType = keysDataNamedKeyCountFieldArrayType with {
-                    ArrayBoundsNumeric = imgGuiColNamedKeyCount.ValueNumeric
-                };
-                keysDataNamedKeyCountField.Type.Value = keysDataNamedKeyCountFieldArrayType;
-                keysDataNamedKeyCountField = keysDataNamedKeyCountField with {
-                    Type = keysDataNamedKeyCountFieldArrayType.AsEntityReference(),
-                    Conditionals = [
-                        ..keysDataNamedKeyCountField.Conditionals,
-                        new("ifdef", "IMGUI_DISABLE_OBSOLETE_KEYIO")
-                    ]
-                };
-
-                structure.Children.UpdateInPlace(keysDataCountFieldOld, [keysDataCountField, keysDataNamedKeyCountField]);
-                break;
-            }
-        }
+        }*/
 
         return structure;
     }
 
-    public static Struct ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes(Struct structure) {
+    public static Struct ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes(Struct structure, BindingsContext context) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
             if (field.Type.Value is not Array fieldTypeArray)
                 return [field];
 
-            return ProcessFixedSizeArrayField(structure, field, fieldTypeArray, false, false);
+            return ProcessFixedSizeArrayField(structure, field, fieldTypeArray, false, false, context);
         });
 
         return structure;
     }
 
-    public static Struct CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes(Struct structure) {
+    public static Struct CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes(Struct structure, BindingsContext context) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
             if (field.Type.Value is not Array fieldTypeArray)
                 return [field];
 
-            return ProcessFixedSizeArrayField(structure, field, fieldTypeArray, false, true);
+            return ProcessFixedSizeArrayField(structure, field, fieldTypeArray, false, true, context);
         });
 
         return structure;
@@ -540,42 +423,6 @@ public static class StructModifiers {
         };
     }
 
-    private static Field FixMissingFieldArrayNumericBounds(
-        Field field,
-        Array fieldTypeArray,
-        bool resolveNumericArrayBoundsForPrimitiveTypes,
-        MetadataDto dto,
-        BindingsModel model
-    ) {
-        string? arrayBounds = fieldTypeArray.ArrayBounds;
-        long? arrayBoundsNumeric =
-            fieldTypeArray.ArrayBoundsNumeric ??
-            EvaluateExpressionAsLong(fieldTypeArray.ArrayBounds);
-
-        if (arrayBoundsNumeric == null &&
-            (!IsPrimitiveArrayElementType(fieldTypeArray.ElementType) ||
-                resolveNumericArrayBoundsForPrimitiveTypes)
-           ) {
-            arrayBoundsNumeric = ResolveNumericArrayBoundsValue(fieldTypeArray, dto, model);
-        }
-
-        if (arrayBoundsNumeric == null) {
-            // This cast is needed when enum values are used as array bounds
-            arrayBounds = $"(int) ({fieldTypeArray.ArrayBounds})";
-        }
-
-        fieldTypeArray = fieldTypeArray with {
-            ArrayBounds = arrayBounds,
-            ArrayBoundsNumeric = arrayBoundsNumeric
-        };
-
-        field = field with {
-            Type = fieldTypeArray.AsEntityReference()
-        };
-
-        return field;
-    }
-
     // C# doesn't support non-primitive fixed size array fields,
     // so we explode them into a field per array element
     private static IReadOnlyList<IEntity> ProcessFixedSizeArrayField(
@@ -583,7 +430,8 @@ public static class StructModifiers {
         Field initialField,
         Array fieldTypeArray,
         bool explodePrimitiveTypes,
-        bool createSpanAccessorForPrimitiveTypes
+        bool createSpanAccessorForPrimitiveTypes,
+        BindingsContext context
     ) {
         Entity arrayElementType = fieldTypeArray.ElementType.Value;
         bool isPrimitive = IsPrimitiveArrayElementType(fieldTypeArray.ElementType);
@@ -593,15 +441,22 @@ public static class StructModifiers {
         if (isPrimitive && !explodePrimitiveTypes && !createSpanAccessorForPrimitiveTypes && arrayBoundsValue == null)
             return [initialField];
 
-        if (arrayBoundsValue == null)
-            throw new Exception(
-                $"Failed to determine numeric array bounds for field {structure.Name}.{initialField.Name} " +
-                $"(expression {fieldTypeArray.ArrayBounds})"
-            );
+        /*if (initialField.Name.Contains("BackupFloat")) {
+            Console.WriteLine(5);
+        }*/
 
         IEntityReference arrayElementTypeReference = arrayElementType.AsEntityReference();
         List<Field> fields;
-        if (!isPrimitive || explodePrimitiveTypes) {
+
+        bool canExplode = !isPrimitive || explodePrimitiveTypes;
+        if (canExplode) {
+            arrayBoundsValue ??= ResolveNumericArrayBoundsValue(fieldTypeArray, context.NumericValueSubstitutions);
+            if (arrayBoundsValue == null)
+                throw new InvalidOperationException(
+                    $"Failed to determine numeric array bounds for field {structure.Name}.{initialField.Name} " +
+                    $"(expression {fieldTypeArray.ArrayBounds})"
+                );
+
             fields =
                 Enumerable
                     .Range(0, (int) arrayBoundsValue.Value)
@@ -639,12 +494,24 @@ public static class StructModifiers {
             }
         }
 
+        string arrayBoundsString =
+            arrayBoundsValue != null ?
+                arrayBoundsValue.Value.ToString() :
+                $"(int) ({fieldTypeArray.ArrayBounds})";
+
+        // Leave the actual values to be calculated by the compiler where we can
+        if (arrayBoundsValue == null) {
+            initialField.Type.Value = (Array) initialField.Type.Value with {
+                ArrayBounds = arrayBoundsString
+            };
+        }
+
         PropertyDeclarationSyntax spanAccessorProperty =
             CreateFixedSizeArrayFieldSpanAccessorProperty(
                 propertyName,
                 initialField.Name,
                 arrayElementType,
-                arrayBoundsValue.Value,
+                arrayBoundsString,
                 !isPrimitive,
                 initialField.Name
             );
@@ -656,7 +523,7 @@ public static class StructModifiers {
         string propertyName,
         string fieldName,
         Entity arrayElementType,
-        long arrayBoundsValue,
+        string arrayBounds,
         bool asPointerToExplodedField,
         string primitiveFieldName
     ) {
@@ -688,19 +555,19 @@ public static class StructModifiers {
                         )
                     ),
                     ReturnStatement(
-                        ParseExpression($"new Span<{arrayElementTypeFormatted}>({pointerVariableName}, {arrayBoundsValue})")
+                        ParseExpression($"new Span<{arrayElementTypeFormatted}>({pointerVariableName}, {arrayBounds})")
                     )
                 );
 #else
             getBody =
                 ArrowExpressionClause(
-                    ParseExpression($"UnsafeUtility.CreateSpan(ref {fieldName}_0, {arrayBoundsValue})")
+                    ParseExpression($"UnsafeUtility.CreateSpan(ref {fieldName}_0, {arrayBounds})")
                 );
 #endif
         } else {
             getBody =
                 ArrowExpressionClause(
-                    ParseExpression($"UnsafeUtility.CreateSpan(ref {fieldName}[0], {arrayBoundsValue})")
+                    ParseExpression($"UnsafeUtility.CreateSpan(ref {fieldName}[0], {arrayBounds})")
                 );
         }
 
@@ -781,7 +648,10 @@ public static class StructModifiers {
         return unmanagedDelegateProperty;
     }
 
-    private static long? ResolveNumericArrayBoundsValue(Array fieldTypeArray, MetadataDto dto, BindingsModel model) {
+    private static long? ResolveNumericArrayBoundsValue(
+        Array fieldTypeArray,
+        ValueSubstitutions<long> valueSubstitutions
+    ) {
         // We have a numeric literal, we're golden
         long? arrayBoundsValue = fieldTypeArray.ArrayBoundsNumeric;
         if (arrayBoundsValue != null)
@@ -793,35 +663,10 @@ public static class StructModifiers {
             return null;
         }
 
-        // Check if there's a define with the same name as the array bounds expression,
-        // and if there is one, evaluate it to a number
-        MetadataDto.Define? valueDefine =
-            dto.Defines
-                .FirstOrDefault(define => define.Name == arrayBounds);
+        arrayBounds = valueSubstitutions.Substitute(arrayBounds, out (bool found, long value) exactMatch);
+        if (exactMatch.found)
+            return exactMatch.value;
 
-        if (valueDefine != null) {
-            arrayBoundsValue = EvaluateExpressionAsLong(valueDefine.Content);
-            if (arrayBoundsValue != null)
-                return arrayBoundsValue;
-        }
-
-        // Check if there's an enum member matching the array bounds expression
-        foreach (Enum enumeration in model.Enums.Select(x => x.Value)) {
-            foreach (Enum.Member member in enumeration.Members) {
-                string fullName = $"{enumeration.Name}.{member.Name}";
-                if (arrayBounds != fullName)
-                    continue;
-
-                arrayBoundsValue = member.ValueNumeric ?? EvaluateExpressionAsLong(member.Value);
-                goto enumFound;
-            }
-        }
-
-        enumFound:
-        if (arrayBoundsValue != null)
-            return arrayBoundsValue;
-
-        // Evaluate the array bounds expression to a number
         arrayBoundsValue = EvaluateExpressionAsLong(arrayBounds);
         if (arrayBoundsValue != null)
             return arrayBoundsValue;

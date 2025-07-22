@@ -54,6 +54,7 @@ public class BindingsModelCSharpTransformer {
         using (Operation("Genericizing structs")) {
             GenericizeStructsByFieldType(Model, "ImVector", "Data", true);
             GenericizeStructsByFieldType(Model, "ImSpan", "Data", true);
+            //GenericizeStructsByFieldType(Model, "ImStableVector", "Blocks", true);
             GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiTableSettings", "ImChunkStream", "ImGuiTableSettings");
             GenericizeStructByTypeName(Model, "ImChunkStream_ImGuiWindowSettings", "ImChunkStream", "ImGuiWindowSettings");
             GenericizeStructByTypeName(Model, "ImPool_ImGuiMultiSelectState", "ImPool", "ImGuiMultiSelectState");
@@ -65,11 +66,32 @@ public class BindingsModelCSharpTransformer {
             RenameStructFieldType(Model, "ImGuiInputEvent", "__anonymous_type", "ImGuiInputEventData", "EventData");
             RenameStructFieldType(Model, "ImGuiStoragePair", "__anonymous_type", "ImGuiStoragePairValue", "Value");
             RenameStructFieldType(Model, "ImGuiStyleMod", "__anonymous_type", "ImGuiStyleModBackupValue", "BackupValue");
+            RenameStructFieldType(Model, "ImFontAtlas", "__anonymous_type", "ImFontAtlasTexRef", "TexRef_");
+
+            Struct[] anonymousTypes =
+                Model.Structs
+                    .Where(structure => structure.Value.Name.StartsWith("__anonymous_type"))
+                    .Select(structure => structure.Value)
+                    .ToArray();
+
+            if (anonymousTypes.Length != 0) {
+                foreach (Struct anonymousType in anonymousTypes) {
+                    Log.LogCritical(
+                        "Found non-renamed anonymous type '{AnonymousType}' with members: {Members}",
+                        anonymousType.Name,
+                        String.Join(", ", anonymousType.Children.Select(x => x.ToString()))
+                    );
+                }
+
+                throw new InvalidOperationException("Non-renamed anonymous types detected");
+            }
         }
 
         using (Operation("Generating handle types")) {
             ModelModifiers.GenerateHandleTypes(Context, Model);
         }
+
+        // Enums
 
         Transform(
             "Rewriting typedefs to enums",
@@ -77,7 +99,6 @@ public class BindingsModelCSharpTransformer {
             x => UpdateEnumTypedefs(x, Model)
         );
 
-        // Enums
         Transform(
             "Adding [Obsolete] attributes to enums",
             Model.Enums,
@@ -89,8 +110,26 @@ public class BindingsModelCSharpTransformer {
         Transform(
             "Wrapping enums in shared conditionals",
             Model.Enums,
-            x => WrapInSharedConditional(x, x.Members)
+            enumeration => WrapInSharedConditional(enumeration, enumeration.Members)
         );
+
+        Transform(
+            "Adding enum values to expression substitutions list",
+            Model.Enums,
+            enumeration => {
+                AddEnumMembersToNumericValueSubstitutionList(enumeration, Context.NumericValueSubstitutions);
+                return enumeration;
+            }
+        );
+
+        // Constants
+        using (Operation("Generating ImGuiConstants classes")) {
+            Model.Children.AddRange(
+                new ImGuiConstantsGenerator(Context, MetadataDto)
+                    .Generate()
+                    .Select(x => x.AsEntityReference())
+            );
+        }
 
         // Struct fields
         Transform(
@@ -98,6 +137,10 @@ public class BindingsModelCSharpTransformer {
             Model.Structs,
             x => WrapInSharedConditional(x, x.Children.OfType<IIndependentEntity>().ToArray())
         );
+
+        using (Operation("Making pointers to external structs opaque (pass 1)")) {
+            ModelModifiers.MakePointersToStructsOpaque(Context, Model);
+        }
 
         using (Operation("Patching enum reference in fixed array fields")) {
             Model.Structs.ForEach(structure =>
@@ -115,15 +158,9 @@ public class BindingsModelCSharpTransformer {
         );
 
         Transform(
-            "Calculating numeric array bounds in fixed array fields",
-            Model.Structs,
-            structure => FixMissingFieldArrayNumericBounds(structure, MetadataDto, Context, Model)
-        );
-
-        Transform(
             "Exploding fixed size array fields with non-primitive types into multiple fields",
             Model.Structs,
-            ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes
+            structure => ExplodeFixedSizeArrayFieldsOfNonPrimitiveTypes(structure, Context)
         );
 
         Transform(
@@ -154,7 +191,7 @@ public class BindingsModelCSharpTransformer {
             Transform(
                 "Creating Span accessor properties for fixed size array fields with primitive types",
                 Model.Structs,
-                CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes
+                structure => CreateSpanAccessorForFixedSizeArrayFieldsOfPrimitiveTypes(structure, Context)
             );
         }
 
@@ -197,8 +234,7 @@ public class BindingsModelCSharpTransformer {
 
         void UpdateFunctionsAndDelegatesArguments(Func<IFunctionLike, FunctionArgument, int, FunctionArgument> transformer) {
             allFunctionsAndDelegates.ForEach(function => {
-                function.Arguments.UpdateInPlace<FunctionArgument, FunctionArgument>(
-                    (arg, argIndex) => transformer(function, arg, argIndex)
+                function.Arguments.UpdateInPlace<FunctionArgument, FunctionArgument>((arg, argIndex) => transformer(function, arg, argIndex)
                 );
             });
         }
@@ -244,7 +280,7 @@ public class BindingsModelCSharpTransformer {
             allFunctionsAndDelegates.ForEach(ConvertFunctionPointerReturnValuesToIntPtr);
         }
 
-        using (Operation("Converting C-style fixed-size array arguments to pointers to fixed-size structs")) {
+        using (Operation("Converting C-style fixed-size array function arguments to pointers to fixed-size structs")) {
             UpdateFunctionsAndDelegatesArguments((_, arg, _) =>
                 ConvertFixedSizeArrayArgumentToFixedSizeStruct(arg, Context)
             );
@@ -289,33 +325,40 @@ public class BindingsModelCSharpTransformer {
                 );*/
         }
 
-        using (Operation("Making pointers to chosen structs opaque")) {
+        using (Operation("Making pointers to external structs opaque (pass 2)")) {
             ModelModifiers.MakePointersToStructsOpaque(Context, Model);
-        }
-
-        using (Operation("Generating ImGuiConstants class")) {
-            Model.Children.AddRange(
-                new ImGuiConstantsGenerator(Context, MetadataDto)
-                    .Generate()
-                    .Select(x => x.AsEntityReference())
-            );
-        }
-
-        using (Operation("Generating managed methods")) {
-            Model = new ManagedMethodGenerator(Context, Model).Generate();
         }
 
         using (Operation("Adding [Obsolete] attributes to structs")) {
             BindingsModelTransformUtility.Transform<Struct>(
                 Model.Structs.Select(x => x.Reference).ToList(),
-                x => AddObsoleteAttributes(x, x.Children.OfType<IIndependentEntity>().ToArray())
+                x => AddObsoleteAttributes(x, x.Children.OfType<IIndependentEntity>())
             );
         }
 
-        using (Operation("Adding [Obsolete] attributes to free functions")) {
-            BindingsModelTransformUtility.Transform<Function>(
-                Model.FreeFunctions.Select(x => x.Reference).ToList(),
-                x => AddObsoleteAttributes(x, [])
+        Transform(
+            "Adding [Obsolete] attributes to free functions",
+            Model.FreeFunctions,
+            x => AddObsoleteAttributes(x, [])
+        );
+
+        using (Operation("Fixing preprocessor defines")) {
+            Transform(
+                Model.Structs,
+                structure => {
+                    structure.Children
+                        .OfType<IIndependentEntity>()
+                        .ForEach(NewMethod);
+                    return structure;
+                }
+            );
+
+            Transform(
+                Model.FreeFunctions,
+                freeFunction => {
+                    NewMethod(freeFunction);
+                    return freeFunction;
+                }
             );
         }
 
@@ -332,10 +375,38 @@ public class BindingsModelCSharpTransformer {
                 .ForEach(x => x.Value.NoEmit = true);
         }
 
+        using (Operation("Generating managed methods")) {
+            Model = new ManagedMethodGenerator(Context, Model).Generate();
+        }
+
         return Model;
     }
 
+    private static void NewMethod(IIndependentEntity entity) {
+        if (entity.Conditionals.Any(c => c.Expression.Contains("__cplusplus"))) {
+            entity.IsDisabled = true;
+            return;
+        }
+
+        if (entity.Conditionals.Any(c => c.Expression.Contains("defined("))) {
+            entity.Conditionals =
+                entity.Conditionals
+                    .Select(c => c with { Expression = c.Expression.Replace("defined(", "(") })
+                    .ToArray();
+        }
+    }
+
     private static TimedLoggedOperation Operation(string operationName) => new(Log, operationName);
+
+    private static void Transform<TEntity>(
+        IReadOnlyList<EntityReferenceWrapper<TEntity>> entityReferences,
+        Func<TEntity, TEntity?> transformer
+    ) where TEntity : Entity {
+        BindingsModelTransformUtility.Transform(
+            entityReferences.Select(x => x.Reference).ToList(),
+            transformer
+        );
+    }
 
     private static void Transform<TEntity>(
         string operationName,

@@ -12,7 +12,7 @@ public record BindingsFileCustomizations {
     public string NativeFunctionsManagedWrapperClassName { get; init; } = null!;
 
     public IReadOnlyList<string> FunctionsNoPermutations { get; init; } = [];
-    public IReadOnlyList<NativeFunctionArgumentsIdentifier> TreatPointerArgumentsAsArrays { get; init; } = [];
+    public IReadOnlyList<NativeFunctionArgumentsIdentifier> TreatPointerArgumentsAsArrays { get; init; } = []; // TODO: implement
     public IReadOnlyList<string> PrefixesRemovedFromManagedMethods { get; init; } = [];
     public IReadOnlyList<string> PrefixesRemovedFromTypeNames { get; init; } = [];
     public IReadOnlyList<string> MakePointersToStructsOpaque { get; init; } = [];

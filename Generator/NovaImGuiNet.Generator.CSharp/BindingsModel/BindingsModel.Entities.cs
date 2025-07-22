@@ -17,20 +17,27 @@ public partial class BindingsModel {
         IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes);
     }
 
-    public interface IIndependentEntity : IEntity {
+    public interface IIndependentEntity : IEntity, IAttributesOwner {
         Comments Comments { get; set; }
         IReadOnlyList<Conditional> Conditionals { get; set; }
         SourceLocation? SourceLocation { get; }
         bool IsInternal { get; set; }
         bool IsDisabled { get; set; }
         bool NoEmit { get; set; }
-        IReadOnlyList<AttributeSyntax> Attributes { get; set; }
     }
 
     public interface ITopLevelEntity : IIndependentEntity {
         string Name { get; set; }
         string? Namespace { get; set; }
         bool IsSpecialTopLevel { get; set; }
+    }
+
+    public interface ITypeOwner {
+        IEntityReference Type { get; set; }
+    }
+
+    public interface IAttributesOwner {
+        IReadOnlyList<AttributeSyntax> Attributes { get; set; }
     }
 
     public abstract record Entity : IConvertibleToEntityReference, IEntity {
@@ -42,7 +49,7 @@ public partial class BindingsModel {
         public IEntityReference AsEntityReference() => new EntityReference(this);
     }
 
-    public abstract record IndependentEntity : Entity, IIndependentEntity {
+    public abstract record IndependentEntity : Entity, IIndependentEntity, IAttributesOwner {
         public Comments Comments { get; set; } = new();
         public IReadOnlyList<Conditional> Conditionals { get; set; } = [];
         public SourceLocation? SourceLocation { get; set; }
@@ -235,7 +242,7 @@ public partial class BindingsModel {
         }
     }
 
-    public record Typedef : TopLevelEntity {
+    public record Typedef : TopLevelEntity, ITypeOwner {
         public required IEntityReference Type { get; set; }
 
         public Typedef() {
@@ -264,7 +271,7 @@ public partial class BindingsModel {
         }
     }
 
-    public record Field : IndependentEntity {
+    public record Field : IndependentEntity, ITypeOwner {
         public required string BaseName { get; set; }
         public string? NamePrefix { get; set; }
         public required IEntityReference Type { get; set; }
@@ -296,7 +303,7 @@ public partial class BindingsModel {
         Const
     }
 
-    public record FunctionArgument {
+    public record FunctionArgument : ITypeOwner, IAttributesOwner {
         private bool _isDefaultValueValidInDeclaration = true;
 
         public required string Name { get; set; }
@@ -308,6 +315,11 @@ public partial class BindingsModel {
         public required string? DefaultValue { get; set; }
         public FunctionArgumentDefaultValueKind DefaultValueKind { get; set; }
         public EqualityList<AttributeSyntax> Attributes { get; set; } = [];
+
+        IReadOnlyList<AttributeSyntax> IAttributesOwner.Attributes {
+            get => Attributes;
+            set => Attributes = new EqualityList<AttributeSyntax>(value);
+        }
 
         public bool IsDefaultValueValidInDeclaration {
             get {
@@ -476,7 +488,7 @@ public partial class BindingsModel {
 
     public record SourceLocation(string Filename, int Line);
 
-    public abstract record SyntaxEntity<T> : IIndependentEntity {
+    public abstract record SyntaxEntity<T> : IIndependentEntity, IAttributesOwner {
         public T Syntax { get; set; }
         public Comments Comments { get; set; } = new();
 

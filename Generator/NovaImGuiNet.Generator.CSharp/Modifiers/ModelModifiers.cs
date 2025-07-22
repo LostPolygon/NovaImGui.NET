@@ -90,33 +90,29 @@ public static class ModelModifiers {
 
             foreach (Function function in functionsBySourceLocation) {
                 foreach (FunctionArgument argument in function.Arguments) {
-                    if (argument.Type.Value is not Pointer pointer)
-                        continue;
-
-                    string? originalType = null;
-
-                    // Second level pointer
-                    bool updated = UpdateType(customizations, pointer.ValueType, out IEntityReference? newPointerValueType);
-                    if (updated) {
-                        originalType = FormatType(pointer);
-                        pointer.ValueType.Value = newPointerValueType!.Value;
-                    } else {
-                        updated = UpdateType(customizations, argument.Type, out IEntityReference? newArgumentType);
-                        if (updated) {
-                            originalType = FormatType(argument.Type.Value);
-                            argument.Type = newArgumentType!;
-                        }
-                    }
-
-                    if (updated) {
-                        argument.Attributes.Add(
-                            SimpleAttribute(
-                                "ImGuiOriginalType",
-                                LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(originalType!))
-                            )
-                        );
-                    }
+                    UpdateEntity(argument, customizations);
                 }
+            }
+        }
+
+        IGrouping<string, (string FileName, Field Field)>[] fieldsBySourceLocations =
+            model.Structs
+                .Where(structure => structure.Value.SourceLocation != null)
+                .Select(structure =>
+                (
+                    FileName: structure.Value.SourceLocation!.Filename,
+                    Fields: structure.Value.Children.OfType<Field>()
+                ))
+                .SelectMany(fieldsWithFilename => fieldsWithFilename.Fields.Select(f => (fieldsWithFilename.FileName, Field: f)))
+                .GroupBy(x => x.FileName)
+                .ToArray();
+
+        foreach (IGrouping<string, (string FileName, Field Field)> fieldsBySourceLocation in fieldsBySourceLocations) {
+            BindingsFileCustomizations customizations =
+                context.Customizations.RequireCustomization(fieldsBySourceLocation.Key);
+
+            foreach ((_, Field field) in fieldsBySourceLocation) {
+                UpdateEntity(field, customizations);
             }
         }
 
@@ -142,6 +138,36 @@ public static class ModelModifiers {
 
             newType = KnownEntities.IntPtr.AsEntityReference();
             return true;
+        }
+
+        static void UpdateEntity<T>(T entity, BindingsFileCustomizations customizations) where T : ITypeOwner, IAttributesOwner {
+            if (entity.Type.Value is not Pointer pointer)
+                return;
+
+            string? originalType = null;
+
+            // Second level pointer
+            bool updated = UpdateType(customizations, pointer.ValueType, out IEntityReference? newPointerValueType);
+            if (updated) {
+                originalType = FormatType(pointer);
+                pointer.ValueType.Value = newPointerValueType!.Value;
+            } else {
+                updated = UpdateType(customizations, entity.Type, out IEntityReference? newArgumentType);
+                if (updated) {
+                    originalType = FormatType(entity.Type.Value);
+                    entity.Type = newArgumentType!;
+                }
+            }
+
+            if (updated) {
+                entity.Attributes = [
+                    ..entity.Attributes,
+                    SimpleAttribute(
+                        "ImGuiOriginalType",
+                        LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(originalType!))
+                    )
+                ];
+            }
         }
     }
 

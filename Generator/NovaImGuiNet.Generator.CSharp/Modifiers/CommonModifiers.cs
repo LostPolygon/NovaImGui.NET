@@ -45,7 +45,7 @@ public static class CommonModifiers {
 
     public static T AddObsoleteAttributes<T>(
         T entity,
-        IReadOnlyList<IIndependentEntity> members
+        IEnumerable<IIndependentEntity> members
     ) where T : IIndependentEntity {
         AddObsoleteAttributes(entity);
         members.ForEach(AddObsoleteAttributes);
