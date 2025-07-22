@@ -2,8 +2,8 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
-    (string Type, string? Conditional)[] Arg2Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg2Types = GenericString;
 #>
 #nullable enable
 
@@ -26,8 +26,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return DragScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max), format, flags);
+        fixed (T* dataPtr = &data)
+            return DragScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max), format<#= arg2.InvokeSuffix #>, flags);
     }
 
     public static bool DragScalar<T>(
@@ -39,8 +39,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return DragScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) (min), (IntPtr) (max), format, flags);
+        fixed (T* dataPtr = &data)
+            return DragScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) (min), (IntPtr) (max), format<#= arg2.InvokeSuffix #>, flags);
     }
 
     public static bool DragScalarN<T>(
@@ -52,8 +52,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return DragScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max), format, flags);
+        fixed (T* dataPtr = data)
+            return DragScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) AsPointer(in min), (IntPtr) AsPointer(in max), format<#= arg2.InvokeSuffix #>, flags);
     }
 
     public static bool DragScalarN<T>(
@@ -65,8 +65,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return DragScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) (min), (IntPtr) (max), format, flags);
+        fixed (T* dataPtr = data)
+            return DragScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) (min), (IntPtr) (max), format<#= arg2.InvokeSuffix #>, flags);
     }
 
 <#
@@ -82,8 +82,8 @@ public static unsafe partial class ImGui {
         T min = default,
         T max = default
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return DragScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) (&min), (IntPtr) (&max));
+        fixed (T* dataPtr = &data)
+            return DragScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     public static bool DragScalarN<T>(
@@ -93,8 +93,8 @@ public static unsafe partial class ImGui {
         T min = default,
         T max = default
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return DragScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) (&min), (IntPtr) (&max));
+        fixed (T* dataPtr = data)
+            return DragScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) (&min), (IntPtr) (&max));
     }
 
     public static bool DragScalar<T>(
@@ -104,8 +104,8 @@ public static unsafe partial class ImGui {
         T* min = default,
         T* max = default
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return DragScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) (min), (IntPtr) (max));
+        fixed (T* dataPtr = &data)
+            return DragScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, vSpeed, (IntPtr) (min), (IntPtr) (max));
     }
 
     public static bool DragScalarN<T>(
@@ -115,8 +115,8 @@ public static unsafe partial class ImGui {
         T* min = default,
         T* max = default
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return DragScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) (min), (IntPtr) (max));
+        fixed (T* dataPtr = data)
+            return DragScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, vSpeed, (IntPtr) (min), (IntPtr) (max));
     }*/
 
 <#

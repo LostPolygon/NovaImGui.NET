@@ -3,7 +3,7 @@
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
 #nullable enable
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
 #>
 #nullable enable
 
@@ -24,15 +24,14 @@ public static unsafe partial class ImGui {
         if (underlyingType == typeof(<#= type.Item1 #>)) {
             ref <#= type.Item1 #> flags<#= type.Item2 #> = ref Unsafe.As<TEnum, <#= type.Item1 #>>(ref flags);
             <#= type.Item1 #> flagsValue<#= type.Item2 #> = Unsafe.As<TEnum, <#= type.Item1 #>>(ref flagsValue);
-            return CheckboxFlags(label, ref flags<#= type.Item2 #>, flagsValue<#= type.Item2 #>);
+            return CheckboxFlags(label<#= arg1.InvokeSuffix #>, ref flags<#= type.Item2 #>, flagsValue<#= type.Item2 #>);
         }
 
 <#
         }
 #>
-        throw new InvalidCastException(
-            "Only enums with int and uint underlying types are supported, got type: " + underlyingType
-        );
+        InteropExceptions.ThrowUnsupportedEnumUnderlyingType<TEnum>();
+        return false;
     }
 
 <#

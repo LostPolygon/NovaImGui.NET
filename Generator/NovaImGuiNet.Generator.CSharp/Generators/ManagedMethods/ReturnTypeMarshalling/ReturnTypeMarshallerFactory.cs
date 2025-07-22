@@ -9,8 +9,8 @@ public static class ReturnTypeMarshallerFactory {
                 new PassthroughReturnTypeMarshaller(methodSignature, nativeFunctionInvocation),
             ReturnTypeMarshallingMode.PointerWrapper =>
                 new PointerWrapperReturnTypeMarshaller(methodSignature, nativeFunctionInvocation),
-            ReturnTypeMarshallingMode.NullTerminatedString =>
-                new NullTerminatedStringReturnTypeMarshaller(methodSignature, nativeFunctionInvocation),
+            ReturnTypeMarshallingMode.NullTerminatedUtf8String =>
+                new NullTerminatedUtf8StringReturnTypeMarshaller(methodSignature, nativeFunctionInvocation),
             ReturnTypeMarshallingMode.Ref =>
                 new RefReturnTypeMarshaller(methodSignature, nativeFunctionInvocation),
             _ => throw new ArgumentException(

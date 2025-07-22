@@ -2,7 +2,7 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
 #>
 #nullable enable
 
@@ -19,7 +19,7 @@ public static unsafe partial class ImGui {
         TDataItem data,
         ImGuiCond cond = ImGuiCond.None
     ) where TDataItem : unmanaged {
-        return SetDragDropPayload(type, (IntPtr) (&data), sizeof(TDataItem), cond);
+        return SetDragDropPayload(type<#= arg1.InvokeSuffix #>, (IntPtr) (&data), sizeof(TDataItem), cond);
     }
 
     ///<summary>type is a user defined string of maximum 32 characters. Strings starting with &#39;_&#39; are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.</summary>
@@ -29,7 +29,7 @@ public static unsafe partial class ImGui {
         ImGuiCond cond = ImGuiCond.None
     ) where TDataItem : unmanaged {
         fixed (TDataItem* dataPtr = data) {
-            return SetDragDropPayload(type, (IntPtr) dataPtr, data.Length * sizeof(TDataItem), cond);
+            return SetDragDropPayload(type<#= arg1.InvokeSuffix #>, (IntPtr) dataPtr, data.Length * sizeof(TDataItem), cond);
         }
     }
 

@@ -1,6 +1,5 @@
 //#define USE_V2
 
-
 using System.Diagnostics;
 
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
@@ -38,8 +37,7 @@ public class StringReadOnlyCharSpanArgumentMarshaller(MethodSignature methodSign
 #else
         string value = Argument.MarshalledArgument.Name;
         if (!Argument.IsPartOfDeclaration) {
-            Debug.Assert(Argument.MarshalledArgument.DefaultValue != null);
-            value = $"(ReadOnlySpan<char>) {Argument.MarshalledArgument.DefaultValue}";
+            return new StringReadOnlyByteSpanArgumentMarshaller(MethodSignature, Argument).Marshall();
         } else if (
             Argument.MarshalledArgument.Type.Value is BindingsModel.Builtin builtin &&
             builtin.ManagedType == typeof(string)

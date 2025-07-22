@@ -14,7 +14,7 @@ public static class TypedefModifiers {
         //
         // 1) Match up the enum and its typedef
         // 2) Update the underlying enum type from typedef
-        // 3) Point the typedef to the target enum
+        // 3) Point the typedef to the target enum, disable emitting typedef
         EntityReferenceWrapper<Enum>? matchingEnum =
             model.Enums
                 .FirstOrDefault(x =>
@@ -26,7 +26,7 @@ public static class TypedefModifiers {
             if (isUnexpectedMismatch) {
                 Log.LogWarning(
                     $"Typedef '{FormatType(typedef)}' " +
-                    $"was expected to have a matching enum , but none was found"
+                    $"was expected to have a matching enum, but none was found"
                 );
             }
 

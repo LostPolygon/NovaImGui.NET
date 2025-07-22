@@ -1,13 +1,19 @@
 <#@ import namespace="System.Linq" #>
-<#
+<#+
 #nullable enable
-    (string Type, string? Conditional)[] GenericString = [
-        ("byte*", null), 
-        ("ReadOnlySpan<byte>", null), 
-        ("ReadOnlySpan<char>", null), 
-        ("string", "NETSTANDARD2_0"),
-        ("in ImGuiUtf8StringWriter", "USE_UTF8_STRING_WRITER"),
-        ];
+    public class StringArgumentDefinition(string type, string? conditional = null, string invokeSuffix = "") {
+        public string Type { get; } = type;
+        public string? Conditional { get; } = conditional;
+        public string InvokeSuffix { get; } = invokeSuffix;
+    }
+
+    StringArgumentDefinition[] GenericString = [
+        new("byte*"),
+        new("ReadOnlySpan<byte>"),
+        new("ReadOnlySpan<char>"),
+        new("string", invokeSuffix: ".AsSpan()"),
+        new("in ImGuiUtf8StringWriter"),
+    ];
 
     void StartConditional(params string?[] conditionals) {
         string[] validConditionals = conditionals.Where(x => x != null).Distinct().ToArray();

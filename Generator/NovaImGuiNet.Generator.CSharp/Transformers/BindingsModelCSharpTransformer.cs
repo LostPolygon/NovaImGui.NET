@@ -78,6 +78,11 @@ public class BindingsModelCSharpTransformer {
         );
 
         // Enums
+        Transform(
+            "Adding [Obsolete] attributes to enums",
+            Model.Enums,
+            x => AddObsoleteAttributes(x, x.Members)
+        );
         Transform("Adding public members to internal enums", Model.Enums, x => AddPublicMembersToPrivateEnum(x, Model));
         Transform("Cleaning up enum identifiers", Model.Enums, CleanupEnumIdentifiers);
         Transform("Patching enum values referencing other enums", Model.Enums, PatchEnumsReferencingOtherEnums);
@@ -128,9 +133,9 @@ public class BindingsModelCSharpTransformer {
         );
 
         Transform(
-            "Adding NullTerminatedString properties to string-like fields",
+            "Adding NullTerminatedUtf8String properties to string-like fields",
             Model.Structs,
-            AddNullTerminatedStringPropertyForConstCharPointerFields
+            AddUtf8StringPropertyForCharFields
         );
 
         Transform(
@@ -300,6 +305,20 @@ public class BindingsModelCSharpTransformer {
             Model = new ManagedMethodGenerator(Context, Model).Generate();
         }
 
+        using (Operation("Adding [Obsolete] attributes to structs")) {
+            BindingsModelTransformUtility.Transform<Struct>(
+                Model.Structs.Select(x => x.Reference).ToList(),
+                x => AddObsoleteAttributes(x, x.Children.OfType<IIndependentEntity>().ToArray())
+            );
+        }
+
+        using (Operation("Adding [Obsolete] attributes to free functions")) {
+            BindingsModelTransformUtility.Transform<Function>(
+                Model.FreeFunctions.Select(x => x.Reference).ToList(),
+                x => AddObsoleteAttributes(x, [])
+            );
+        }
+
         using (Operation("Disabling NoEmit structs")) {
             Model.Structs
                 .Where(structure => structure.Value.SourceLocation != null)
@@ -316,9 +335,7 @@ public class BindingsModelCSharpTransformer {
         return Model;
     }
 
-    private static TimedLoggedOperation Operation(string operationName) {
-        return new TimedLoggedOperation(Log, operationName);
-    }
+    private static TimedLoggedOperation Operation(string operationName) => new(Log, operationName);
 
     private static void Transform<TEntity>(
         string operationName,

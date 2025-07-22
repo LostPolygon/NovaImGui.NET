@@ -19,7 +19,7 @@ public static unsafe partial class ImGui {
         if (!isAbiValid) {
             string errorMessage =
                 $"""
-                 Native cimgui library ABI doesn't match the managed assembly ABI.
+                 Native dcimgui library ABI doesn't match the managed assembly ABI.
                  Please check if you are using matching versions of NovaImGuiNet and NovaImGuiNet.Native packages.
 
                  Mismatch report:

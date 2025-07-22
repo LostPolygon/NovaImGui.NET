@@ -47,7 +47,7 @@ public static class MetadataDtoToModelMappingUtility {
             .ToEqualityList();
 
     public static MetadataModel.SourceLocation? Map(MetadataDto.SourceLocation? dto) =>
-        dto != null ? new(dto.Filename, dto.Line) : null;
+        dto != null ? new(dto.Value.Filename, dto.Value.Line) : null;
 
     public static MetadataModel.Builtin Map(MetadataDto.TypeValue.TypeDescriptionBuiltin dto) =>
         new(

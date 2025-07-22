@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using CaseConverter;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
+using OneOf;
 
 namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 
@@ -270,15 +272,15 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 .ToList();
 
 #if DEBUG
-        if (Log.IsEnabled(LogLevel.Trace) && methodSignatures.Count > 3) {
-            Log.LogTrace($"==== Overloads for {nativeFunction.Name}");
+        if (Log.IsEnabled(LogLevel.Trace) && methodSignatures.Count > 20) {
+            Log.LogTrace($"==== Overloads for {nativeFunction.Name} (total {methodSignatures.Count})");
             for (int methodSignatureIndex = 0; methodSignatureIndex < methodSignatures.Count; methodSignatureIndex++) {
                 Log.LogTrace(FormatMethodSignatureForOverloadDebug(nativeFunction.Name, methodSignatures, methodSignatureIndex));
             }
         }
 #endif
 
-        string nativeFunctionsClassName = bindingsFileCustomizations.GetNativeFunctionsRawPointersClassName();
+        string nativeFunctionsClassName = bindingsFileCustomizations.GetNativeFunctionsRawPointersInnerClassFullName();
 
         List<Function> managedMethods = [];
         foreach (MethodSignature methodSignature in methodSignatures) {
@@ -555,7 +557,9 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
         IReturnTypeMarshaller returnTypeMarshaller =
             ReturnTypeMarshallerFactory.Create(methodSignature, nativeFunctionInvocation);
 
-        StatementSyntaxListBuilder bodyBuilder = new();
+        ManagedMethodBodyBuilder bodyBuilder = new();
+
+        bodyBuilder.AppendRange(returnTypeMarshaller.CreateDeclarationStatements());
 
         foreach (ArgumentMarshallerOutput argumentMarshallerOutput in argumentMarshallerOutputs) {
             bodyBuilder.AppendRange(argumentMarshallerOutput.MarshallStatements);
@@ -582,7 +586,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
 
         Function managedMethod = methodSignature.NativeFunction with {
             Name = methodName,
-            Body = Block(bodyBuilder.Statements),
+            Body = OneOf<IReadOnlyList<StatementSyntax>, ArrowExpressionClauseSyntax>.FromT0(bodyBuilder.CreateStatements()),
             Arguments = signatureArguments,
             ReturnType = methodSignature.ReturnType.MarshalledReturnType.AsEntityReference(),
             IsNativeFunction = false
@@ -701,7 +705,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             return [
                 new(
                     description.ReturnType,
-                    ReturnTypeMarshallingMode.NullTerminatedString,
+                    ReturnTypeMarshallingMode.NullTerminatedUtf8String,
                     null
                 )
             ];
@@ -877,10 +881,10 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 return false;
 
             const string sizeSuffix = "_size";
-            const string countSuffix = "_count";
             if (dataPointerArg.Argument.Name + sizeSuffix == dataSizeArg.Argument.Name)
                 return true;
 
+            const string countSuffix = "_count";
             if (dataPointerArg.Argument.Name + countSuffix == dataSizeArg.Argument.Name)
                 return true;
 
@@ -896,14 +900,14 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
             case ReturnTypeMarshallingMode.Void:
             case ReturnTypeMarshallingMode.Passthrough:
                 break;
-            case ReturnTypeMarshallingMode.NullTerminatedString:
-                returnType = KnownEntities.NullTerminatedString;
+            case ReturnTypeMarshallingMode.NullTerminatedUtf8String:
+                returnType = KnownEntities.NullTerminatedUtf8String;
                 break;
             case ReturnTypeMarshallingMode.PointerWrapper: {
                 Pointer? returnTypePointer = returnType.AsEntityReference().ExpandTypedef().Value as Pointer;
                 Debug.Assert(returnTypePointer != null);
 
-                // Uglyness to handle void**
+                // Ugliness to handle void**
                 if (returnTypePointer.ValueType.Value.IsVoidPointer()) {
                     returnTypePointer = returnTypePointer with {
                         ValueType = KnownEntities.IntPtr.AsEntityReference()
@@ -917,7 +921,7 @@ public class ManagedMethodGenerator(BindingsContext bindingsContext, BindingsMod
                 Pointer? returnTypePointer = returnType.AsEntityReference().ExpandTypedef().Value as Pointer;
                 Debug.Assert(returnTypePointer != null);
 
-                // Uglyness to handle void**
+                // Ugliness to handle void**
                 if (returnTypePointer.ValueType.Value.IsVoidPointer()) {
                     returnTypePointer = returnTypePointer with {
                         ValueType = KnownEntities.IntPtr.AsEntityReference()

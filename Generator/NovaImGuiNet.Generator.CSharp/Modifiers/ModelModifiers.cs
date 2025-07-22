@@ -11,6 +11,7 @@ using static BindingsModel;
 using static SyntaxFactory;
 using static CSharpCodeGenerationUtility;
 using static SyntaxFactoryCached;
+using static BindingsGenerationUtility;
 
 public static class ModelModifiers {
     private static readonly ILogger Log = Logging.Create(nameof(ModelModifiers));
@@ -109,20 +110,9 @@ public static class ModelModifiers {
 
                     if (updated) {
                         argument.Attributes.Add(
-                            Attribute(
-                                ParseName("ImGuiOriginalType"),
-                                AttributeArgumentList(
-                                    SeparatedList(
-                                        [
-                                            AttributeArgument(
-                                                LiteralExpression(
-                                                    SyntaxKind.StringLiteralExpression,
-                                                    Literal(originalType!)
-                                                )
-                                            )
-                                        ]
-                                    )
-                                )
+                            SimpleAttribute(
+                                "ImGuiOriginalType",
+                                LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(originalType!))
                             )
                         );
                     }

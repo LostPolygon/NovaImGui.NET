@@ -12,10 +12,10 @@ public static unsafe class UnsafeUtility {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void* AsPointer<T>(in T* value) where T : unmanaged {
+    public static T** AsPointer<T>(in T* value) where T : unmanaged {
         InlineIL.IL.Emit.Ldarg_0();
         InlineIL.IL.Emit.Conv_U();
-        return InlineIL.IL.ReturnPointer();
+        return (T**) InlineIL.IL.ReturnPointer();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -37,11 +37,12 @@ public static unsafe class UnsafeUtility {
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Span<Pointer<T>> CreatePointerArraySpan<T>(scoped ref T* reference, int length) where T : unmanaged {
+    public static Span<Pointer<T>> CreateSpan<T>(scoped ref T* reference, int length) where T : unmanaged {
         Span<IntPtr> intPtrSpan = CreateSpan(ref AsIntPtrRef(ref reference), length);
         return MemoryMarshal.Cast<IntPtr, Pointer<T>>(intPtrSpan);
     }
 
+    // ReSharper disable once UnusedParameter.Global
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool AreRefSame<T>([AllowNull] ref readonly T left, [AllowNull] ref readonly T right) {
         InlineIL.IL.Emit.Ldarg_0();

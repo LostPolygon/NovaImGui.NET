@@ -3,7 +3,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MoreLinq.Extensions;
@@ -15,6 +14,8 @@ using static CSharpCodeGenerationUtility;
 using static BindingsModel;
 using static SyntaxFactory;
 using static SyntaxFactoryCached;
+using static BindingsGenerationUtility;
+using static BindingsMethodSyntaxGenerator;
 
 public class BindingsModelBindingsSyntaxGenerator {
     public BindingsModel BindingsModel { get; }
@@ -59,32 +60,27 @@ public class BindingsModelBindingsSyntaxGenerator {
             }
         }
 
-        AddTask(() => {
-            IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits = GenerateNativeFunctionBindingsClass(false);
-            foreach (CompilationUnitWithFileInformation functionsCompilationUnit in functionsCompilationUnits) {
-                AddCompilationUnit(
-                    functionsCompilationUnit.File,
-                    functionsCompilationUnit.CompilationUnitSyntax
-                );
-            }
-        });
+        ImGuiNativeBindingsGenerator nativeBindingsGenerator = new(BindingsModel, BindingsContext);
+        foreach (bool isUntyped in new[] { false, true }) {
+            AddTask(() => {
+                IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits =
+                    nativeBindingsGenerator.GenerateNativeFunctionBindingsClass(isUntyped);
 
-        AddTask(() => {
-            IEnumerable<CompilationUnitWithFileInformation> functionsCompilationUnits = GenerateNativeFunctionBindingsClass(true);
-            foreach (CompilationUnitWithFileInformation functionsCompilationUnit in functionsCompilationUnits) {
-                AddCompilationUnit(
-                    functionsCompilationUnit.File,
-                    functionsCompilationUnit.CompilationUnitSyntax
-                );
-            }
-        });
+                foreach (CompilationUnitWithFileInformation functionsCompilationUnit in functionsCompilationUnits) {
+                    AddCompilationUnit(
+                        functionsCompilationUnit.File,
+                        functionsCompilationUnit.CompilationUnitSyntax
+                    );
+                }
+            });
+        }
 
         AddItemWrapperTask(
             BindingsModel.Structs,
             structure => {
                 CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
                     structure.Namespace!,
-                    GenerateBinding(structure)
+                    GenerateStructBinding(structure)
                 );
 
                 AddCompilationUnit(structure, compilationUnitSyntax, "Structs");
@@ -123,7 +119,7 @@ public class BindingsModelBindingsSyntaxGenerator {
             enumeration => {
                 CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
                     enumeration.Namespace!,
-                    GenerateBinding(enumeration)
+                    GenerateEnumBinding(enumeration)
                 );
 
                 AddCompilationUnit(enumeration, compilationUnitSyntax, "Enums");
@@ -144,68 +140,6 @@ public class BindingsModelBindingsSyntaxGenerator {
             .ForEach(unit => compilationUnits.Add(unit));
 
         return compilationUnits.ToArray();
-    }
-
-    private IEnumerable<CompilationUnitWithFileInformation> GenerateNativeFunctionBindingsClass(bool useRawPointers) {
-        IGrouping<string?, EntityReferenceWrapper<Function>>[] allNativeFunctionsByNamespace =
-            BindingsModel
-                .GetAllFunctions()
-                .Where(x => x.Value.IsNativeFunction)
-                .GroupBy(x => x.Value.Namespace)
-                .ToArray();
-
-        foreach (IGrouping<string?, EntityReferenceWrapper<Function>> entityReferenceWrappers in allNativeFunctionsByNamespace) {
-            string? targetNamespace = entityReferenceWrappers.Key;
-            Debug.Assert(targetNamespace != null);
-
-            EntityReferenceWrapper<Function>[] allNativeFunctions = entityReferenceWrappers.ToArray();
-
-            List<MemberDeclarationSyntax> methodSyntaxes = [];
-            foreach (EntityReferenceWrapper<Function> functionReference in allNativeFunctions) {
-                Function apiModelFunction = functionReference.Value;
-                methodSyntaxes.AddRange(GenerateNativeFunctionDeclaration(apiModelFunction, useRawPointers));
-            }
-
-            BindingsFileCustomizations customizations =
-                BindingsContext.Customizations
-                    .RequireCustomizationByNamespace(targetNamespace);
-
-            string targetClassName = customizations.NativeFunctionsClassName;
-            string nativeLibraryName = customizations.NativeLibraryName;
-
-            if (useRawPointers) {
-                targetClassName = customizations.GetNativeFunctionsRawPointersClassName();
-            }
-
-            ClassDeclarationSyntax classDeclaration =
-                ClassDeclaration(Identifier(targetClassName))
-                    .AddModifiers(
-                        Token(SyntaxKind.PublicKeyword),
-                        Token(SyntaxKind.StaticKeyword),
-                        Token(SyntaxKind.UnsafeKeyword),
-                        Token(SyntaxKind.PartialKeyword)
-                    )
-                    .AddMembers(
-                        ParseMemberDeclaration($"public const string ImGuiDllName = \"{nativeLibraryName}\";\n"),
-                        ApplyConditionals(
-                            ParseMemberDeclaration("public const string ImGuiDllName = \"__Internal\";\n"),
-                            [new Conditional("NOVA_STATIC_LINK")]
-                        ),
-                        ParseMemberDeclaration("public const CallingConvention ImGuiCallingConvention = CallingConvention.Cdecl;")!
-                    )
-                    .AddMembers(methodSyntaxes.ToArray());
-
-            CompilationUnitSyntax compilationUnitSyntax = WrapRootLevelDefinition(
-                targetNamespace,
-                classDeclaration
-            );
-
-            yield return
-                new CompilationUnitWithFileInformation(
-                    compilationUnitSyntax,
-                    new CompilationUnitFileInformation(targetClassName, targetNamespace, ForceTopLevel: true)
-                );
-        }
     }
 
     private(
@@ -266,298 +200,7 @@ public class BindingsModelBindingsSyntaxGenerator {
         return (globalUsingsCompilationUnits, delegatesCompilationUnits);
     }
 
-    private IReadOnlyList<BaseMethodDeclarationSyntax> GenerateNativeFunctionDeclaration(Function function, bool useRawPointers) {
-        IEntityReference[] allChildTypes = function.GetReferencedTypes([]).ToArray();
-        IEntityReference[] callbacks = [
-            ..allChildTypes.Where(x => x.Value is Delegate),
-            ..allChildTypes.Where(t => t.Value is Typedef { Type.Value: Delegate })
-        ];
-
-        BaseMethodDeclarationSyntax managedMethodSyntaxRaw = Generate(function, false);
-        BaseMethodDeclarationSyntax managedMethodSyntax = ApplyCommonEntitySyntax(managedMethodSyntaxRaw, function);
-        if (callbacks.Length != 0) {
-            BaseMethodDeclarationSyntax unmanagedMethodSyntaxRaw = Generate(function, true);
-
-            if (managedMethodSyntaxRaw.IsEquivalentTo(unmanagedMethodSyntaxRaw))
-                return [managedMethodSyntax];
-
-            BaseMethodDeclarationSyntax unmanagedMethodSyntax = ApplyCommonEntitySyntax(unmanagedMethodSyntaxRaw, function);
-            unmanagedMethodSyntax = ApplyConditionals(
-                unmanagedMethodSyntax,
-                [new Conditional("NET6_0_OR_GREATER")]
-            );
-
-            return [managedMethodSyntax, unmanagedMethodSyntax];
-        }
-
-        return [managedMethodSyntax];
-
-        // When delegatesAsFunctionPointers is true, generates delegates unmanaged function pointers
-        // When delegatesAsFunctionPointers is false, generates delegates as IntPtr
-        BaseMethodDeclarationSyntax Generate(Function function, bool delegatesAsFunctionPointers) {
-#if USE_LIBRARY_IMPORT
-                List<AttributeSyntax> importAttributes = [
-                    Attribute(ParseName("LibraryImport"))
-                        .WithArgumentList(AttributeArgumentList(
-                            SeparatedList(
-                                [
-                                    AttributeArgument(ParseExpression("ImGuiDllName")),
-                                    AttributeArgument(ParseExpression("StringMarshalling = StringMarshalling.Utf8"))
-                                ]
-                            )
-                        )),
-                    Attribute(ParseName("UnmanagedCallConv"))
-                        .WithArgumentList(AttributeArgumentList(
-                            SeparatedList(
-                                [
-                                    AttributeArgument(ParseExpression("CallConvs = [typeof(CallConvCdecl)]"))
-                                ]
-                            )
-                        ))
-                ];
-#else
-            List<AttributeSyntax> importAttributes = [
-                Attribute(ParseName("DllImport"))
-                    .WithArgumentList(AttributeArgumentList(
-                        SeparatedList(
-                            [
-                                AttributeArgument(ParseExpression("ImGuiDllName")),
-                                AttributeArgument(ParseExpression("CallingConvention = ImGuiCallingConvention"))
-                            ]
-                        )
-                    ))
-            ];
-#endif
-
-            // Mangle the function by replacing all delegates with IntPtr
-            if (!delegatesAsFunctionPointers) {
-                List<FunctionArgument> newArguments =
-                    function.Arguments
-                        .Select(arg => {
-                            // This two-level nonsense deals with ImGui.GetAllocatorFunctions
-                            // pointers to function pointers
-                            Delegate? firstLevelDelegate = arg.Type.ExpandTypedef().Value as Delegate;
-                            Delegate? secondLevelDelegate = arg.Type.ExpandAllTypedefsAndPointers().Value as Delegate;
-                            if (firstLevelDelegate == null && secondLevelDelegate == null)
-                                return arg;
-
-                            if (firstLevelDelegate == null && secondLevelDelegate != null) {
-                                arg = arg with { Type = KnownEntities.VoidVoidPointer.AsEntityReference() };
-                            } else {
-                                arg = arg with { Type = KnownEntities.IntPtr.AsEntityReference() };
-                            }
-
-                            return arg;
-                        })
-                        .ToList();
-
-                function = function with {
-                    Arguments = newArguments
-                };
-            }
-
-            if (useRawPointers) {
-                List<FunctionArgument> newArguments =
-                    function.Arguments
-                        .Select(arg => {
-                            if (arg.Type.ExpandTypedef().Value is not Pointer)
-                                return arg;
-
-                            arg = arg with { Type = KnownEntities.IntPtr.AsEntityReference() };
-                            return arg;
-                        })
-                        .ToList();
-
-                function = function with {
-                    Arguments = newArguments
-                };
-
-                if (function.ReturnType.ExpandTypedef().Value is Pointer) {
-                    function = function with {
-                        ReturnType = KnownEntities.IntPtr.AsEntityReference()
-                    };
-                }
-            }
-
-            BaseMethodDeclarationSyntax methodSyntax =
-                GenerateFunctionBindingMethodSyntax(
-                        function,
-                        true,
-                        true,
-                        delegatesAsFunctionPointers,
-                        null
-                    )
-                    .AddAttributeLists(
-                        importAttributes
-                            .Select(attr =>
-                                AttributeList(SeparatedList([attr]))
-                            )
-                            .ToArray()
-                    )
-#if USE_LIBRARY_IMPORT
-                    .AddModifiers(Token(SyntaxKind.PartialKeyword));
-#else
-                    .AddModifiers(Token(SyntaxKind.ExternKeyword));
-#endif
-
-            List<string> generatorCommentItems = [$"OriginalFullyQualifiedName = {function.OriginalFullyQualifiedName}"];
-            if (function.OwnerStruct != null) {
-                generatorCommentItems.Add($"OriginalClass = {FormatType(function.OwnerStruct.Value)}");
-            }
-
-            if (function.IsUnformattedHelper) {
-                generatorCommentItems.Add("IsUnformattedHelper");
-            }
-
-            if (function.IsConstructor) {
-                generatorCommentItems.Add("IsConstructor");
-            }
-
-            string generatorComment = String.Join(", ", generatorCommentItems);
-            SyntaxTrivia[] generatorTrivia = [
-                Comment($"// {generatorComment}"),
-                LineFeed,
-                LineFeed
-            ];
-
-            methodSyntax = methodSyntax.AddLeadingTriviaToEnd(generatorTrivia);
-
-            return methodSyntax;
-        }
-    }
-
-    private BaseMethodDeclarationSyntax GenerateFunctionBindingMethodSyntax(
-        Function function,
-        bool isStaticMethod,
-        bool isNativeMethod,
-        bool delegatesAsFunctionPointers,
-        OneOf<BlockSyntax, ArrowExpressionClauseSyntax>? bodySyntax
-    ) {
-        List<SyntaxKind> modifiers = [SyntaxKind.PublicKeyword];
-
-        if (isStaticMethod) {
-            modifiers.Add(SyntaxKind.StaticKeyword);
-        }
-
-        BaseMethodDeclarationSyntax methodDeclarationSyntax;
-        if (function.IsConstructor && !isNativeMethod) {
-            methodDeclarationSyntax =
-                ConstructorDeclaration(FormatType(function.OwnerStruct!.Value))
-                    .AddModifiers(modifiers.Select(Token).ToArray());
-        } else {
-            // Ugliness for ref return support
-            TypeSyntax returnTypeSyntax;
-            if (function.ReturnType.Value is Pointer { PointerType: BindingsModel.PointerType.ManagedRef } pointer) {
-                returnTypeSyntax = RefType(ParseTypeName(FormatType(pointer.ValueType.Value)));
-            } else {
-                returnTypeSyntax = ParseTypeName(FormatType(function.ReturnType.Value));
-            }
-
-            methodDeclarationSyntax =
-                MethodDeclaration(returnTypeSyntax, function.Name)
-                    .AddModifiers(modifiers.Select(Token).ToArray());
-        }
-
-        if (isNativeMethod) {
-            methodDeclarationSyntax =
-                methodDeclarationSyntax
-                    .AddAttributeLists(CreateMarshalAsAttributeLists(function.ReturnType.Value, true));
-        }
-
-        if (bodySyntax != null) {
-            BaseMethodDeclarationSyntax methodDeclarationSyntaxCopy = methodDeclarationSyntax;
-            methodDeclarationSyntax =
-                bodySyntax.Value.Match(
-                    blockSyntax => methodDeclarationSyntaxCopy.WithBody(blockSyntax),
-                    arrowExpressionSyntax =>
-                        methodDeclarationSyntaxCopy
-                            .WithExpressionBody(arrowExpressionSyntax)
-                            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                );
-        } else {
-            methodDeclarationSyntax = methodDeclarationSyntax.WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
-        }
-
-        IEnumerable<ParameterSyntax> parameters =
-            function.Arguments.Select(arg =>
-                CreateMethodParameterSyntax(arg, delegatesAsFunctionPointers, isNativeMethod)
-            );
-
-        methodDeclarationSyntax =
-            methodDeclarationSyntax.WithParameterList(ParameterList(SeparatedList(parameters)));
-
-        return methodDeclarationSyntax;
-    }
-
-    private ParameterSyntax CreateMethodParameterSyntax(
-        FunctionArgument argument,
-        bool delegatesAsFunctionPointers,
-        bool addMarshalling
-    ) {
-        bool isDelegate = argument.Type.ExpandAllTypedefsAndPointers<Delegate>() != null;
-
-        ParameterSyntax parameter =
-            Parameter(Identifier(argument.Name))
-                .WithType(
-                    ParseTypeName(
-                        FormatType(
-                            argument.Type.Value,
-                            new FormatTypeOptions {
-                                DelegatesAsFunctionPointers = delegatesAsFunctionPointers && isDelegate,
-                                ExpandTypedefs = delegatesAsFunctionPointers,
-                            }
-                        )
-                    )
-                );
-
-        if (addMarshalling) {
-            parameter =
-                parameter
-                    .AddAttributeLists(CreateMarshalAsAttributeLists(argument.Type.Value, false));
-        }
-
-        if (argument.PassType != FunctionArgumentPassType.Normal) {
-            parameter = parameter.AddModifiers(
-                Token(
-                    argument.PassType switch {
-                        FunctionArgumentPassType.Ref => SyntaxKind.RefKeyword,
-                        FunctionArgumentPassType.Out => SyntaxKind.OutKeyword,
-                        FunctionArgumentPassType.In => SyntaxKind.InKeyword,
-                        _ => throw new ArgumentOutOfRangeException()
-                    }
-                )
-            );
-        }
-
-        if (argument.DefaultValue != null) {
-            if (argument.IsDefaultValueValidInDeclaration) {
-                parameter = parameter.WithDefault(EqualsValueClause(ParseExpression(argument.DefaultValue)));
-            } else {
-                parameter = parameter.AddAttributeLists(AttributeList(SeparatedList([
-                    Attribute(
-                        ParseName("ImGuiDefaultValue"),
-                        AttributeArgumentList(
-                            SeparatedList(
-                                [
-                                    AttributeArgument(
-                                        LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(argument.DefaultValue))
-                                    )
-                                ]
-                            )
-                        )
-                    )
-                ])));
-            }
-        }
-
-        if (argument.Attributes.Count != 0) {
-            parameter = parameter.AddAttributeLists(AttributeList(SeparatedList(argument.Attributes)));
-        }
-
-        return parameter;
-    }
-
-    private EnumDeclarationSyntax GenerateBinding(Enum entity) {
+    private EnumDeclarationSyntax GenerateEnumBinding(Enum entity) {
         EnumDeclarationSyntax enumDeclaration =
             EnumDeclaration(Identifier(entity.Name))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword));
@@ -610,40 +253,28 @@ public class BindingsModelBindingsSyntaxGenerator {
         return enumDeclaration;
     }
 
-    private TypeDeclarationSyntax GenerateBinding(Struct entity) {
+    private TypeDeclarationSyntax GenerateStructBinding(Struct entity) {
         List<SyntaxKind> modifiers = [
             SyntaxKind.PublicKeyword,
             SyntaxKind.UnsafeKeyword,
             SyntaxKind.PartialKeyword
         ];
 
-        if (entity.Kind == Struct.StructKind.StaticClass) {
-            modifiers.Insert(modifiers.IndexOf(SyntaxKind.PublicKeyword) + 1, SyntaxKind.StaticKeyword);
-        }
-
         TypeDeclarationSyntax structSyntax;
         switch (entity.Kind) {
             case Struct.StructKind.StaticClass:
                 structSyntax = ClassDeclaration(Identifier(entity.Name));
+                modifiers.Insert(modifiers.IndexOf(SyntaxKind.PublicKeyword) + 1, SyntaxKind.StaticKeyword);
                 break;
             case Struct.StructKind.Struct:
                 structSyntax = StructDeclaration(Identifier(entity.Name));
                 break;
             case Struct.StructKind.Union:
-                AttributeSyntax structLayoutAttribute =
-                    Attribute(ParseName("StructLayout"))
-                        .WithArgumentList(AttributeArgumentList(
-                            SeparatedList(
-                                [
-                                    AttributeArgument(ParseExpression("LayoutKind.Explicit"))
-                                ]
-                            )
-                        ));
                 structSyntax =
                     StructDeclaration(Identifier(entity.Name))
-                        .AddAttributeLists(AttributeList(SeparatedList(
-                            [structLayoutAttribute]
-                        )));
+                        .AddAttributeLists(
+                            SimpleAttributeList("StructLayout", "LayoutKind.Explicit")
+                        );
                 break;
             default:
                 throw new ArgumentOutOfRangeException($"Unexpected entity kind {entity.Kind}");
@@ -689,7 +320,7 @@ public class BindingsModelBindingsSyntaxGenerator {
             }
         }
 
-        if (entity.Kind != Struct.StructKind.StaticClass) {
+        if (entity.Kind is Struct.StructKind.Struct or Struct.StructKind.Union) {
             structSyntax = structSyntax
                 .WithBaseList(
                     BaseList(SeparatedList<BaseTypeSyntax>().Add(
@@ -764,19 +395,9 @@ public class BindingsModelBindingsSyntaxGenerator {
         }
 
         if (entity.Kind == Struct.StructKind.Union) {
-            AttributeSyntax fieldOffsetAttribute =
-                Attribute(ParseName("FieldOffset"))
-                    .WithArgumentList(AttributeArgumentList(
-                        SeparatedList(
-                            [AttributeArgument(ParseExpression("0"))]
-                        )
-                    ));
-
             fieldDeclarationSyntax =
                 fieldDeclarationSyntax
-                    .AddAttributeLists(AttributeList(SeparatedList(
-                        [fieldOffsetAttribute]
-                    )));
+                    .AddAttributeLists(SimpleAttributeList("FieldOffset", "0"));
         }
 
         fieldDeclarationSyntax = fieldDeclarationSyntax.AddAttributeLists(CreateMarshalAsAttributeLists(field.Type.Value, false));
@@ -784,31 +405,6 @@ public class BindingsModelBindingsSyntaxGenerator {
 
         return fieldDeclarationSyntax;
     }
-
-    private static AttributeListSyntax[] CreateMarshalAsAttributeLists(Entity entity, bool isReturnValue) {
-        if (entity.AsEntityReference().ExpandTypedef().Value is Builtin builtin &&
-            builtin.ManagedType == typeof(bool)) {
-            return [CreateBoolMarshalAsAttribute(isReturnValue ? SyntaxKind.ReturnKeyword : null)];
-        }
-
-        return [];
-    }
-
-    private static AttributeListSyntax CreateBoolMarshalAsAttribute(SyntaxKind? target) =>
-        AttributeList(
-            target != null ? AttributeTargetSpecifier(Token(target.Value)) : null,
-            SeparatedList([
-                    Attribute(
-                        ParseName("MarshalAs"),
-                        AttributeArgumentList(
-                            SeparatedList(
-                                [AttributeArgument(ParseExpression("UnmanagedType.I1"))]
-                            )
-                        )
-                    )
-                ]
-            )
-        );
 
     private OneOf<DelegateDeclarationSyntax, UsingDirectiveSyntax> GenerateBinding(Typedef entity) {
         IEntityReference aliasedType = entity.Type;
@@ -858,15 +454,7 @@ public class BindingsModelBindingsSyntaxGenerator {
                 )
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.UnsafeKeyword))
                 .AddAttributeLists(CreateMarshalAsAttributeLists(userDelegate.ReturnType.Value, true))
-                .AddAttributeLists(AttributeList(SeparatedList([
-                        Attribute(ParseName("UnmanagedFunctionPointer"))
-                            .WithArgumentList(AttributeArgumentList(
-                                SeparatedList(
-                                    [AttributeArgument(ParseExpression("CallingConvention.Cdecl"))]
-                                )
-                            ))
-                    ]
-                )));
+                .AddAttributeLists(SimpleAttributeList("UnmanagedFunctionPointer", "CallingConvention.Cdecl"));
 
         IEnumerable<ParameterSyntax> parameters =
             userDelegate.Arguments.Select(arg => CreateMethodParameterSyntax(arg, false, true));
@@ -877,139 +465,11 @@ public class BindingsModelBindingsSyntaxGenerator {
         return delegateDeclaration;
     }
 
-    private static CompilationUnitSyntax WrapRootLevelDefinition(
-        string targetNamespace,
-        params MemberDeclarationSyntax[] items
-    ) {
-        string header =
-            $"""
-             // <auto-generated>
-             //   This code was generated by the 'NovaImGui.NET' generator.
-             //   Generator Version: {ThisAssembly.AssemblyInformationalVersion}
-             //
-             //   Changes to this file may cause incorrect behavior
-             //   and will be lost if the code is regenerated.
-             //
-             //   https://github.com/LostPolygon/NovaImGui.NET
-             // </auto-generated>
-
-             """;
-
-        SyntaxTrivia[] headerTrivia =
-            header
-                .Split(["\r\n", "\n"], StringSplitOptions.None)
-                .SelectMany(line => new[] { Comment(line), LineFeed })
-                .ToArray();
-
-        /*UsingDirectiveSyntax CreateUsingDirective(string identifier, bool isStatic = false) {
-            UsingDirectiveSyntax directive = UsingDirective(IdentifierName(identifier));
-            if (isStatic) {
-                directive = directive.WithStaticKeyword(Token(SyntaxKind.StaticKeyword));
-            }
-
-            return directive;
-        }*/
-
-        FileScopedNamespaceDeclarationSyntax namespaceSyntax =
-            CreateNamespaceDeclarationSyntax(targetNamespace)
-                .AddLeadingTriviaToStart(headerTrivia);
-
-        CompilationUnitSyntax compilationUnit =
-            CompilationUnit()
-                .AddMembers(namespaceSyntax)
-                .AddMembers(items);
-
-        return compilationUnit;
-    }
-
-    private static FileScopedNamespaceDeclarationSyntax CreateNamespaceDeclarationSyntax(string @namespace)
-        => FileScopedNamespaceDeclaration(ParseName(@namespace)).WithTrailingTrivia(LineFeed, LineFeed);
-
-    private static void WrapInSelfExclusiveConditionals<T>(
-        ref T syntax,
-        ref T oppositeSyntax,
-        string expression
-    ) where T : CSharpSyntaxNode {
-        syntax = ApplyConditionals(
-            syntax,
-            [new Conditional("if", expression)]
-        );
-
-        oppositeSyntax = ApplyConditionals(
-            oppositeSyntax,
-            [new Conditional("if", "!" + expression)]
-        );
-    }
-
     private T ApplyCommonEntitySyntax<T>(
         T syntaxNode,
         IIndependentEntity entity,
         bool isTopLevelEntity = false
     ) where T : CSharpSyntaxNode {
-        if (BindingsContext.Options.GenerateXmlDocumentationComments) {
-            syntaxNode = ApplyComments(syntaxNode, entity.Comments, true || isTopLevelEntity);
-        }
-
-        syntaxNode = ApplyConditionals(syntaxNode, entity.Conditionals);
-
-        if (entity.IsDisabled) {
-            syntaxNode = syntaxNode.AddLeadingTriviaToStart(Comment("/*"));
-            syntaxNode = syntaxNode.AddTrailingTriviaToEnd(Comment("*/"));
-        }
-
-        syntaxNode = syntaxNode.AddDocumentationComment(entity.Comments.Notes, false, true);
-
-        return syntaxNode;
-    }
-
-    private static T ApplyConditionals<T>(T syntaxNode, IReadOnlyCollection<Conditional> conditionals) where T : CSharpSyntaxNode {
-        if (conditionals.Count == 0)
-            return syntaxNode;
-
-        foreach ((string condition, string expression) in conditionals) {
-            string expressionFormatted = condition switch {
-                "if" => expression,
-                "ifdef" => expression,
-                "ifndef" => $"!({expression})",
-                "ifnot" => $"!({expression})",
-                _ => throw new ArgumentOutOfRangeException(nameof(condition), condition, "Unexpected condition")
-            };
-
-            StructuredTriviaSyntax start = IfDirectiveTrivia(
-                ParseExpression(expressionFormatted),
-                false,
-                true,
-                true
-            );
-
-            EndIfDirectiveTriviaSyntax end = EndIfDirectiveTrivia(true);
-
-            syntaxNode = syntaxNode.AddLeadingTriviaToStart(Trivia(start.AddTrailingTriviaToEnd(LineFeed)));
-            syntaxNode = syntaxNode.AddTrailingTriviaToEnd(Trivia(end.AddTrailingTriviaToEnd(LineFeed)));
-        }
-
-        return syntaxNode;
-    }
-
-    private static T ApplyComments<T>(T item, Comments comments, bool isTopLevelEntity)
-        where T : CSharpSyntaxNode {
-        List<string> attachedReformatted = [];
-        foreach (string attachedComment in comments.Attached) {
-            IEnumerable<string> attachedCommentChunks =
-                attachedComment
-                    .Split("// ", StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => x.Trim());
-            attachedReformatted.AddRange(attachedCommentChunks);
-        }
-
-        if (isTopLevelEntity) {
-            string[] mergedXmlComments = [..comments.Preceding, ..attachedReformatted];
-            item = item.AddDocumentationComment(mergedXmlComments, true);
-        } else {
-            item = item.AddDocumentationComment(comments.Preceding, false);
-            item = item.AddDocumentationComment(attachedReformatted, true);
-        }
-
-        return item;
+        return BindingsGenerationUtility.ApplyCommonEntitySyntax(syntaxNode, entity, BindingsContext.Options.GenerateXmlDocumentationComments, isTopLevelEntity);
     }
 }

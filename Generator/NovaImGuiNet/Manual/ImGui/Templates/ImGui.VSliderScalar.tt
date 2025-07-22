@@ -2,8 +2,8 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
-    (string Type, string? Conditional)[] Arg2Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg2Types = GenericString;
 #>
 #nullable enable
 
@@ -24,8 +24,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiSliderFlags flags = ImGuiSliderFlags.None
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format, flags);
+        fixed (T* dataPtr = &data)
+            return VSliderScalar(label<#= arg1.InvokeSuffix #>, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max), format<#= arg2.InvokeSuffix #>, flags);
     }
 
 <#
@@ -41,8 +41,8 @@ public static unsafe partial class ImGui {
         T min = default,
         T max = default
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return VSliderScalar(label, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
+        fixed (T* dataPtr = &data)
+            return VSliderScalar(label<#= arg1.InvokeSuffix #>, size, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&min), (IntPtr) (&max));
     }*/
 <#
     }

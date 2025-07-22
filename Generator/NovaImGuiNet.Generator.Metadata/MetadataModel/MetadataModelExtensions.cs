@@ -13,10 +13,8 @@ public static class MetadataModelExtensions {
         if (entityReference is IEntityReference<T> found)
             return found;
 
-        switch (entityReference) {
-            case IEntityReference<Typedef> typedef:
-                return ExpandTypedef<T>(typedef.Value.Type);
-        }
+        if (entityReference is IEntityReference<Typedef> typedef)
+            return ExpandTypedef<T>(typedef.Value.Type);
 
         return null;
     }

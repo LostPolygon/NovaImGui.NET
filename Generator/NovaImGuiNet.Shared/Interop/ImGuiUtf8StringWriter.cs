@@ -4,23 +4,25 @@ namespace NovaImGuiNet.Interop;
 
 [InterpolatedStringHandler]
 public unsafe ref struct ImGuiUtf8StringWriter {
-    private Utf8StringWriter<OptimizedBufferWriter<byte>> _utf8StringWriter;
     private fixed byte _localBuffer[Utf8StringMarshaller.StackAllocMaxSize];
+    private Utf8StringWriter<OptimizedBufferWriter<byte>> _utf8StringWriter;
     private bool _hasFinalWrittenSpan;
     private ReadOnlySpan<byte> _finalWrittenSpan;
     private bool _isFinalWrittenSpanNullTerminated;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ImGuiUtf8StringWriter(int literalLength, int formattedCount, IFormatProvider? formatProvider = null) {
-        _utf8StringWriter = new Utf8StringWriter<OptimizedBufferWriter<byte>>(
-            literalLength,
-            formattedCount,
-            new OptimizedBufferWriter<byte>(
-                (byte*) Unsafe.AsPointer(ref _localBuffer[0]),
-                Utf8StringMarshaller.StackAllocMaxSize
-            ),
-            formatProvider
-        );
+        fixed (byte* localBuffer = _localBuffer) {
+            _utf8StringWriter = new Utf8StringWriter<OptimizedBufferWriter<byte>>(
+                literalLength,
+                formattedCount,
+                new OptimizedBufferWriter<byte>(
+                    localBuffer,
+                    Utf8StringMarshaller.StackAllocMaxSize
+                ),
+                formatProvider
+            );
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -210,7 +210,7 @@ public static class StructModifiers {
         return structure;
     }
 
-    public static Struct AddNullTerminatedStringPropertyForConstCharPointerFields(Struct structure) {
+    public static Struct AddUtf8StringPropertyForCharFields(Struct structure) {
         structure.Children.UpdateInPlace<IEntity, Field>(field => {
             if (field.IsExplodedFixedSizeArrayField)
                 return [field];
@@ -229,7 +229,9 @@ public static class StructModifiers {
             if (!isConstCharPointer && !isFixedSizeCharArrayLikelyString)
                 return [field];
 
-            // Promote using the NTS property
+            string propertyTypeName = isFixedSizeCharArray ? "SpanUtf8String" : "NullTerminatedUtf8String";
+
+            // Promote using the Span string property
             string propertyName = field.BaseName;
 
             if (field.NamePrefix == null) {
@@ -238,18 +240,22 @@ public static class StructModifiers {
                 propertyName += "String";
             }
 
-            string ntsConstructorArgument =
-                isFixedSizeCharArray ?
-                    $"(byte*) Unsafe.AsPointer(ref {field.Name}[0])" :
-                    field.Name;
+            string propertyGetExpression;
+            if (isFixedSizeCharArray) {
+                propertyGetExpression = $"new SpanUtf8String({field.BaseName}Span)";
+            } else {
+                string ntsConstructorArgument =
+                    isFixedSizeCharArray ?
+                        $"(byte*) Unsafe.AsPointer(ref {field.Name}[0])" :
+                        field.Name;
+                propertyGetExpression = $"new NullTerminatedUtf8String({ntsConstructorArgument})";
+            }
 
-            var propertyGetLambda = ArrowExpressionClause(
-                ParseExpression($"new NullTerminatedString({ntsConstructorArgument})")
-            );
+            var propertyGetLambda = ArrowExpressionClause(ParseExpression(propertyGetExpression));
 
-            PropertyDeclarationSyntax ntsProperty =
+            PropertyDeclarationSyntax spanStringProperty =
                 PropertyDeclaration(
-                        ParseTypeName("NullTerminatedString"),
+                        ParseTypeName(propertyTypeName),
                         propertyName
                     )
                     .AddModifiers(Token(SyntaxKind.PublicKeyword))
@@ -258,8 +264,8 @@ public static class StructModifiers {
                     .WithLeadingTrivia(CarriageReturnLineFeed)
                     .WithTrailingTrivia(LineFeed);
 
-            MemberDeclarationSyntaxEntity ntsPropertyEntity = new(ntsProperty, field);
-            return [ntsPropertyEntity, field];
+            MemberDeclarationSyntaxEntity spanStringPropertyEntity = new(spanStringProperty, field);
+            return [spanStringPropertyEntity, field];
         });
         return structure;
     }
@@ -374,7 +380,7 @@ public static class StructModifiers {
                     Type = keysDataCountFieldArrayType.AsEntityReference(),
                     Conditionals = [
                         ..keysDataCountField.Conditionals,
-                        new("ifdef", "!IMGUI_DISABLE_OBSOLETE_KEYIO")
+                        new("ifndef", "IMGUI_DISABLE_OBSOLETE_KEYIO")
                     ]
                 };
 
@@ -828,14 +834,10 @@ public static class StructModifiers {
         IEntityReference genericArgumentReference,
         string newTypeName
     ) {
-        Struct structure = structReference.Value;
-
-        structure = structure with {
+        structReference.Reference.Value = structReference.Value with {
             Name = newTypeName,
             GenericArguments = [genericArgumentReference],
             NoEmit = true
         };
-
-        structReference.Reference.Value = structure;
     }
 }

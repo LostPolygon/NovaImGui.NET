@@ -1,8 +1,13 @@
-﻿using MoreLinq.Extensions;
+﻿using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MoreLinq.Extensions;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
 using static BindingsModel;
+using static SyntaxFactory;
+using static SyntaxFactoryCached;
+using static BindingsGenerationUtility;
 
 public static class CommonModifiers {
     /// <summary>
@@ -36,5 +41,36 @@ public static class CommonModifiers {
         members.ForEach(member => member.Conditionals = []);
 
         return entity;
+    }
+
+    public static T AddObsoleteAttributes<T>(
+        T entity,
+        IReadOnlyList<IIndependentEntity> members
+    ) where T : IIndependentEntity {
+        AddObsoleteAttributes(entity);
+        members.ForEach(AddObsoleteAttributes);
+        return entity;
+    }
+
+    private static void AddObsoleteAttributes<T>(T entity) where T : IIndependentEntity {
+        Conditional obsoletingConditional =
+            entity.Conditionals
+                .FirstOrDefault(c =>
+                    c.Condition == "ifndef" &&
+                    c.Expression.Contains("IMGUI_DISABLE_OBSOLETE_")
+                );
+        if (String.IsNullOrEmpty(obsoletingConditional.Expression))
+            return;
+
+        AttributeSyntax obsoleteAttribute =
+            SimpleAttribute(
+                "Obsolete",
+                LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(obsoletingConditional.Expression))
+            );
+
+        entity.Attributes = [
+            ..entity.Attributes,
+            obsoleteAttribute
+        ];
     }
 }

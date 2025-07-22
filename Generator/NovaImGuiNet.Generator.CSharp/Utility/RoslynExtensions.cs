@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace NovaImGuiNet.Generator;
+namespace NovaImGuiNet.Generator.CSharp;
 
 using static SyntaxFactory;
 
@@ -61,7 +61,7 @@ public static class RoslynExtensions {
         if (isXmlSummary) {
             commentLines =
                 commentLines
-                    .Select(line => HttpUtility.HtmlEncode(line)!)
+                    .Select(x => HttpUtility.HtmlEncode(x))
                     .ToArray();
 
             SyntaxTrivia lineStart = singleLine ? Whitespace("") : DocumentationCommentExterior("/// ");

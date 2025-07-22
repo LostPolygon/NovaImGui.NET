@@ -6,12 +6,13 @@ public class RefReturnTypeMarshaller : ReturnTypeMarshaller {
     public RefReturnTypeMarshaller(MethodSignature methodSignature, string nativeFunctionInvocation) : base(methodSignature, nativeFunctionInvocation) {
     }
 
-    public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateInvokeStatements() {
-        return [
-            $"{NativeReturnType} {ReturnVariableName};",
-            $"{ReturnVariableName} = ({NativeReturnType}) {NativeFunctionInvocation};"
-        ];
-    }
+    public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateDeclarationStatements() => [
+        $"{NativeReturnType} {ReturnVariableName};"
+    ];
+
+    public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateInvokeStatements() => [
+        $"{ReturnVariableName} = ({NativeReturnType}) {NativeFunctionInvocation};"
+    ];
 
     public override IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateReturnStatements() {
         Debug.Assert(!NativeFunction.IsConstructor);

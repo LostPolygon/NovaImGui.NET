@@ -2,8 +2,8 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
-    (string Type, string? Conditional)[] Arg2Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg2Types = GenericString;
 #>
 #nullable enable
 
@@ -25,8 +25,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast), format, flags);
+        fixed (T* dataPtr = &data)
+            return InputScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast), format<#= arg2.InvokeSuffix #>, flags);
     }
 
     public static bool InputScalarN<T>(
@@ -37,8 +37,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast), format, flags);
+        fixed (T* dataPtr = data)
+            return InputScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast), format<#= arg2.InvokeSuffix #>, flags);
     }
 
     public static bool InputScalar<T>(
@@ -49,8 +49,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        fixed (T* dataPtr = &data)
+            return InputScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) (&step), (IntPtr) (&stepFast), format<#= arg2.InvokeSuffix #>, flags);
     }
 
     public static bool InputScalarN<T>(
@@ -61,8 +61,8 @@ public static unsafe partial class ImGui {
         <#= arg2.Type #> format<#= arg2.Type == "ReadOnlySpan<byte>" ? " = default" : "" #>,
         ImGuiInputTextFlags flags = ImGuiInputTextFlags.None
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format, flags);
+        fixed (T* dataPtr = data)
+            return InputScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) (&step), (IntPtr) (&stepFast), format<#= arg2.InvokeSuffix #>, flags);
     }
 
 <#
@@ -77,8 +77,8 @@ public static unsafe partial class ImGui {
         in T step = default,
         in T stepFast = default
     ) where T : unmanaged {
-        T* dataPtr = (T*) Unsafe.AsPointer(ref data);
-        return InputScalar(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast));
+        fixed (T* dataPtr = &data)
+            return InputScalar(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast));
     }
 
     public static bool InputScalarN<T>(
@@ -87,8 +87,8 @@ public static unsafe partial class ImGui {
         in T step = default,
         in T stepFast = default
     ) where T : unmanaged {
-        T* dataPtr = SpanToPointer<T>(data);
-        return InputScalarN(label, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast));
+        fixed (T* dataPtr = data)
+            return InputScalarN(label<#= arg1.InvokeSuffix #>, GetImGuiDataType<T>(), (IntPtr) dataPtr, data.Length, (IntPtr) AsPointer(in step), (IntPtr) AsPointer(in stepFast));
     }*/
 
 <#

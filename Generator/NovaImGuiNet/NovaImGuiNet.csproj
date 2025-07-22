@@ -25,28 +25,6 @@
       <Compile Include="..\NovaImGuiNet.Shared\SharedGlobalUsings.cs">
         <Link>SharedGlobalUsings.cs</Link>
       </Compile>
-      <Compile Update="Manual\ImGui\ImGui.Begin.g.cs">
-        <DependentUpon>ImGui.Begin.tt</DependentUpon>
-      </Compile>
-      <Compile Update="Manual\ImGui\ImGui.ColorPicker3.g.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImGui.ColorPicker3.tt</DependentUpon>
-      </Compile>
-      <Compile Update="Manual\ImGui\ImGui.ColorPicker4.g.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>ImGui.ColorPicker4.tt</DependentUpon>
-      </Compile>
-      <Compile Update="Manual\ImGuiTypes\UserDataPointerHelpers.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>UserDataPointerHelpers.g.cs</LastGenOutput>
-      </Compile>
-      <Compile Update="Manual\ImGuiTypes\UserDataPointerHelpers.g.cs">
-        <AutoGen>True</AutoGen>
-        <DesignTime>True</DesignTime>
-        <DependentUpon>UserDataPointerHelpers.tt</DependentUpon>
-      </Compile>
     </ItemGroup>
 
     <ItemGroup>
@@ -65,60 +43,6 @@
     <ItemGroup>
         <TextTemplate Include="**\*.tt"/>
         <Generated Include="**\*.g.cs"/>
-        <TextTemplate Update="Manual\ImGui\ImGui.ColorEdit.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.CheckboxFlags.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.DragScalar.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.CheckboxFlags.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.RadioButton.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.CheckboxFlags.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.DragDrop.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.CheckboxFlags.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.InputScalar.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.CheckboxFlags.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.VSliderScalar.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.InputScalar.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.MenuItem.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.DragDrop.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.SliderScalar.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.VSliderScalar.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.Begin.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.DragDrop.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.Combo.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.ColorPicker.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.CheckboxFlags.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.ColorPicker3.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.ColorPicker3.g.cs</LastGenOutput>
-        </TextTemplate>
-        <TextTemplate Update="Manual\ImGui\ImGui.ColorPicker4.tt">
-          <Generator>TextTemplatingFileGenerator</Generator>
-          <LastGenOutput>ImGui.ColorPicker3.g.cs</LastGenOutput>
-        </TextTemplate>
-    </ItemGroup>
-    <ItemGroup>
-      <Folder Include="Generated\NovaImGuiNet.Backends.Glfw\Structs\" />
     </ItemGroup>
 
     <Target Name="TextTemplateTransform"

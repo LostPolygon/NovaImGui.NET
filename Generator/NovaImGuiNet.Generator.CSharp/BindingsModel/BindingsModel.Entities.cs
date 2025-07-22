@@ -24,6 +24,7 @@ public partial class BindingsModel {
         bool IsInternal { get; set; }
         bool IsDisabled { get; set; }
         bool NoEmit { get; set; }
+        IReadOnlyList<AttributeSyntax> Attributes { get; set; }
     }
 
     public interface ITopLevelEntity : IIndependentEntity {
@@ -48,6 +49,7 @@ public partial class BindingsModel {
         public bool IsInternal { get; set; }
         public bool IsDisabled { get; set; }
         public bool NoEmit { get; set; }
+        public IReadOnlyList<AttributeSyntax> Attributes { get; set; } = [];
 
         protected IndependentEntity() {
         }
@@ -400,7 +402,7 @@ public partial class BindingsModel {
         public bool IsUnformattedHelper { get; set; }
         public bool IsStatic { get; set; }
         public bool IsConstructor { get; set; }
-        public OneOf<BlockSyntax, ArrowExpressionClauseSyntax>? Body { get; set; }
+        public OneOf<IReadOnlyList<StatementSyntax>, ArrowExpressionClauseSyntax>? Body { get; set; }
 
         public Function() {
         }
@@ -483,6 +485,7 @@ public partial class BindingsModel {
         public bool IsInternal { get; set; }
         public bool IsDisabled { get; set; }
         public bool NoEmit { get; set; }
+        public IReadOnlyList<AttributeSyntax> Attributes { get; set; } = [];
 
         protected SyntaxEntity(T syntax) {
             Syntax = syntax;
@@ -491,7 +494,16 @@ public partial class BindingsModel {
         protected SyntaxEntity(
             T syntax,
             IIndependentEntity copyFrom
-        ) : this(syntax, copyFrom.Comments, copyFrom.Conditionals, copyFrom.SourceLocation, copyFrom.IsInternal, copyFrom.IsDisabled, copyFrom.NoEmit) {
+        ) : this(
+            syntax,
+            copyFrom.Comments,
+            copyFrom.Conditionals,
+            copyFrom.SourceLocation,
+            copyFrom.IsInternal,
+            copyFrom.IsDisabled,
+            copyFrom.NoEmit,
+            copyFrom.Attributes
+            ) {
         }
 
         protected SyntaxEntity(
@@ -501,7 +513,8 @@ public partial class BindingsModel {
             SourceLocation? sourceLocation,
             bool isInternal,
             bool isDisabled,
-            bool skipEmit
+            bool skipEmit,
+            IReadOnlyList<AttributeSyntax> attributes
         ) {
             Syntax = syntax;
             Comments = comments;
@@ -510,6 +523,7 @@ public partial class BindingsModel {
             IsInternal = isInternal;
             IsDisabled = isDisabled;
             NoEmit = skipEmit;
+            Attributes = attributes;
         }
 
         public IEnumerable<IEntityReference> GetReferencedTypes(HashSet<IEntityReference> visitedNodes) {
@@ -539,8 +553,9 @@ public partial class BindingsModel {
             SourceLocation? sourceLocation,
             bool isInternal,
             bool isDisabled,
-            bool skipEmit
-        ) : base(syntax, comments, conditionals, sourceLocation, isInternal, isDisabled, skipEmit) {
+            bool skipEmit,
+            EqualityList<AttributeSyntax> attributes
+        ) : base(syntax, comments, conditionals, sourceLocation, isInternal, isDisabled, skipEmit, attributes) {
         }
     }
 

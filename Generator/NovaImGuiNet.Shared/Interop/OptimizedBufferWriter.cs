@@ -11,14 +11,14 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
     private readonly byte* _buffer;
     private readonly int _bufferSize;
     private int _index;
-    private NativeMemoryBufferWriter<T>? _bufferWriter;
+    private NativeMemoryBufferWriter<T>? _nativeMemoryBufferWriter;
 
     /// <summary>
     /// Returns the data written to the underlying buffer so far, as a <see cref="ReadOnlySpan{T}"/>.
     /// </summary>
     public ReadOnlySpan<T> WrittenSpan {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _bufferWriter != null ? _bufferWriter.WrittenSpan : new(_buffer, _index);
+        get => _nativeMemoryBufferWriter != null ? _nativeMemoryBufferWriter.WrittenSpan : new(_buffer, _index);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -29,8 +29,8 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Advance(int count) {
-        if (_bufferWriter != null) {
-            _bufferWriter.Advance(count);
+        if (_nativeMemoryBufferWriter != null) {
+            _nativeMemoryBufferWriter.Advance(count);
             return;
         }
 
@@ -46,8 +46,8 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Span<T> GetSpan(int sizeHint = 0) {
-        if (_bufferWriter != null)
-            return _bufferWriter.GetSpan(sizeHint);
+        if (_nativeMemoryBufferWriter != null)
+            return _nativeMemoryBufferWriter.GetSpan(sizeHint);
 
         if (sizeHint > _bufferSize) {
             return SwitchToNativeBufferWriter(sizeHint);
@@ -58,19 +58,19 @@ internal unsafe struct OptimizedBufferWriter<T> : IBufferWriter<T> where T : unm
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Free() {
-        if (_bufferWriter != null) {
-            NativeMemoryBufferWriterPool<T>.Return(_bufferWriter);
+        if (_nativeMemoryBufferWriter != null) {
+            NativeMemoryBufferWriterPool<T>.Return(_nativeMemoryBufferWriter);
         }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private Span<T> SwitchToNativeBufferWriter(int sizeHint) {
         NativeMemoryBufferWriter<T> nativeMemoryBufferWriter = NativeMemoryBufferWriterPool<T>.Rent(sizeHint);
-        _bufferWriter = nativeMemoryBufferWriter;
+        _nativeMemoryBufferWriter = nativeMemoryBufferWriter;
 
         Span<T> result = nativeMemoryBufferWriter.GetSpan(sizeHint);
 
-        // Copy from existing buffer to NativeBufferWriter
+        // Copy from existing buffer to NativeMemoryBufferWriter
         if (_index != 0) {
             nativeMemoryBufferWriter.Advance(_index);
             new ReadOnlySpan<T>(_buffer, _index).CopyTo(result);

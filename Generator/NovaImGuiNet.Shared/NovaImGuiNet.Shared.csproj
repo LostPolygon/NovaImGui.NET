@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>13</LangVersion>
         <DefineConstants>NOVA_IMGUI_SHARED</DefineConstants>
+        <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>
@@ -32,6 +32,17 @@
     <ItemGroup>
         <TextTemplate Include="**\*.tt"/>
         <Generated Include="**\*.g.cs"/>
+        <TextTemplate Update="ImGuiTypes\ImFixedArrayN.tt">
+          <Generator>TextTemplatingFileGenerator</Generator>
+          <LastGenOutput>ImFixedArrayN.g.cs</LastGenOutput>
+        </TextTemplate>
+    </ItemGroup>
+    <ItemGroup>
+      <Compile Update="ImGuiTypes\ImFixedArrayN.g.cs">
+        <AutoGen>True</AutoGen>
+        <DesignTime>True</DesignTime>
+        <DependentUpon>ImFixedArrayN.tt</DependentUpon>
+      </Compile>
     </ItemGroup>
 
     <Target Name="TextTemplateTransform"

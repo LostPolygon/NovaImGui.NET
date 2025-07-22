@@ -2,7 +2,8 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+#nullable enable
+    StringArgumentDefinition[] Arg1Types = GenericString;
     (string Type, string Invocation, string? Conditional)[] Arg2Types = [
         ("ImVec4*", "col", null), 
         ("ref ImVec4", "ref col", null)
@@ -24,7 +25,7 @@ public static unsafe partial class ImGui {
                 StartConditional(arg1.Conditional);
 #>
     public static bool ColorPicker4(<#= arg1.Type #> label, <#= arg2.Type #> col, ImGuiColorEditFlags flags, <#= arg4.Type #> refCol) =>
-        ColorPicker4(label, <#= arg2.Invocation #>, flags, <#= arg4.Invocation #>);
+        ColorPicker4(label<#= arg1.InvokeSuffix #>, <#= arg2.Invocation #>, flags, <#= arg4.Invocation #>);
 
 <#
                 EndConditional(arg1.Conditional);

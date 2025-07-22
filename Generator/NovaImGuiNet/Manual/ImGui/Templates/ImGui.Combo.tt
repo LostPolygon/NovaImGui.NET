@@ -1,0 +1,35 @@
+<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<#@ include file="TemplateUtility.ttinclude" #><# #>
+<#
+#nullable enable
+    StringArgumentDefinition[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg3Types = GenericString;
+#>
+#nullable enable
+
+namespace NovaImGuiNet;
+
+public static unsafe partial class ImGui {
+<#
+    foreach (var arg1 in Arg1Types) {
+        foreach (var arg3 in Arg3Types) {
+            StartConditional(arg1.Conditional, arg3.Conditional);
+#>
+    public static bool Combo<TEnum>(<#= arg1.Type #> label, ref TEnum currentItem, <#= arg3.Type #> itemsSeparatedByZeros, int popupMaxHeightInItems = -1)
+        where TEnum : unmanaged, Enum {
+        if (sizeof(TEnum) == sizeof(int)) {
+            ref int currentItemInt = ref Unsafe.As<TEnum, int>(ref currentItem);
+            return Combo(label<#= arg1.InvokeSuffix #>, ref currentItemInt, itemsSeparatedByZeros<#= arg3.InvokeSuffix #>, popupMaxHeightInItems);
+        }
+
+        InteropExceptions.ThrowUnsupportedEnumUnderlyingType<TEnum>();
+        return false;
+    }
+
+<#
+            EndConditional(arg1.Conditional, arg3.Conditional);
+        }
+    }
+#>
+}

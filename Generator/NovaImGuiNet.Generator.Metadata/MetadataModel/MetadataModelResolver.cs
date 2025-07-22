@@ -167,7 +167,7 @@ public partial class MetadataModelResolver {
                     typeDescriptionPointer.IsNullable
                 ).AsEntityReference();
             case MetadataDto.TypeValue.TypeDescriptionType typeDescriptionType:
-                Debug.Assert(typeDetails != null, "typeDetails != null");
+                Debug.Assert(typeDetails != null);
 
                 MetadataModel.IEntityReference<MetadataModel.Typedef>? existingTypedef =
                     GetEntityReferenceByName<MetadataModel.Typedef>(typeDescriptionType.Name);

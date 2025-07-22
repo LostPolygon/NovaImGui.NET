@@ -13,12 +13,12 @@ public readonly struct TimedLoggedOperation : IDisposable {
         _operationName = operationName;
 
         if (!noStartLog) {
-            _logger.LogInformation($"{_operationName}");
+            _logger.LogInformation("{OperationName}", _operationName);
         }
     }
 
     public void Dispose() {
         _stopwatch.Stop();
-        _logger.LogTrace($"'{_operationName}' took {_stopwatch.ElapsedMilliseconds} ms");
+        _logger.LogTrace("'{OperationName}' took {ElapsedMilliseconds} ms", _operationName, _stopwatch.ElapsedMilliseconds);
     }
 }

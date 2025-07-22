@@ -8,26 +8,29 @@ namespace NovaImGuiNet.Tests;
 public unsafe class StructLayoutTests {
     [Test]
     public void SizeOf() {
-        Assert.That(sizeof(bool), Is.EqualTo(1));
-        Assert.That(sizeof(Pointer<int>), Is.EqualTo(sizeof(IntPtr)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(sizeof(bool), Is.EqualTo(1));
+            Assert.That(sizeof(Pointer<int>), Is.EqualTo(sizeof(IntPtr)));
 
-        Assert.That(Marshal.SizeOf<ImGuiTableColumnSortSpecs>(), Is.EqualTo(12));
-        Assert.That(sizeof(ImGuiTableColumnSortSpecs), Is.EqualTo(12));
+            Assert.That(Marshal.SizeOf<ImGuiTableColumnSortSpecs>(), Is.EqualTo(12));
+            Assert.That(sizeof(ImGuiTableColumnSortSpecs), Is.EqualTo(12));
 
-        Assert.That(Marshal.SizeOf<ImGuiStackLevelInfo>(), Is.EqualTo(72));
-        Assert.That(sizeof(ImGuiStackLevelInfo), Is.EqualTo(72));
+            Assert.That(Marshal.SizeOf<ImGuiStackLevelInfo>(), Is.EqualTo(72));
+            Assert.That(sizeof(ImGuiStackLevelInfo), Is.EqualTo(72));
 
-        Assert.That(Marshal.SizeOf<ImGuiBoxSelectState>(), Is.EqualTo(104));
-        Assert.That(sizeof(ImGuiBoxSelectState), Is.EqualTo(104));
+            Assert.That(Marshal.SizeOf<ImGuiBoxSelectState>(), Is.EqualTo(104));
+            Assert.That(sizeof(ImGuiBoxSelectState), Is.EqualTo(104));
 
-        Assert.That(Marshal.SizeOf<ImGuiIO>(), Is.EqualTo(14616));
-        Assert.That(sizeof(ImGuiIO), Is.EqualTo(14616));
+            Assert.That(Marshal.SizeOf<ImGuiIO>(), Is.EqualTo(14616));
+            Assert.That(sizeof(ImGuiIO), Is.EqualTo(14616));
 
-        #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
-        Assert.That(sizeof(ImGuiUtf8StringWriter), Is.GreaterThanOrEqualTo(Utf8StringMarshaller.StackAllocMaxSize));
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
+            Assert.That(sizeof(ImGuiUtf8StringWriter), Is.GreaterThanOrEqualTo(Utf8StringMarshaller.StackAllocMaxSize));
 
-        //Assert.That(Marshal.SizeOf<ImGuiDockNode>(), Is.EqualTo(208));
-        //Assert.That(sizeof(ImGuiDockNode), Is.EqualTo(208));
+            //Assert.That(Marshal.SizeOf<ImGuiDockNode>(), Is.EqualTo(208));
+            //Assert.That(sizeof(ImGuiDockNode), Is.EqualTo(208));
+        });
     }
 
     [Test]

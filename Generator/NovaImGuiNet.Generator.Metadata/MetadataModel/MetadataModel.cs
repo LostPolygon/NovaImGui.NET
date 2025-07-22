@@ -239,7 +239,7 @@ public record MetadataModel(
 
     public record struct Conditional(string Condition, string Expression);
 
-    public record SourceLocation(string Filename, int Line);
+    public record struct SourceLocation(string Filename, int Line);
 
     public interface IEntityReference {
         Entity Value { get; set; }

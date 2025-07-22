@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace NovaImGuiNet.Generator.CSharp;
@@ -10,7 +11,7 @@ public static class CSharpCodeGenerationUtility {
     private static readonly IReadOnlyList<string> AlwaysUseAliasesForBuiltins = ["void"];
 
     public static string FormatType(IEntity type, in FormatTypeOptions options = default) {
-        Debug.Assert(type != null, "type != null");
+        Debug.Assert(type != null);
 
         switch (type) {
             case Builtin builtin:
@@ -25,7 +26,7 @@ public static class CSharpCodeGenerationUtility {
                 string valueTypeFormatted = FormatType(pointer.ValueType.Value, options);
                 return options.UsePointerWrapper ? $"Pointer<{valueTypeFormatted}>" : $"{valueTypeFormatted}*";
             case Enum userEnum:
-                return $"{userEnum.Name}";
+                return userEnum.Name;
             case Function userFunction:
                 return FormatFunction(userFunction);
             case Struct userStruct: {

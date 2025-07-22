@@ -4,8 +4,9 @@ using NovaImGuiNet.Generator.Metadata;
 
 namespace NovaImGuiNet.Generator.CSharp;
 
-using static BindingsModel;
 using static CSharpCodeGenerationUtility;
+using static BindingsModel;
+using static SyntaxFactory;
 using static SyntaxFactoryCached;
 
 public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDto dto) {
@@ -38,55 +39,47 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
     /// <param name="defineDtos"></param>
     /// <returns>null if the class has no members</returns>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
-    private Struct? GenerateForNamespace(string targetNamespace, string className, IReadOnlyList<MetadataDto.Define> defineDtos) {
-        List<Field> constants = [];
+    private Struct? GenerateForNamespace(
+        string targetNamespace,
+        string className,
+        IReadOnlyList<MetadataDto.Define> defineDtos
+    ) {
+        List<ParseDefineResult> constants = [];
+        List<MetadataDto.Define> unparsedDefines = [];
 
-        // TODO: implement generating 'public static readonly IReadOnlyList<string> CompilerDefines = [];'
+        // TODO: implement generating 'public static readonly IReadOnlyDictionary<string, string?> CompilerDefines = [];'
         // ReSharper disable once CollectionNeverQueried.Local
-        List<string> compilerDefines = [];
+        List<string> flagDefines = [];
 
         foreach (MetadataDto.Define defineDto in defineDtos) {
             if (IsDefineSkipped(defineDto))
                 continue;
 
             if (defineDto.Content == null) {
-                compilerDefines.Add(defineDto.Name);
+                flagDefines.Add(defineDto.Name);
                 continue;
             }
 
-            ExpressionSyntax expressionSyntax = ParseExpression(defineDto.Content);
-            if (expressionSyntax is not LiteralExpressionSyntax literalExpressionSyntax)
-                continue;
-
-            string constFieldType = literalExpressionSyntax.Kind() switch {
-                SyntaxKind.StringLiteralExpression or SyntaxKind.NumericLiteralExpression =>
-                    GetBuiltinTypeAlias(literalExpressionSyntax.Token.Value!.GetType())!,
-                _ => throw new ArgumentOutOfRangeException($"Unexpected literal kind: {literalExpressionSyntax.Kind()}")
-            };
-
-            string constFieldValue = literalExpressionSyntax.Kind() switch {
-                SyntaxKind.StringLiteralExpression or SyntaxKind.NumericLiteralExpression =>
-                    literalExpressionSyntax.ToFullString(),
-                _ => throw new ArgumentOutOfRangeException($"Unexpected literal kind: {literalExpressionSyntax.Kind()}")
-            };
-
-            Field field = new(
-                MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.Comments)),
-                MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.Conditionals)),
-                MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(defineDto.SourceLocation)),
-                defineDto.IsInternal,
-                true,
-                null
-            ) {
-                BaseName = defineDto.Name,
-                Type = new Builtin(constFieldType, null, StorageClass.NotSpecified).AsEntityReference(),
-                Value = constFieldValue
-            };
-
-            constants.Add(field);
+            ParseDefineResult? parseDefineResult = ParseDefine(defineDto, false);
+            if (parseDefineResult != null) {
+                constants.Add(parseDefineResult);
+            } else {
+                unparsedDefines.Add(defineDto);
+            }
         }
 
-        if (constants.Count == 0 /*&& compilerDefines.Count == 0*/)
+        foreach (MetadataDto.Define unparsedDefineDto in unparsedDefines) {
+            // Try to match unparsed defines with existing parsed defines by name,
+            // otherwise just add them as strings
+            ParseDefineResult? matchingValueConstant = constants.FirstOrDefault(c => c.DefineDto.Name == unparsedDefineDto.Content);
+            ParseDefineResult parsedDefine =
+                matchingValueConstant != null ?
+                    new ParseDefineResult(unparsedDefineDto, matchingValueConstant.Type, matchingValueConstant.DefineDto.Name) :
+                    new ParseDefineResult(unparsedDefineDto, "string", $"\"{unparsedDefineDto.Content}\"");
+            constants.Add(parsedDefine);
+        }
+
+        if (constants.Count == 0 && flagDefines.Count == 0)
             return null;
 
         Struct structure = new() {
@@ -97,9 +90,87 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
             IsSpecialTopLevel = true
         };
 
-        structure.Children.AddRange(constants);
+        structure.Children.AddRange(constants.Select(CreateConstantField));
+
+        if (flagDefines.Count != 0) {
+            FieldDeclarationSyntax fieldDeclarationSyntax = CreateFlagDefinesListFieldDeclaration(flagDefines);
+            structure.Children.Add(new MemberDeclarationSyntaxEntity(fieldDeclarationSyntax));
+        }
+
         return structure;
     }
+
+    private static ParseDefineResult? ParseDefine(MetadataDto.Define defineDto, bool allowUnknownAsString) {
+        ExpressionSyntax expressionSyntax = ParseExpression(defineDto.Content);
+        switch (expressionSyntax) {
+            case LiteralExpressionSyntax literalExpressionSyntax:
+                if (literalExpressionSyntax.Kind() is not (SyntaxKind.StringLiteralExpression or SyntaxKind.NumericLiteralExpression))
+                    throw new ArgumentOutOfRangeException($"Unexpected literal expression kind: {expressionSyntax.Kind()}");
+
+                return new ParseDefineResult(
+                    defineDto,
+                    GetBuiltinTypeAlias(literalExpressionSyntax.Token.Value!.GetType())!,
+                    literalExpressionSyntax.ToFullString()
+                );
+            case PrefixUnaryExpressionSyntax prefixUnaryExpressionSyntax:
+                if (prefixUnaryExpressionSyntax.Operand is not LiteralExpressionSyntax operandLiteralExpression)
+                    throw new ArgumentOutOfRangeException($"Unexpected operand expression kind: {prefixUnaryExpressionSyntax.Operand.Kind()}");
+
+                return new ParseDefineResult(
+                    defineDto,
+                    GetBuiltinTypeAlias(operandLiteralExpression.Token.Value!.GetType())!,
+                    expressionSyntax.ToFullString()
+                );
+            default:
+                if (!allowUnknownAsString)
+                    return null;
+
+                return new ParseDefineResult(
+                    defineDto,
+                    "string",
+                    $"\"{defineDto.Content}\""
+                );
+        }
+    }
+
+    private static FieldDeclarationSyntax CreateFlagDefinesListFieldDeclaration(List<string> flagDefines) {
+        VariableDeclaratorSyntax variableDeclaratorSyntax =
+            VariableDeclarator("FlagCompilerDefines")
+                .WithInitializer(
+                    EqualsValueClause(
+                        CollectionExpression(
+                            SeparatedList<CollectionElementSyntax>(
+                                flagDefines.Select(flag =>
+                                    ExpressionElement(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(flag)))
+                                )
+                            )
+                        )
+                    )
+                );
+        FieldDeclarationSyntax fieldDeclarationSyntax =
+            FieldDeclaration(
+                    VariableDeclaration(
+                        ParseTypeName("IReadOnlyList<string>"),
+                        SingletonSeparatedList(variableDeclaratorSyntax)
+                    )
+                )
+                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword), Token(SyntaxKind.ReadOnlyKeyword));
+        return fieldDeclarationSyntax;
+    }
+
+    private static Field CreateConstantField(ParseDefineResult? parseDefineResult) =>
+        new(
+            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parseDefineResult.DefineDto.Comments)),
+            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parseDefineResult.DefineDto.Conditionals)),
+            MetadataToBindingsModelMappingUtility.Map(MetadataDtoToModelMappingUtility.Map(parseDefineResult.DefineDto.SourceLocation)),
+            parseDefineResult.DefineDto.IsInternal,
+            true,
+            null
+        ) {
+            BaseName = parseDefineResult.DefineDto.Name,
+            Type = new Builtin(parseDefineResult.Type, null, StorageClass.NotSpecified).AsEntityReference(),
+            Value = parseDefineResult.Value
+        };
 
     private static bool IsDefineSkipped(MetadataDto.Define defineDto) {
         // Those complex defines don't work in C# and don't make much sense there either
@@ -113,4 +184,6 @@ public class ImGuiConstantsGenerator(BindingsContext bindingsContext, MetadataDt
 
         return false;
     }
+
+    private record ParseDefineResult(MetadataDto.Define DefineDto, string Type, string Value);
 }

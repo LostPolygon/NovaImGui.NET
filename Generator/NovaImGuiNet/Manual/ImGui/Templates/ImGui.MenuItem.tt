@@ -2,7 +2,7 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
 #>
 #nullable enable
 
@@ -15,11 +15,11 @@ public static unsafe partial class ImGui {
 #>
     ///<summary>return true when activated.</summary>
     public static bool MenuItem(<#= arg1.Type #> label, bool selected, bool enabled = true)
-        => MenuItem(label, (byte*) default, selected, enabled);
+        => MenuItem(label<#= arg1.InvokeSuffix #>, (byte*) default, selected, enabled);
         
     ///<summary>return true when activated.</summary>
     public static bool MenuItem(<#= arg1.Type #> label, ref bool selected, bool enabled = true)
-        => MenuItem(label, (byte*) default, ref selected, enabled);
+        => MenuItem(label<#= arg1.InvokeSuffix #>, (byte*) default, ref selected, enabled);
 
 <#
         EndConditional(arg1.Conditional);

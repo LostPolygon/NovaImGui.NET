@@ -2,7 +2,7 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
 #>
 #nullable enable
 
@@ -28,7 +28,7 @@ public static unsafe partial class ImGui {
     ///   - Note that the bottom of window stack always contains a window called &quot;Debug&quot;.
     /// </summary>
     public static bool Begin(<#= arg1.Type #> name, ImGuiWindowFlags flags = ImGuiWindowFlags.None) =>
-        Begin(name, null, flags);
+        Begin(name<#= arg1.InvokeSuffix #>, null, flags);
 
 <#
         EndConditional(arg1.Conditional);

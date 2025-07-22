@@ -4,12 +4,12 @@ using System.Text;
 
 namespace NovaImGuiNet;
 
-public readonly unsafe struct NullTerminatedString : IEquatable<NullTerminatedString> {
+public readonly unsafe struct NullTerminatedUtf8String : IEquatable<NullTerminatedUtf8String> {
     public readonly byte* Data;
 
     public IntPtr DataIntPtr => (IntPtr) Data;
 
-    public NullTerminatedString(byte* data) {
+    public NullTerminatedUtf8String(byte* data) {
         Data = data;
     }
 
@@ -39,21 +39,21 @@ public readonly unsafe struct NullTerminatedString : IEquatable<NullTerminatedSt
 #endif
     }
 
-    public bool Equals(NullTerminatedString other) => Data == other.Data;
+    public bool Equals(NullTerminatedUtf8String other) => Data == other.Data;
 
-    public override bool Equals(object? obj) => obj is NullTerminatedString other && Equals(other);
+    public override bool Equals(object? obj) => obj is NullTerminatedUtf8String other && Equals(other);
 
     public override int GetHashCode() => DataIntPtr.GetHashCode();
 
-    public static bool operator ==(NullTerminatedString left, NullTerminatedString right) => left.Equals(right);
+    public static bool operator ==(NullTerminatedUtf8String left, NullTerminatedUtf8String right) => left.Equals(right);
 
-    public static bool operator !=(NullTerminatedString left, NullTerminatedString right) => !left.Equals(right);
+    public static bool operator !=(NullTerminatedUtf8String left, NullTerminatedUtf8String right) => !left.Equals(right);
 
-    public static implicit operator string?(NullTerminatedString nts) => nts.ToString();
+    public static implicit operator string?(NullTerminatedUtf8String nts) => nts.ToString();
 
-    public static implicit operator byte*(NullTerminatedString nts) => nts.Data;
+    public static implicit operator byte*(NullTerminatedUtf8String nts) => nts.Data;
 
-    public static implicit operator IntPtr(NullTerminatedString nts) => (IntPtr) nts.Data;
+    public static implicit operator IntPtr(NullTerminatedUtf8String nts) => (IntPtr) nts.Data;
 
-    public static implicit operator ReadOnlySpan<byte>(NullTerminatedString nts) => nts.AsReadOnlyUtf8ByteSpan();
+    public static implicit operator ReadOnlySpan<byte>(NullTerminatedUtf8String nts) => nts.AsReadOnlyUtf8ByteSpan();
 }

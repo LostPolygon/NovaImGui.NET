@@ -16,7 +16,7 @@ public record MetadataDto(
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "flavour", IgnoreUnrecognizedTypeDiscriminators = false)]
     [JsonDerivedType(typeof(TypeValue.TypeDetailsFunctionPointer), "function_pointer")]
     public record BaseEntity {
-        public Comments Comments { get; init; } = new([], default);
+        public Comments Comments { get; init; } = new([], null);
         public Conditional[] Conditionals { get; init; } = [];
         public SourceLocation SourceLocation { get; init; }
         public bool IsInternal { get; init; }
@@ -25,6 +25,9 @@ public record MetadataDto(
     public record Define : BaseEntity {
         public string Name { get; init; }
         public string? Content { get; init; }
+
+        public override string ToString() =>
+            $"{nameof(Name)}: {Name}, {nameof(Content)}: {Content}, {base.ToString()}";
     }
 
     public record Enumeration : BaseEntity {
@@ -102,7 +105,7 @@ public record MetadataDto(
     }
 
     public record Comments(
-        string[] Preceding,
+        string[]? Preceding,
         string? Attached
     ) {
         public string[] Preceding { get; set; } = Preceding ?? [];
@@ -124,7 +127,7 @@ public record MetadataDto(
         public string DefaultValue { get; init; }
     }
 
-    public record SourceLocation(string Filename, int Line);
+    public record struct SourceLocation(string Filename, int Line);
 
     public enum StorageClass {
         NotSpecified,

@@ -8,11 +8,16 @@ public class PointerOutArgumentMarshaller(MethodSignature methodSignature, Manag
         new(
             $"(IntPtr) {InvocationVariable}",
             [
-                // FIXME: replace with fixed block
                 // TODO: ImFontGlyphRangesBuilder.BuildRanges crashes if ranges are not zero-initialized,
                 // but check if there's an automated way to skip the zero-initialization
                 $"{Argument.MarshalledArgument.Name} = default;",
-                $"void* {InvocationVariable} = UnsafeUtility.AsPointer(in {Argument.MarshalledArgument.Name});",
-            ]
+
+                ..StartFixedBlock(
+                    $"{FormatTypeDefault(Argument.MarshalledArgument.Type.Value)}*",
+                    InvocationVariable,
+                    $"&{Argument.MarshalledArgument.Name}"
+                ),
+            ],
+            [ArgumentMarshallerCommand.BlockEnd]
         );
 }

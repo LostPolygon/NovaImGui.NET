@@ -1,13 +1,6 @@
-﻿<#@ output extension=".g.cs" #>
-<#@ import namespace="System.Linq" #>
-<#@ parameter type="System.Int32" name="tupleSize" #>
-<#
-   string typeName = $"ImFixedArray{tupleSize}";
-   string @namespace = "NovaImGuiNet";
-#>
-using System.Collections;
-namespace <#= @namespace #>;
+﻿<#@ import namespace="System.Linq" #>
 
+<# typeName = $"ImFixedArray{tupleSize}"; #>
 public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatable<T> {
 <#
    for (int index = 1; index <= tupleSize; index++) {
@@ -51,8 +44,8 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
     #region IEnumerable<T>
 
     public IEnumerator<T> GetEnumerator() {
-        // Hardly anyone will use this, so it's fine
 <#
+   // Hardly anyone will use this, so it's fine
    for (int index = 1; index <= tupleSize; index++) {
 #>
         yield return Value<#= index #>;
@@ -90,7 +83,7 @@ public record struct <#= typeName #><T> : IList<T> where T : unmanaged, IEquatab
     }
 
     public bool Contains(T item) {
-        throw new NotSupportedException();
+        return AsSpan().Contains(item);
     }
 
     public void CopyTo(T[] array, int arrayIndex) {

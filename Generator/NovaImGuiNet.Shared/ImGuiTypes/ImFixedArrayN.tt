@@ -1,0 +1,26 @@
+﻿<#@ template language="C#" #>
+<#@ output extension=".g.cs" #>
+<# 
+   string @namespace = "NovaImGuiNet";
+   int tupleSize;
+   string typeName;
+#>
+using System.Collections;
+namespace <#= @namespace #>;
+<# tupleSize = 2; #>
+<#@ include file="ImFixedArray.ttinclude" #>
+
+<# tupleSize = 3; #>
+<#@ include file="ImFixedArray.ttinclude" #>
+
+<# tupleSize = 4; #>
+<#@ include file="ImFixedArray.ttinclude" #>
+
+<# tupleSize = 5; #>
+<#@ include file="ImFixedArray.ttinclude" #>
+
+<# tupleSize = 20; #>
+<#@ include file="ImFixedArray.ttinclude" #>
+
+<# tupleSize = 256; #>
+<#@ include file="ImFixedArray.ttinclude" #>

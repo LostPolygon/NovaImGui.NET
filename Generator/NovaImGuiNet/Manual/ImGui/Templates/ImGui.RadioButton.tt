@@ -2,7 +2,7 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+    StringArgumentDefinition[] Arg1Types = GenericString;
 #>
 #nullable enable
 
@@ -15,12 +15,10 @@ public static unsafe partial class ImGui {
 #>
     public static bool RadioButton<TEnum>(<#= arg1.Type #> label, ref TEnum v, TEnum vButton)
         where TEnum : unmanaged, Enum {
-        Type underlyingType = Enum.GetUnderlyingType(typeof(TEnum));
-
-        if (underlyingType == typeof(int)) {
+        if (sizeof(TEnum) == sizeof(int)) {
             ref int vInt = ref Unsafe.As<TEnum, int>(ref v);
             int vButtonInt = Unsafe.As<TEnum, int>(ref vButton);
-            return RadioButton(label, ref vInt, vButtonInt);
+            return RadioButton(label<#= arg1.InvokeSuffix #>, ref vInt, vButtonInt);
         }
 
         InteropExceptions.ThrowUnsupportedEnumUnderlyingType<TEnum>();

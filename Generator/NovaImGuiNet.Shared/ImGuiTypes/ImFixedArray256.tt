@@ -1,3 +1,0 @@
-﻿<#@ template language="C#" #>
-<# const int tupleSize = 256; #>
-<#@ include file="ImFixedArray.ttinclude" #>

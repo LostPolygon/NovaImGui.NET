@@ -2,7 +2,8 @@
 <#@ output extension=".g.cs" #>
 <#@ include file="TemplateUtility.ttinclude" #><# #>
 <#
-    (string Type, string? Conditional)[] Arg1Types = GenericString;
+#nullable enable
+    StringArgumentDefinition[] Arg1Types = GenericString;
     (string Type, string Invocation, string? Conditional)[] Arg2Types = [
         ("ImVec4*", "(ImVec3*) col", null), 
         ("ref ImVec4", "ref Unsafe.As<ImVec4, ImVec3>(ref col)", null)
@@ -18,8 +19,8 @@ public static unsafe partial class ImGui {
         foreach (var arg2 in Arg2Types) {
             StartConditional(arg1.Conditional);
 #>
-    public static bool ColorPicker3(<#= arg1.Type #>  label, <#= arg2.Type #> col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None) =>
-        ColorPicker3(label, <#= arg2.Invocation #>, flags);
+    public static bool ColorPicker3(<#= arg1.Type #> label, <#= arg2.Type #> col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None) =>
+        ColorPicker3(label<#= arg1.InvokeSuffix #>, <#= arg2.Invocation #>, flags);
 
 <#
             EndConditional(arg1.Conditional);

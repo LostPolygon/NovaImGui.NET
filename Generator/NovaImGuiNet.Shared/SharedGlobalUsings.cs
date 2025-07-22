@@ -17,7 +17,6 @@ global using ImVec3 = System.Numerics.Vector3; // Doesn't exist in Dear ImGui, b
 #endif
 
 #if !NOVA_IMGUI_NET_MAIN
-global using unsafe ImPoolIdx = System.Int32;
 #endif
 
 

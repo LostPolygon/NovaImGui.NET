@@ -5,7 +5,14 @@ public class InstanceThisArgumentMarshaller(MethodSignature methodSignature, Man
     public override ArgumentMarshallerOutput Marshall() {
         return new ArgumentMarshallerOutput(
             $"(IntPtr) {InvocationVariable}",
-            [$"{NativeStruct!.Name}* {InvocationVariable} = ({NativeStruct!.Name}*) Unsafe.AsPointer(ref this);"]
+            [
+                ..StartFixedBlock(
+                    $"{NativeStruct!.Name}*",
+                    InvocationVariable,
+                    "&this"
+                )
+            ],
+            [ArgumentMarshallerCommand.BlockEnd]
         );
     }
 }

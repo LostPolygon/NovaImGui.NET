@@ -3,7 +3,7 @@ namespace NovaImGuiNet.Generator.CSharp.ManagedMethods;
 public enum ReturnTypeMarshallingMode {
     Void,
     Passthrough,
-    NullTerminatedString,
+    NullTerminatedUtf8String,
     PointerWrapper,
     Ref
 }

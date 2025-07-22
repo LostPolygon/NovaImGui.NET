@@ -49,14 +49,15 @@ public static class FunctionModifiers {
         if (argument.Name == null!)
             return argument;
 
+        if (argument.Name.StartsWith("__"))
+            return argument;
+
         if (argument.Name.StartsWith("p_", StringComparison.Ordinal) &&
             argument.Type.ExpandTypedef().Value is Pointer) {
             argument.Name = argument.Name.RemovePrefix("p_");
         }
 
-        if (!argument.Name.StartsWith("__")) {
-            argument.Name = argument.Name.SnakeCaseToCamelCase();
-        }
+        argument.Name = argument.Name.SnakeCaseToCamelCase();
 
         return argument;
     }
@@ -85,7 +86,7 @@ public static class FunctionModifiers {
         if (functionLike.ReturnType.Value is not Delegate)
             return;
 
-        Debug.Assert(false, "ConvertFunctionPointerReturnValuesToIntPtr wasn't encountered before, needs verification");
+        Debug.Assert(false, $"ConvertFunctionPointerReturnValuesToIntPtr wasn't encountered before, needs verification ({functionLike})");
         functionLike.ReturnType = KnownEntities.IntPtr.AsEntityReference();
     }
 
@@ -157,20 +158,19 @@ public static class FunctionModifiers {
 
         return argument;
 
-        static Struct CreateImFixedArrayFromArray(string @namespace, long arrayBounds, IEntityReference arrayElementType) {
-            return new Struct {
+        static Struct CreateImFixedArrayFromArray(string @namespace, long arrayBounds, IEntityReference arrayElementType) =>
+            new Struct() {
                 Kind = Struct.StructKind.Struct,
                 Name = $"ImFixedArray{arrayBounds}",
                 Namespace = @namespace,
                 GenericArguments = [arrayElementType]
             };
-        }
     }
 
     public static void DisableVarArgsFunctionsAndDelegates<T>(T functionLike) where T : IFunctionLike {
         bool hasBannedArgumentType = functionLike.Arguments.Any(
             arg => {
-                string typeName = FormatType(arg.Type.Value, new FormatTypeOptions { DelegatesAsFunctionPointers = true });
+                string typeName = FormatType(arg.Type.Value, new() { DelegatesAsFunctionPointers = true });
                 return KnownBindingsEntitiesInfo.VarArgTypeNames.Any(
 
                     // FIXME: Contains() here is super jank
@@ -185,7 +185,7 @@ public static class FunctionModifiers {
         functionLike.IsDisabled = true;
         functionLike.Comments =
             functionLike.Comments
-                .WithAddedNotes("DISABLED: varargs is not supported by .NET");
+                .WithAddedNotes("DISABLED: varargs are not supported by .NET");
     }
 
     public static void RemoveBrokenConditionalDefines<T>(T functionLike) where T : IFunctionLike {

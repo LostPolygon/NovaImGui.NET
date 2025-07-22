@@ -14,7 +14,7 @@ public static class MetadataToBindingsModelMappingUtility {
 
     public static BindingsModel.SourceLocation? Map(MetadataModel.SourceLocation? metadata) {
         if (metadata != null) {
-            return new(metadata.Filename, metadata.Line);
+            return new(metadata.Value.Filename, metadata.Value.Line);
         } else {
             return null;
         }

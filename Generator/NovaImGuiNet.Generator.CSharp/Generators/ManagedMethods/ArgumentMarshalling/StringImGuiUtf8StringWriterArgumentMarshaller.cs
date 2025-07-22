@@ -15,9 +15,16 @@ public class StringImGuiUtf8StringWriterArgumentMarshaller(MethodSignature metho
                 $"ReadOnlySpan<byte> {InternalVar("_ref_span")} = " +
                 $"{InternalVar("_ref")}.{(needsNullTerminator ? "GetFinalNullTerminatedWrittenSpan" : "GetFinalWrittenSpan")}();",
 
-                $"{NativeArgumentType} {InvocationVariable} = UnsafeUtility.SpanToPointer({InternalVar("_ref_span")});"
+                ..StartFixedBlock(
+                    NativeArgumentType,
+                    InvocationVariable,
+                    InternalVar("_ref_span")
+                )
             ],
-            [$"{InternalVar("_ref")}.Free();"]
+            [
+                ArgumentMarshallerCommand.BlockEnd,
+                $"{InternalVar("_ref")}.Free();"
+            ]
         );
     }
 }

@@ -19,6 +19,8 @@ public abstract class ReturnTypeMarshaller : IReturnTypeMarshaller  {
         ReturnVariableName = CreateReturnVariableName();
     }
 
+    public abstract IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateDeclarationStatements();
+
     public abstract IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateInvokeStatements();
 
     public virtual IReadOnlyList<ManagedMethodArgumentMarshallerStatement> CreateReturnStatements() => [];
@@ -28,6 +30,22 @@ public abstract class ReturnTypeMarshaller : IReturnTypeMarshaller  {
     }
 
     protected virtual string InternalVar(string suffix) => "ret_" + suffix;
+
+    protected bool CanSimplifyReturn() {
+        return
+            !NativeFunction.IsConstructor &&
+            NativeStruct == null &&
+            (MethodSignature.Arguments.Count == 0 ||
+                MethodSignature.Arguments.All(arg =>
+                    arg.MarshallingVariant.ArgumentMarshallingMode is
+                        ArgumentMarshallingMode.Passthrough or
+                        ArgumentMarshallingMode.IntPtr or
+                        ArgumentMarshallingMode.StringBytePointer or
+                        ArgumentMarshallingMode.DelegateFunctionPointer or
+                        ArgumentMarshallingMode.DelegateIntPtr
+                )
+            );
+    }
 
     protected static string FormatTypeDefault(BindingsModel.IEntity entity) {
         CSharpCodeGenerationUtility.FormatTypeOptions varTypeFormatOptions = new() {

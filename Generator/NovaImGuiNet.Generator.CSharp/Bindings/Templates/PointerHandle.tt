@@ -1,6 +1,8 @@
 <#@ output extension=".g.cs" #>
 <#@ parameter type="System.String" name="TypeName" #>
 <#@ parameter type="System.String" name="TypeNamespace" #>
+#nullable enable
+
 namespace <#= TypeNamespace #>;
 
 public unsafe struct <#= TypeName #> : IEquatable<<#= TypeName #>> {
@@ -12,7 +14,7 @@ public unsafe struct <#= TypeName #> : IEquatable<<#= TypeName #>> {
 
     public IntPtr IntPtr => Handle;
 
-    public bool Equals(<#= TypeName #> other) => Handle == other.Handle;
+    public readonly bool Equals(<#= TypeName #> other) => Handle == other.Handle;
 
     public override bool Equals(object? obj) => obj is <#= TypeName #> other && Equals(other);
 

@@ -2,6 +2,8 @@
 <#@ parameter type="System.String" name="TypeName" #>
 <#@ parameter type="System.String" name="TypeNamespace" #>
 <#@ parameter type="System.String" name="ValueType" #>
+#nullable enable
+
 namespace <#= TypeNamespace #>;
 
 public unsafe struct <#= TypeName #> : IEquatable<<#= TypeName #>> {
@@ -9,7 +11,7 @@ public unsafe struct <#= TypeName #> : IEquatable<<#= TypeName #>> {
 
     public <#= TypeName #>(<#= ValueType #> existingHandle) => Handle = existingHandle;
 
-    public bool Equals(<#= TypeName #> other) => Handle == other.Handle;
+    public readonly bool Equals(<#= TypeName #> other) => Handle == other.Handle;
 
     public override bool Equals(object? obj) => obj is <#= TypeName #> other && Equals(other);
 

@@ -2,6 +2,8 @@
 
 namespace NovaImGuiNet;
 
+using ImPoolIdx = Int32;
+
 public record struct ImPool<T> where T : unmanaged, IEquatable<T> {
     ///<summary>Contiguous data</summary>
     public ImVector<T> Buf;
